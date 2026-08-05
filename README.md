@@ -30,10 +30,11 @@ disagreements and states confidence honestly.
 
 ## Quick start (in this Replit workspace)
 
-The two app workflows are already configured and running:
+The app workflows are already configured and running:
 
-- **API Server** — Express interim backend at `/api` (validates against generated Zod
-  schemas, seeds demo data idempotently on boot).
+- **API Server** — FastAPI (Python) backend at `/api` (`backend/`). On startup it
+  provisions its own virtualenv, applies Alembic migrations, and seeds baseline
+  agents/templates idempotently, so a fresh database comes up fully working.
 - **web** — the React frontend (Vite), served at the workspace preview root.
 
 Open the preview to use the app. Launch a meeting from **New Meeting**: the built-in
@@ -44,8 +45,48 @@ Common commands:
 
 ```bash
 pnpm --filter @workspace/api-spec run codegen   # regenerate API client + zod after editing lib/api-spec/openapi.yaml
-pnpm --filter @workspace/db run push            # apply Drizzle schema changes to PostgreSQL
+cd backend && .venv/bin/python -m pytest        # run backend test suite
 ```
+
+## Running locally (outside Replit)
+
+You can fork/clone this repository and run it on any machine. Requirements:
+
+- **Node.js 20+** and **pnpm 9+** (frontend monorepo)
+- **Python 3.13** with [`uv`](https://docs.astral.sh/uv/) (or plain `venv` + pip)
+- **PostgreSQL 15+** with a database you can connect to
+
+Steps:
+
+```bash
+# 1. Install JS dependencies
+pnpm install
+
+# 2. Provision the Python backend environment
+bash backend/ensure_venv.sh
+
+# 3. Configure environment variables
+export DATABASE_URL="postgresql://user:pass@localhost:5432/virtual_lab"
+export SESSION_SECRET="$(openssl rand -hex 32)"
+export APP_ENV=development          # enables dev login and non-secure cookies
+
+# 4. Start the backend (applies migrations + seed automatically on boot)
+backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000
+
+# 5. Start the frontend (separate terminal)
+pnpm --filter @workspace/web run dev
+```
+
+Then open the Vite dev URL it prints. The **Demo Provider** requires no API keys —
+you can launch, pause, intervene in, and resume complete simulated meetings out of
+the box. Health check: `GET /api/health/ready` returns database + migration status.
+
+Notes:
+
+- `APP_ENV` defaults to `production`, which enforces secure cookies and refuses
+  weak session secrets — set `APP_ENV=development` for local work.
+- The backend expects to own the database schema (Alembic migrations run at
+  startup); point it at an empty database the first time.
 
 ## Meeting mechanics (upstream-faithful)
 
