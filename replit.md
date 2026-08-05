@@ -114,14 +114,24 @@ it first when working in this repo. Summary:
 
 - **Done (task #2):** full React frontend (`artifacts/studio`, landing, methodology,
   dashboard, projects, Agent Studio, templates, 6-step composer, live meeting room, run
-  detail) backed by an **interim Express API** (`artifacts/api-server`) with Drizzle +
-  Replit PostgreSQL, OpenAPI-first codegen (`lib/api-spec` → generated React Query hooks
-  and Zod schemas), idempotent seeding from `specs/`, and a deterministic, always-labeled
-  Demo Provider run engine (timer-free lazy event materialization, append-only
-  `run_events`, pause/resume/cancel/intervene).
-- **Pending (task #1):** the authoritative Python/FastAPI meeting engine wrapping
-  upstream `src/virtual_lab`, real providers, Postgres-backed run queue/worker, SSE.
-  The Express API is a stand-in honoring the same OpenAPI contract at `/api/v1/...`.
+  detail) with OpenAPI-first codegen (`lib/api-spec` → generated React Query hooks and
+  Zod schemas). The frontend currently still uses its localStorage demo layer; wiring it
+  to the real backend is a follow-up.
+- **Done (task #1):** the authoritative Python/FastAPI backend in `backend/` wrapping
+  upstream `src/virtual_lab`. The `artifacts/api-server` workflow now launches uvicorn
+  (`backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend`); the former
+  Express/Drizzle stand-in has been deleted. On startup the app applies Alembic
+  migrations (schema = `specs/database_schema.sql`) and runs the idempotent seed
+  (system agents/templates/tools, demo workspace/project/provider), so a fresh empty
+  database boots working. Endpoints under `/api/v1`: dev-login auth (development only)
+  + signed session cookie, workspaces/projects/agents/templates/providers,
+  meeting-drafts (create → validate/estimate → launch, frozen sha256 definitions),
+  runs (turns, summary, events with `?after=` replay, SSE `events/stream` with
+  Last-Event-ID, pause/resume/cancel, interventions), health at `/api/health/*`.
+  Deterministic Demo Provider only (real providers are follow-ups); ensemble_merge
+  meetings deferred. Tests: `cd backend && .venv/bin/python -m pytest` (upstream
+  compatibility call-count/order, turn plan, seed idempotency, engine pause/resume/
+  cancel/budget, clean-database boot end-to-end).
 - **Pending (task #3):** evidence library, exports, reproducibility packets. The
   composer's evidence step is present and labeled "coming soon".
 - Live updates are currently React Query polling (~1.5 s during active runs); the

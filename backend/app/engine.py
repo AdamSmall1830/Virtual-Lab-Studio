@@ -1,0 +1,807 @@
+"""Async meeting engine.
+
+Preserves upstream virtual_lab meeting semantics by reusing the upstream
+prompt functions and speaking order:
+
+- team: each round is lead then every specialist in order; a final lead-only
+  synthesis turn follows (R * (M + 1) + 1 provider calls).
+- individual: expert then critic per round; a final expert turn follows
+  (2 * R + 1 provider calls).
+
+Providers are injected (never constructed inside orchestration), every call
+is persisted as an immutable run turn, and budgets/pause/cancel/interventions
+are checked at every safe checkpoint (before each provider call).
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import sys
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from virtual_lab.agent import Agent  # noqa: E402
+from virtual_lab.prompts import (  # noqa: E402
+    individual_meeting_agent_prompt,
+    individual_meeting_critic_prompt,
+    individual_meeting_start_prompt,
+    team_meeting_start_prompt,
+    team_meeting_team_lead_final_prompt,
+    team_meeting_team_lead_initial_prompt,
+    team_meeting_team_lead_intermediate_prompt,
+    team_meeting_team_member_prompt,
+)
+
+from .config import SPECS_DIR, get_settings
+from .events import append_event
+from .models import (
+    AgentVersion,
+    MeetingDefinition,
+    MeetingDefinitionAgent,
+    ProviderConfig,
+    ProviderModel,
+    Run,
+    RunIntervention,
+    RunSummary,
+    RunTurn,
+    ToolCall,
+    ToolDefinition,
+)
+from .providers import CompletionRequest, get_demo_provider, get_provider
+
+UTC = timezone.utc
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+@dataclass
+class PlannedTurn:
+    call_index: int
+    round_number: int  # 1-based; final synthesis round == rounds + 1
+    position_in_round: int
+    role_type: str
+    agent_position: int  # position in meeting_definition_agents
+    is_final: bool
+
+
+def build_turn_plan(
+    meeting_type: str,
+    rounds: int,
+    agents: list[MeetingDefinitionAgent],
+) -> list[PlannedTurn]:
+    """Upstream-compatible speaking order."""
+    plan: list[PlannedTurn] = []
+    call_index = 0
+    by_role = {a.role_type: a for a in agents}
+    if meeting_type == "team":
+        lead = by_role["lead"]
+        members = sorted(
+            (a for a in agents if a.role_type == "member"), key=lambda a: a.position
+        )
+        for round_number in range(1, rounds + 1):
+            plan.append(PlannedTurn(call_index, round_number, 0, "lead", lead.position, False))
+            call_index += 1
+            for idx, member in enumerate(members, start=1):
+                plan.append(PlannedTurn(call_index, round_number, idx, "member", member.position, False))
+                call_index += 1
+        plan.append(PlannedTurn(call_index, rounds + 1, 0, "lead", lead.position, True))
+    elif meeting_type == "individual":
+        expert = by_role["expert"]
+        critic = by_role["critic"]
+        for round_number in range(1, rounds + 1):
+            plan.append(PlannedTurn(call_index, round_number, 0, "expert", expert.position, False))
+            call_index += 1
+            plan.append(PlannedTurn(call_index, round_number, 1, "critic", critic.position, False))
+            call_index += 1
+        plan.append(PlannedTurn(call_index, rounds + 1, 0, "expert", expert.position, True))
+    else:
+        raise ValueError(f"Unsupported meeting type for execution: {meeting_type}")
+    return plan
+
+
+def expected_call_count(meeting_type: str, rounds: int, member_count: int) -> int:
+    if meeting_type == "team":
+        return rounds * (member_count + 1) + 1
+    if meeting_type == "individual":
+        return 2 * rounds + 1
+    raise ValueError(f"Unsupported meeting type: {meeting_type}")
+
+
+class RunCancelled(Exception):
+    pass
+
+
+class BudgetExceeded(Exception):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+@dataclass
+class RunContext:
+    run: Run
+    definition: MeetingDefinition
+    def_agents: list[MeetingDefinitionAgent]
+    agent_versions: dict[uuid.UUID, AgentVersion]
+    provider_configs: dict[uuid.UUID, ProviderConfig]
+    provider_models: dict[uuid.UUID, ProviderModel]
+    project_slug: str
+
+
+def _upstream_agent(version: AgentVersion, profile_title: str, model_key: str) -> Agent:
+    return Agent(
+        title=profile_title,
+        expertise=version.expertise,
+        goal=version.goal,
+        role=version.role,
+        model=model_key,
+    )
+
+
+async def _load_context(db: AsyncSession, run: Run) -> RunContext:
+    definition = await db.get(MeetingDefinition, run.meeting_definition_id)
+    assert definition is not None
+    def_agents = list(
+        (
+            await db.execute(
+                select(MeetingDefinitionAgent)
+                .where(MeetingDefinitionAgent.meeting_definition_id == definition.id)
+                .order_by(MeetingDefinitionAgent.position)
+            )
+        ).scalars()
+    )
+    agent_versions: dict[uuid.UUID, AgentVersion] = {}
+    provider_configs: dict[uuid.UUID, ProviderConfig] = {}
+    provider_models: dict[uuid.UUID, ProviderModel] = {}
+    for da in def_agents:
+        if da.agent_version_id not in agent_versions:
+            av = await db.get(AgentVersion, da.agent_version_id)
+            assert av is not None
+            agent_versions[da.agent_version_id] = av
+        if da.provider_config_id not in provider_configs:
+            pc = await db.get(ProviderConfig, da.provider_config_id)
+            assert pc is not None
+            provider_configs[da.provider_config_id] = pc
+        if da.provider_model_id not in provider_models:
+            pm = await db.get(ProviderModel, da.provider_model_id)
+            assert pm is not None
+            provider_models[da.provider_model_id] = pm
+    project_slug = (
+        await db.execute(
+            text("SELECT slug FROM projects WHERE id = :pid"), {"pid": str(run.project_id)}
+        )
+    ).scalar_one()
+    return RunContext(
+        run=run,
+        definition=definition,
+        def_agents=def_agents,
+        agent_versions=agent_versions,
+        provider_configs=provider_configs,
+        provider_models=provider_models,
+        project_slug=project_slug,
+    )
+
+
+async def _renew_lease(db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int) -> None:
+    await db.execute(
+        update(Run)
+        .where(Run.id == run_id)
+        .values(
+            heartbeat_at=datetime.now(UTC),
+            lease_expires_at=datetime.now(UTC) + timedelta(seconds=lease_seconds),
+            lease_owner=worker_id,
+        )
+    )
+    await db.commit()
+
+
+async def _apply_pending_interventions(
+    db: AsyncSession, ctx: RunContext, checkpoint: str, messages: list[dict[str, str]]
+) -> None:
+    pending = list(
+        (
+            await db.execute(
+                select(RunIntervention).where(
+                    RunIntervention.run_id == ctx.run.id,
+                    RunIntervention.kind.in_(["instruction", "evidence_addition"]),
+                    RunIntervention.applied_at_checkpoint.is_(None),
+                ).order_by(RunIntervention.created_at)
+            )
+        ).scalars()
+    )
+    for iv in pending:
+        if iv.content:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"[Human intervention] {iv.content}",
+                }
+            )
+        iv.applied_at_checkpoint = checkpoint
+        await append_event(
+            db,
+            workspace_id=ctx.run.workspace_id,
+            run_id=ctx.run.id,
+            event_type="human.intervention_added",
+            payload={"intervention_id": str(iv.id), "kind": iv.kind, "applied_at_checkpoint": checkpoint},
+            actor_user_id=iv.actor_user_id,
+            commit=False,
+        )
+    if pending:
+        await db.commit()
+
+
+async def _checkpoint(
+    db: AsyncSession,
+    ctx: RunContext,
+    checkpoint: str,
+    messages: list[dict[str, str]],
+    worker_id: str,
+    lease_seconds: int,
+) -> None:
+    """Safe checkpoint: renew lease, honor pause/cancel, apply interventions, check budget."""
+    await _renew_lease(db, ctx.run.id, worker_id, lease_seconds)
+    await db.refresh(ctx.run)
+    await append_event(
+        db,
+        workspace_id=ctx.run.workspace_id,
+        run_id=ctx.run.id,
+        event_type="checkpoint.reached",
+        payload={"checkpoint": checkpoint},
+    )
+    await _apply_pending_interventions(db, ctx, checkpoint, messages)
+
+    while True:
+        await db.refresh(ctx.run)
+        control = ctx.run.control_requested
+        if control == "cancel" or ctx.run.status == "cancelling":
+            raise RunCancelled()
+        if control == "pause" or ctx.run.status == "pausing":
+            if ctx.run.status != "paused":
+                ctx.run.status = "paused"
+                ctx.run.control_requested = None
+                await db.commit()
+                await append_event(
+                    db,
+                    workspace_id=ctx.run.workspace_id,
+                    run_id=ctx.run.id,
+                    event_type="run.paused",
+                    payload={"checkpoint": checkpoint},
+                )
+        if ctx.run.status == "paused":
+            if control == "resume":
+                ctx.run.status = "running"
+                ctx.run.control_requested = None
+                await db.commit()
+                await append_event(
+                    db,
+                    workspace_id=ctx.run.workspace_id,
+                    run_id=ctx.run.id,
+                    event_type="run.resumed",
+                    payload={"checkpoint": checkpoint},
+                )
+                await _apply_pending_interventions(db, ctx, checkpoint, messages)
+                break
+            import asyncio
+
+            await asyncio.sleep(1.0)
+            await _renew_lease(db, ctx.run.id, worker_id, lease_seconds)
+            continue
+        break
+
+    budget = ctx.definition.budget or {}
+    max_calls = budget.get("max_provider_calls")
+    max_cost = budget.get("max_cost_usd")
+    if max_calls is not None and ctx.run.provider_call_count >= int(max_calls):
+        raise BudgetExceeded("max_provider_calls")
+    if max_cost is not None and float(ctx.run.actual_cost_usd) > float(max_cost):
+        raise BudgetExceeded("max_cost_usd")
+
+
+def _turn_prompt(
+    ctx: RunContext,
+    planned: PlannedTurn,
+    upstream_agents: dict[int, Agent],
+    rounds: int,
+) -> str:
+    d = ctx.definition
+    agent = upstream_agents[planned.agent_position]
+    questions = tuple(d.questions or ())
+    rules = tuple(d.rules or ())
+    contexts = tuple(d.contexts or ())
+    summaries = tuple(d.previous_summary_refs or ())
+    if d.meeting_type == "team":
+        lead = next(upstream_agents[a.position] for a in ctx.def_agents if a.role_type == "lead")
+        if planned.role_type == "lead":
+            if planned.is_final:
+                return team_meeting_team_lead_final_prompt(
+                    team_lead=lead, agenda=d.agenda, agenda_questions=questions, agenda_rules=rules
+                )
+            if planned.round_number == 1:
+                return team_meeting_team_lead_initial_prompt(team_lead=lead)
+            return team_meeting_team_lead_intermediate_prompt(
+                team_lead=lead, round_num=planned.round_number - 1, num_rounds=rounds
+            )
+        return team_meeting_team_member_prompt(
+            team_member=agent, round_num=planned.round_number, num_rounds=rounds
+        )
+    # individual
+    expert = next(upstream_agents[a.position] for a in ctx.def_agents if a.role_type == "expert")
+    critic = next(upstream_agents[a.position] for a in ctx.def_agents if a.role_type == "critic")
+    if planned.role_type == "critic":
+        return individual_meeting_critic_prompt(critic=critic, agent=expert)
+    if planned.round_number == 1 and not planned.is_final and planned.call_index == 0:
+        return individual_meeting_start_prompt(
+            team_member=expert,
+            agenda=d.agenda,
+            agenda_questions=questions,
+            agenda_rules=rules,
+            summaries=summaries,
+            contexts=contexts,
+        )
+    return individual_meeting_agent_prompt(critic=critic, agent=expert)
+
+
+def _summary_schema_required_keys() -> list[str]:
+    try:
+        schema = json.loads((SPECS_DIR / "meeting_summary.schema.json").read_text())
+        return list(schema.get("required", []))
+    except Exception:
+        return []
+
+
+def _fallback_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict[str, Any]:
+    d = ctx.definition
+    return {
+        "agenda": d.agenda,
+        "executive_summary": (
+            "[Simulation] Deterministic demo meeting completed. This structured summary is "
+            "simulated output for interface testing, not a scientific result."
+        ),
+        "role_contributions": [],
+        "recommendation": "Connect a real model provider and reviewed evidence before use.",
+        "question_answers": [
+            {"question": q, "answer": "[Simulation] Not answered by the demo scenario.", "confidence": "low"}
+            for q in (d.questions or [])
+        ],
+        "evidence": [],
+        "assumptions": [],
+        "disagreements": [],
+        "risks_and_limitations": ["Simulated output only."],
+        "next_steps": [],
+        "confidence": "low",
+        "disclosure": get_demo_provider().disclosure,
+    }
+
+
+async def execute_run(
+    sessionmaker: async_sessionmaker[AsyncSession], run_id: uuid.UUID, worker_id: str
+) -> None:
+    settings = get_settings()
+    lease_seconds = settings.worker_lease_seconds
+    async with sessionmaker() as db:
+        run = await db.get(Run, run_id)
+        assert run is not None
+        if run.status in {"completed", "failed", "cancelled", "budget_stopped"}:
+            return  # already terminal (e.g. duplicate reclaim); nothing to do
+        ctx = await _load_context(db, run)
+
+        started_at = datetime.now(UTC)
+        try:
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.validating", payload={},
+            )
+            d = ctx.definition
+            rounds = d.rounds
+            plan = build_turn_plan(d.meeting_type, rounds, ctx.def_agents)
+
+            provider_types = {
+                ctx.provider_configs[a.provider_config_id].provider_type for a in ctx.def_agents
+            }
+            for ptype in provider_types:
+                get_provider(ptype)  # raises if unavailable
+
+            run.status = "running"
+            run.started_at = started_at
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.started",
+                payload={
+                    "meeting_type": d.meeting_type,
+                    "rounds": rounds,
+                    "planned_calls": len(plan),
+                    "demo_mode": run.demo_mode,
+                },
+            )
+
+            upstream_agents: dict[int, Agent] = {}
+            for da in ctx.def_agents:
+                av = ctx.agent_versions[da.agent_version_id]
+                pm = ctx.provider_models[da.provider_model_id]
+                title = (
+                    await db.execute(
+                        text(
+                            "SELECT p.title FROM agent_profiles p "
+                            "JOIN agent_versions v ON v.agent_profile_id = p.id WHERE v.id = :vid"
+                        ),
+                        {"vid": str(da.agent_version_id)},
+                    )
+                ).scalar_one()
+                upstream_agents[da.position] = _upstream_agent(av, title, pm.model_key)
+
+            demo = get_demo_provider()
+            scripted = demo.matches_scenario(ctx.project_slug, d.meeting_type, rounds)
+
+            # Shared transcript, mirroring upstream message handling.
+            messages: list[dict[str, str]] = []
+            if d.meeting_type == "team":
+                lead_da = next(a for a in ctx.def_agents if a.role_type == "lead")
+                member_das = sorted(
+                    (a for a in ctx.def_agents if a.role_type == "member"), key=lambda a: a.position
+                )
+                start = team_meeting_start_prompt(
+                    team_lead=upstream_agents[lead_da.position],
+                    team_members=tuple(upstream_agents[m.position] for m in member_das),
+                    agenda=d.agenda,
+                    agenda_questions=tuple(d.questions or ()),
+                    agenda_rules=tuple(d.rules or ()),
+                    summaries=tuple(d.previous_summary_refs or ()),
+                    contexts=tuple(d.contexts or ()),
+                    num_rounds=rounds,
+                )
+                messages.append({"role": "user", "content": start})
+
+            # Durable resume: reuse persisted turns from a previous attempt
+            # (lease expiry / worker restart) instead of restarting at 0.
+            existing_turns: dict[int, RunTurn] = {
+                t.sequence: t
+                for t in (
+                    await db.execute(
+                        select(RunTurn).where(RunTurn.run_id == run.id).order_by(RunTurn.sequence)
+                    )
+                ).scalars()
+            }
+
+            current_round = 0
+            for planned in plan:
+                # Replay already-completed turns: rebuild the transcript
+                # deterministically and skip the provider call entirely.
+                completed_prior = existing_turns.get(planned.call_index)
+                if completed_prior is not None and completed_prior.status == "completed":
+                    prompt = _turn_prompt(ctx, planned, upstream_agents, rounds)
+                    messages.append({"role": "user", "content": prompt})
+                    messages.append({"role": "assistant", "content": completed_prior.response_text or ""})
+                    current_round = planned.round_number
+                    continue
+                if planned.round_number != current_round:
+                    current_round = planned.round_number
+                    await append_event(
+                        db, workspace_id=run.workspace_id, run_id=run.id,
+                        event_type="round.started",
+                        payload={
+                            "round": current_round,
+                            "is_final_round": planned.is_final,
+                            "total_rounds": rounds + 1,
+                        },
+                    )
+                await _checkpoint(
+                    db, ctx, f"before_call_{planned.call_index}", messages, worker_id, lease_seconds
+                )
+
+                da = next(a for a in ctx.def_agents if a.position == planned.agent_position)
+                av = ctx.agent_versions[da.agent_version_id]
+                pc = ctx.provider_configs[da.provider_config_id]
+                pm = ctx.provider_models[da.provider_model_id]
+                agent = upstream_agents[da.position]
+
+                prompt = _turn_prompt(ctx, planned, upstream_agents, rounds)
+                messages.append({"role": "user", "content": prompt})
+
+                temperature = float(da.temperature_override or d.default_temperature)
+                request = CompletionRequest(
+                    model=pm.model_key,
+                    system_prompt=av.system_prompt,
+                    messages=list(messages),
+                    temperature=temperature,
+                    run_id=str(run.id),
+                    call_index=planned.call_index,
+                    agent_title=agent.title,
+                    role_type=planned.role_type,
+                    round_number=planned.round_number,
+                    is_final=planned.is_final,
+                )
+
+                request_sha = sha256_text(canonical_json(
+                    {"system": av.system_prompt, "messages": messages, "model": pm.model_key,
+                     "temperature": temperature}
+                ))
+                stale = existing_turns.get(planned.call_index)
+                if stale is not None:
+                    # An in-flight turn from an interrupted attempt: reuse the
+                    # row (unique (run_id, sequence)) and retry the call.
+                    turn = stale
+                    turn.status = "streaming"
+                    turn.response_text = None
+                    turn.response_sha256 = None
+                    turn.finish_reason = None
+                    turn.request_payload_sha256 = request_sha
+                    turn.started_at = datetime.now(UTC)
+                    turn.completed_at = None
+                else:
+                    turn = RunTurn(
+                        workspace_id=run.workspace_id,
+                        run_id=run.id,
+                        sequence=planned.call_index,
+                        round_number=planned.round_number,
+                        position_in_round=planned.position_in_round,
+                        agent_version_id=da.agent_version_id,
+                        role_type=planned.role_type,
+                        status="streaming",
+                        provider_config_id=da.provider_config_id,
+                        provider_model_id=da.provider_model_id,
+                        system_prompt_sha256=av.system_prompt_sha256,
+                        request_payload_sha256=request_sha,
+                        started_at=datetime.now(UTC),
+                    )
+                    db.add(turn)
+                run.current_round = planned.round_number
+                run.current_position = planned.position_in_round
+                run.current_agent_version_id = da.agent_version_id
+                await db.commit()
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="turn.started",
+                    payload={
+                        "turn_id": str(turn.id),
+                        "sequence": planned.call_index,
+                        "round": planned.round_number,
+                        "agent_title": agent.title,
+                        "role_type": planned.role_type,
+                        "model": pm.model_key,
+                        "provider_type": pc.provider_type,
+                        "is_final": planned.is_final,
+                        "simulation": pc.provider_type == "demo",
+                    },
+                )
+
+                provider = get_provider(pc.provider_type)
+                result = await provider.complete(request, scripted=scripted)
+
+                if settings.demo_latency_enabled and run.demo_mode:
+                    import asyncio
+
+                    await asyncio.sleep(min(result.latency_ms, 400) / 1000)
+
+                # Coalesced streaming deltas for live UI.
+                content = result.content
+                chunk_count = 3 if len(content) > 300 else 1
+                size = max(1, len(content) // chunk_count)
+                for ci in range(chunk_count):
+                    chunk = content[ci * size:] if ci == chunk_count - 1 else content[ci * size:(ci + 1) * size]
+                    await append_event(
+                        db, workspace_id=run.workspace_id, run_id=run.id,
+                        event_type="turn.delta",
+                        payload={"turn_id": str(turn.id), "sequence": planned.call_index,
+                                 "index": ci, "text": chunk},
+                    )
+
+                # Simulated tool events (scripted scenario only).
+                if scripted:
+                    for tev in demo.tool_events_after(planned.call_index):
+                        tool_slug = tev["tool"]
+                        tool_def_id = (
+                            await db.execute(
+                                text(
+                                    "SELECT id FROM tool_definitions WHERE slug = :slug "
+                                    "AND workspace_id IS NULL ORDER BY created_at LIMIT 1"
+                                ),
+                                {"slug": tool_slug},
+                            )
+                        ).scalar_one_or_none()
+                        if tool_def_id is None:
+                            continue
+                        args_json = tev.get("arguments", {})
+                        result_json = tev.get("result", {})
+                        tc = ToolCall(
+                            workspace_id=run.workspace_id,
+                            run_id=run.id,
+                            run_turn_id=turn.id,
+                            sequence=0,
+                            tool_definition_id=tool_def_id,
+                            status="completed",
+                            arguments_json=args_json,
+                            arguments_sha256=sha256_text(canonical_json(args_json)),
+                            result_json=result_json,
+                            result_sha256=sha256_text(canonical_json(result_json)),
+                            started_at=datetime.now(UTC),
+                            completed_at=datetime.now(UTC),
+                        )
+                        db.add(tc)
+                        run.tool_call_count += 1
+                        await db.commit()
+                        await append_event(
+                            db, workspace_id=run.workspace_id, run_id=run.id,
+                            event_type="tool.requested",
+                            payload={"tool_call_id": str(tc.id), "tool": tool_slug,
+                                     "turn_id": str(turn.id), "arguments": args_json,
+                                     "label": tev.get("label", ""), "simulation": True},
+                        )
+                        await append_event(
+                            db, workspace_id=run.workspace_id, run_id=run.id,
+                            event_type="tool.completed",
+                            payload={"tool_call_id": str(tc.id), "tool": tool_slug,
+                                     "turn_id": str(turn.id), "result": result_json,
+                                     "simulation": True},
+                        )
+
+                turn.status = "completed"
+                turn.response_text = content
+                turn.response_sha256 = sha256_text(content)
+                turn.finish_reason = result.finish_reason
+                turn.provider_request_id = result.provider_request_id
+                turn.input_tokens = result.input_tokens
+                turn.cached_input_tokens = result.cached_input_tokens
+                turn.output_tokens = result.output_tokens
+                turn.cost_usd = Decimal(str(result.cost_usd))
+                turn.latency_ms = result.latency_ms
+                turn.completed_at = datetime.now(UTC)
+
+                run.provider_call_count += 1
+                run.input_tokens += result.input_tokens
+                run.cached_input_tokens += result.cached_input_tokens
+                run.output_tokens += result.output_tokens
+                run.actual_cost_usd = Decimal(str(run.actual_cost_usd)) + Decimal(str(result.cost_usd))
+                await db.commit()
+
+                messages.append({"role": "assistant", "content": content})
+
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="turn.completed",
+                    payload={
+                        "turn_id": str(turn.id), "sequence": planned.call_index,
+                        "round": planned.round_number, "agent_title": agent.title,
+                        "role_type": planned.role_type, "text": content,
+                        "finish_reason": result.finish_reason,
+                        "simulation": result.is_simulation,
+                    },
+                )
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="usage.updated",
+                    payload={
+                        "provider_call_count": run.provider_call_count,
+                        "input_tokens": run.input_tokens,
+                        "output_tokens": run.output_tokens,
+                        "actual_cost_usd": float(run.actual_cost_usd),
+                    },
+                )
+
+            # Structured summary + completion — idempotent and atomic. A prior
+            # attempt may have crashed after persisting the summary but before
+            # marking the run completed; reuse the existing summary and finish
+            # in a single transaction so recovery cannot double-insert.
+            existing_summary = await db.get(RunSummary, run.id)
+            missing: list[str] = []
+            if existing_summary is None:
+                summary_json = (
+                    demo.structured_summary() if scripted else _fallback_summary(ctx, messages)
+                )
+                required = _summary_schema_required_keys()
+                missing = [k for k in required if k not in summary_json]
+                validation_status = "valid" if not missing else "invalid"
+                final_text = messages[-1]["content"] if messages else ""
+                summary_markdown = (
+                    f"# {d.title}\n\n> {get_demo_provider().disclosure}\n\n"
+                    f"## Executive summary\n\n{summary_json.get('executive_summary', '')}\n\n"
+                    f"## Final synthesis\n\n{final_text}\n"
+                )
+                db.add(RunSummary(
+                    run_id=run.id,
+                    workspace_id=run.workspace_id,
+                    summary_markdown=summary_markdown,
+                    summary_json=summary_json,
+                    schema_version="1.0",
+                    summary_sha256=sha256_text(canonical_json(summary_json)),
+                    validation_status=validation_status,
+                    validation_errors=[{"missing_key": k} for k in missing],
+                ))
+            else:
+                validation_status = existing_summary.validation_status
+
+            run.status = "completed"
+            run.completed_at = datetime.now(UTC)
+            run.wall_seconds = Decimal(str(round((run.completed_at - started_at).total_seconds(), 3)))
+            run.lease_owner = None
+            run.lease_expires_at = None
+            await db.commit()
+
+            if existing_summary is None:
+                if missing:
+                    await append_event(
+                        db, workspace_id=run.workspace_id, run_id=run.id,
+                        event_type="summary.validation_failed",
+                        payload={"missing_keys": missing},
+                    )
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="summary.completed",
+                    payload={"validation_status": validation_status, "schema_version": "1.0"},
+                )
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.completed",
+                payload={
+                    "provider_call_count": run.provider_call_count,
+                    "actual_cost_usd": float(run.actual_cost_usd),
+                    "wall_seconds": float(run.wall_seconds),
+                },
+            )
+        except RunCancelled:
+            await db.rollback()
+            run = await db.get(Run, run_id)
+            run.status = "cancelled"
+            run.control_requested = None
+            run.completed_at = datetime.now(UTC)
+            run.lease_owner = None
+            run.lease_expires_at = None
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.cancelled", payload={},
+            )
+        except BudgetExceeded as exc:
+            await db.rollback()
+            run = await db.get(Run, run_id)
+            run.status = "budget_stopped"
+            run.failure_code = "budget_exceeded"
+            run.failure_safe_message = f"Budget limit reached: {exc.reason}"
+            run.completed_at = datetime.now(UTC)
+            run.lease_owner = None
+            run.lease_expires_at = None
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="budget.warning",
+                payload={"reason": exc.reason, "stopped": True},
+            )
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.failed",
+                payload={"failure_code": "budget_exceeded", "message": run.failure_safe_message},
+            )
+        except Exception as exc:  # noqa: BLE001
+            await db.rollback()
+            run = await db.get(Run, run_id)
+            run.status = "failed"
+            run.failure_code = type(exc).__name__
+            run.failure_safe_message = "Run failed due to an internal error."
+            run.completed_at = datetime.now(UTC)
+            run.lease_owner = None
+            run.lease_expires_at = None
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.failed",
+                payload={"failure_code": run.failure_code, "message": run.failure_safe_message},
+            )
+            raise

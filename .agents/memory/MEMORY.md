@@ -1,3 +1,4 @@
 - [Virtual Lab Studio build pack](virtual-lab-build-pack.md) — product contract in root MASTER prompt/docs/specs; upstream src/virtual_lab cloned manually, must stay intact with MIT license.
 - [Orval zod codegen quirks](orval-zod-codegen.md) — lib/api-zod needs zod v4 (not catalog v3); avoid query params in openapi.yaml (Params name collision).
 - [Frontend demo data layer](frontend-demo-data-layer.md) — web app runs on a localStorage demo store + client-side run engine under artifacts/web/src/demo/; backend work must replace it, not add a second data path.
+- [Backend Python runtime](backend-python-runtime.md) — FastAPI in backend/ with backend/.venv; api-server workflow shells out to uvicorn; ENUM values must be listed even with create_type=False.

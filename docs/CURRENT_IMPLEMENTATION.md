@@ -7,17 +7,15 @@ the pack docs describe the destination._
 
 ## 1. Big picture
 
-Virtual Lab Studio is being delivered in three planned tasks:
-
 | Task | Scope | Status |
 |------|-------|--------|
-| #2 | Web interface (landing, methodology, dashboard, projects, agents, templates, composer, live room, run detail) + interim API with a deterministic Demo Provider engine | **Done** |
-| #1 | Authoritative Python/FastAPI meeting engine wrapping upstream `src/virtual_lab`, real providers, run queue/worker | Pending |
+| #2 | Web interface (landing, methodology, dashboard, projects, agents, templates, composer, live room, run detail) | **Done** (still on its localStorage demo layer) |
+| #1 | Authoritative Python/FastAPI backend wrapping upstream `src/virtual_lab`: PostgreSQL schema + Alembic, auth + workspace roles, Demo Provider, async run queue/worker, SSE | **Done** |
 | #3 | Evidence library, exports, reproducibility packets | Pending |
 
-The interim stack was chosen so the full UI could ship with **zero dead buttons** before
-the Python engine exists: every screen is backed by real persisted data and a working,
-visibly-labeled simulation engine.
+The former interim Express/Drizzle API has been **deleted**; the `artifacts/api-server`
+workflow now runs the FastAPI backend. The React frontend has not yet been rewired to it
+(follow-up): it still uses its client-side demo store under `artifacts/web/src/demo/`.
 
 ## 2. Repository layout (actual)
 
@@ -25,142 +23,110 @@ visibly-labeled simulation engine.
 src/virtual_lab/            upstream package (MIT, commit 8a3a4fd) — DO NOT MODIFY
 LICENSE, pyproject.toml,
 UPSTREAM_README.md          upstream-owned files — DO NOT MODIFY
+backend/                    FastAPI backend (own venv at backend/.venv)
+backend/app/                config, db, models, security, providers, engine,
+                            events, worker, seed, bootstrap, api/v1.py, main.py
+backend/tests/              pytest suite (upstream compat, engine, seed, clean boot)
+alembic/, alembic.ini       migrations; 0001 executes specs/database_schema.sql
 artifacts/studio/           React 19 + Vite frontend (served at previewPath "/")
-artifacts/api-server/       Express API (mounted at /api by the platform proxy)
-lib/api-spec/openapi.yaml   single source of truth for the API contract
+artifacts/api-server/       thin package.json that launches uvicorn (no TS code)
+lib/api-spec/openapi.yaml   OpenAPI contract used by the frontend codegen
 lib/api-client-react/       Orval-generated TanStack Query hooks (frontend client)
-lib/api-zod/                Orval-generated Zod schemas (server-side validation)
-lib/db/                     Drizzle ORM schema + client (Replit PostgreSQL)
 docs/, specs/               build-pack product contract, tokens, seed data, schemas
-.agents/skills/...          project skill for builders
 ```
 
-Monorepo is pnpm workspaces. The frontend never hardcodes URLs; it uses generated hooks
-with base `/api`, and routing uses `import.meta.env.BASE_URL`.
+## 3. Backend runtime
 
-## 3. API contract and codegen flow
+- Python 3.13 venv at `backend/.venv` (uv-managed; root `pyproject.toml` belongs to the
+  upstream package and is untouched). Deps in `backend/requirements.txt`.
+- Workflow `artifacts/api-server: API Server` runs
+  `backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --port $PORT`.
+- **Fresh-database boot is automatic:** the FastAPI lifespan applies
+  `alembic upgrade head` and then runs the idempotent seed
+  (`backend/app/bootstrap.py`) before serving, so an empty database comes up fully
+  working with no manual steps. Verified by `backend/tests/test_clean_boot.py`.
+- Config via env (`backend/app/config.py`): `DATABASE_URL`, `SESSION_SECRET`,
+  `APP_ENV`, `RUN_WORKER_ENABLED`, worker lease/poll knobs.
 
-- Edit `lib/api-spec/openapi.yaml` (paths are `/v1/...` under base `/api`, so public URLs
-  match the pack's `/api/v1/...` contract).
-- Run `pnpm --filter @workspace/api-spec run codegen`. This regenerates:
-  - `lib/api-client-react/src/generated/` — typed fetchers + React Query hooks
-  - `lib/api-zod/src/generated/` — Zod schemas the Express routes use to validate bodies
-- Known quirks (see `.agents/memory/orval-zod-codegen.md`): `lib/api-zod` pins `zod@^4`
-  directly (workspace catalog is v3); avoid operation query parameters (generated name
-  collision) — the events endpoint returns the full list and the client filters.
-
-### Endpoints (all implemented in `artifacts/api-server/src/routes/`)
+## 4. API surface (`backend/app/api/v1.py`, mounted at `/api/v1`)
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/healthz` | health check |
-| `GET /api/v1/dashboard/summary` | counts, token/call totals, recent runs |
-| `GET/POST /api/v1/projects`, `GET/PATCH /api/v1/projects/:id` | project CRUD (archive via `status`, never delete) |
-| `GET /api/v1/projects/:id/runs` | runs for a project |
-| `GET/POST /api/v1/agents`, `GET/PATCH /api/v1/agents/:id` | agent profiles (content edits bump `version`) |
-| `GET /api/v1/templates`, `GET /api/v1/templates/:id` | read-only seeded meeting templates |
-| `GET/POST /api/v1/runs`, `GET /api/v1/runs/:id` | launch + inspect runs |
-| `GET /api/v1/runs/:id/events` | append-only ordered event log |
-| `POST /api/v1/runs/:id/control` | `pause` / `resume` / `cancel` / `intervene` |
+| `POST /auth/dev-login`, `POST /auth/logout` | dev-only login (403 outside development) + signed session cookie |
+| `GET /me`, `GET /workspaces` | current user, memberships, workspaces |
+| `GET /workspaces/{id}/projects|agents|templates|providers` | catalog reads (system + workspace scope) |
+| `POST /projects/{id}/meeting-drafts` | create a draft |
+| `POST /meeting-drafts/{id}/validate` | validation + call/token/cost estimate |
+| `POST /meeting-drafts/{id}/launch` | freeze sha256 definition + agents, enqueue run |
+| `GET /runs/{id}` (+ `/turns`, `/summary`, `/interventions`) | run inspection |
+| `GET /runs/{id}/events?after=N` | append-only event log replay |
+| `GET /runs/{id}/events/stream` | SSE with Last-Event-ID replay + heartbeats |
+| `POST /runs/{id}/pause|resume|cancel` | control requests honored at checkpoints |
+| `POST /runs/{id}/interventions` | human instructions injected at next checkpoint |
+| `GET /api/health/live|ready|worker` | health + queue depth (unversioned) |
 
-## 4. Data model (Drizzle, `lib/db/src/schema/`)
+Authorization: role ladder viewer < reviewer < researcher < admin < owner; non-members
+get 404 (`backend/app/security.py`).
 
-- `projects` — research question, hypotheses, objectives, constraints, ethics/disclosure
-  notes, human decision, tags, status.
-- `agents` — upstream persona fields (`title`, `expertise`, `goal`, `role`), provider/model
-  labels, accent color, `version`, `archived`, `isSystem`. The upstream system prompt is
-  compiled client-side: "You are {title}. Your expertise is in {expertise}. …"
-- `meeting_templates` — kind (`team` / `individual` / `ensemble_merge`), category,
-  agenda template, required questions, rules, suggested agent slugs, default rounds.
-- `runs` — agenda, rounds, participants (JSON snapshot frozen at launch), status,
-  counters (`callCount`, `tokensUsed`), `plannedCallCount`, `summary` JSON,
-  `isSimulation`, plus demo-engine bookkeeping (`script`, `scriptCursor`, `pausedAt`,
-  `pausedMsTotal`).
-- `run_events` — append-only, ordered by `seq` per run. Never updated or deleted.
+## 5. Meeting engine and run worker
 
-## 5. The Demo Provider run engine (interim)
+- `backend/app/engine.py` builds the turn plan with upstream semantics:
+  team = `R × (M + 1) + 1` calls (lead, members…, final lead synthesis);
+  individual = `2R + 1` (expert/critic alternation, final expert). Prompts reuse
+  `virtual_lab.prompts` and ephemeral upstream `Agent` objects.
+- `backend/app/worker.py`: in-process asyncio worker claims queued runs via the
+  `claim_next_run` SQL function (`FOR UPDATE SKIP LOCKED`), with leases, heartbeats,
+  expired-lease recovery, and max-attempt failure.
+- Checkpoints before every provider call honor pause/resume/cancel, inject human
+  interventions, renew leases, and enforce budgets (`max_provider_calls`,
+  `max_cost_usd` → `budget_stopped`).
+- Events (`run_events`) are append-only with a per-run monotonic `run_sequence`
+  allocated under an advisory lock; an in-process broadcaster wakes SSE streams.
+- Structured summaries are validated against `specs/meeting_summary.schema.json` and
+  stored with a sha256 in `run_summaries`.
+- Only the deterministic **Demo Provider** exists (`backend/app/providers.py`): scripted
+  scenario for the seeded demo project, deterministic hash-labeled fallback otherwise,
+  always labeled as simulation, zero cost. Real providers and `ensemble_merge` meetings
+  are follow-ups.
 
-Implemented in `artifacts/api-server/src/lib/demoEngine.ts`. Key design: **no background
-timers**. A launched run stores a fully precomputed, deterministic script of events, each
-with a time offset. Whenever the run is read (detail, events, list, control), the engine
-"materializes" any events whose offset ≤ effective elapsed time into `run_events` and
-updates run counters/status. Pause freezes the clock (`pausedAt`/`pausedMsTotal`); resume
-unfreezes it. This makes the simulation deterministic, restart-safe, and cheap.
+## 6. Data model and migrations
 
-- Speaking order matches upstream semantics:
-  - team: per round — lead, then each member; then one final lead synthesis.
-    Planned calls = `R × (M + 1) + 1`.
-  - individual: per round — expert, then critic; then final expert revision.
-    Planned calls = `2R + 1`.
-- Event vocabulary: `run.queued`, `run.validating`, `run.started`, `round.started`,
-  `turn.started`, `turn.completed`, `checkpoint.reached`, `run.paused`,
-  `human.intervention_added`, `run.resumed`, `run.cancelled`, `summary.completed`,
-  `run.completed`.
-- On `summary.completed`, a structured summary object (executive summary, recommendation,
-  contributions per role, answers to required questions, assumptions, preserved
-  disagreements, risks, next steps with acceptance criteria, qualitative confidence) is
-  written to `runs.summary`.
-- Every demo run has `isSimulation: true`; the UI shows a persistent "Simulation" badge
-  and the summary object carries `simulated: true`.
+The schema is `specs/database_schema.sql`, applied verbatim by Alembic migration
+`0001_initial_schema`. SQLAlchemy models (`backend/app/models.py`) mirror the used
+subset; Postgres enum values are listed in `_ENUM_VALUES` and must stay in sync with the
+spec SQL.
 
-Run status state machine (current subset): `queued → running → completed`, with
-`paused ⇄ running`, and `cancelled` reachable from any active or paused state.
-`draft`, `validating`, `pause_pending`, `cancelling`, `failed`, `budget_exceeded` are in
-the contract and reserved for the real engine.
+## 7. Seeding (`backend/app/seed.py`, idempotent — safe to run twice)
 
-## 6. Live updates
+- 12 system agent profiles + version 1 (upstream-format system prompts + behavioral
+  rules) from `specs/seed_agents.json`
+- 10 system meeting templates from `specs/seed_meeting_templates.json`
+- system tools `pmc_search`, `workspace_evidence_search`
+- demo workspace `virtual-lab`, demo user, demo project
+  `biodegradable-packaging-pilot` with two note evidence items, Demo Provider config +
+  `demo-research-v1` model
 
-Interim transport is React Query polling: the live room polls `GET /runs/:id` and
-`GET /runs/:id/events` every ~1.5 s while the run is in an active status and stops on
-terminal statuses. SSE with database replay (the pack's target) arrives with task #1;
-the append-only `seq`-ordered event log was designed so SSE replay can drop in without a
-contract change.
+## 8. Tests
 
-## 7. Seeding
+`cd backend && .venv/bin/python -m pytest` — upstream compatibility (call-count
+formulas, exact speaking order, transcript visibility, `Agent.prompt` format), turn-plan
+units, seed idempotency, engine end-to-end (events, summary, pause/resume/cancel,
+budget stop), and a clean-database boot test (new empty DB → uvicorn boot → dev login →
+demo launch → completed run).
 
-`artifacts/api-server/src/lib/seed.ts` runs at server boot, idempotently (by slug/name):
+## 9. Frontend map (`artifacts/studio/src/`)
 
-- 12 agent profiles from `specs/seed_agents.json` (marked `isSystem`)
-- 10 meeting templates from `specs/seed_meeting_templates.json`
-- 1 neutral demo project ("Biodegradable Packaging Film Optimization")
+Unchanged from task #2 (landing, methodology, dashboard, projects, Agent Studio,
+templates, runs, 6-step composer, live room, run detail). It still runs on the
+localStorage demo layer under `artifacts/web/src/demo/`; wiring it to `/api/v1` (React
+Query + SSE) is the next follow-up. Design system: restrained glassmorphism per
+`specs/design_tokens.css`; no emojis in UI.
 
-Spec files are located at runtime by walking up from `cwd` to find `specs/`.
+## 10. Operating the project
 
-## 8. Frontend map (`artifacts/studio/src/`)
-
-| Route | Page |
-|---|---|
-| `/` | public landing (attribution + human-oversight disclosure in footer) |
-| `/methodology` | meeting method, call formulas, role-conditioning explanation, limitations |
-| `/app` | dashboard (KPIs, recent projects/runs) |
-| `/app/projects`, `/new`, `/:projectId` | project list / create / detail |
-| `/app/agents` | Agent Studio (search, create/edit, compiled prompt preview) |
-| `/app/templates` | template library with category filters |
-| `/app/runs` | run history/queue |
-| `/app/meetings/new` | 6-step composer (mode → agenda → team → evidence [labeled coming soon] → controls → review & launch) |
-| `/app/runs/:runId/live` | live meeting room (desktop node layout, mobile strip + timeline, controls) |
-| `/app/runs/:runId` | run detail: Synthesis / Transcript / Usage tabs |
-
-Design system: restrained glassmorphism per `specs/design_tokens.css`, dark primary +
-light theme, tokens live in `artifacts/studio/src/index.css`. No emojis in UI.
-
-## 9. Operating the project
-
-- Workflows: `artifacts/api-server: API Server`, `artifacts/studio: web` (plus the
-  canvas mockup sandbox). Restart after code/config changes.
-- DB schema changes: edit `lib/db/src/schema/`, then `pnpm --filter @workspace/db run push`.
-- API changes: edit the OpenAPI spec → codegen → implement route → restart API workflow.
-- Server logging: `req.log` / `logger` (pino), never `console.log`.
-
-## 10. Migration path to the target architecture (task #1)
-
-The interim design keeps the seams clean:
-
-1. The OpenAPI contract is transport-agnostic — the FastAPI runtime replaces route
-   implementations without changing the frontend.
-2. `run_events` is already append-only with per-run `seq`, exactly what SSE replay needs.
-3. The demo engine is isolated behind launch/control/read functions; the real engine
-   replaces `buildScript`/`materializeRun` with the upstream `run_meeting` orchestration,
-   a Postgres-backed queue/worker, and real provider calls — the Demo Provider remains as
-   a first-class, always-labeled provider option.
-4. Participants are frozen JSON snapshots at launch, matching the immutability rules.
+- Workflows: `artifacts/api-server: API Server` (uvicorn), `artifacts/studio: web`,
+  `artifacts/web: web`, plus the canvas mockup sandbox. Restart after code changes.
+- Schema changes: add an Alembic migration (never edit migration 0001), keep
+  `specs/database_schema.sql` and `_ENUM_VALUES` in sync.
+- Backend commands run with `backend/.venv/bin/python` from the repo root
+  (`-m alembic upgrade head`) or `backend/` (`-m pytest`).
