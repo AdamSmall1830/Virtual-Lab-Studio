@@ -1,0 +1,146 @@
+{
+  "pack_name": "Virtual Lab Studio \u2014 Replit Build Pack",
+  "pack_version": "1.0.0",
+  "generated_date": "2026-08-05",
+  "purpose": "Turn zou-group/virtual-lab into a polished, evidence-aware, persistent academic multi-agent research web application in Replit.",
+  "upstream": {
+    "repository": "https://github.com/zou-group/virtual-lab",
+    "license": "MIT",
+    "preservation_requirement": "Keep upstream attribution, license, citation, package importability, and meeting semantics."
+  },
+  "primary_entrypoint": "MASTER_REPLIT_AGENT_PROMPT.md",
+  "standalone_prompt_filename": "Virtual_Lab_Studio_MASTER_REPLIT_PROMPT.md",
+  "standalone_prompt_sha256": "aad7c61cf2bff58f5c78f50165aca5332ddcf2093b85016d1da593580fcb0e80",
+  "file_count_excluding_manifest": 20,
+  "files": [
+    {
+      "path": ".agents/skills/virtual-lab-studio-builder/SKILL.md",
+      "description": "Reusable Replit Agent implementation skill.",
+      "bytes": 6099,
+      "sha256": "07ce616b03ab73fe2905271563342e8729026abf5bcdb2dfd2f2e632761e77cb"
+    },
+    {
+      "path": "MASTER_REPLIT_AGENT_PROMPT.md",
+      "description": "Complete prompt to paste into Replit Agent.",
+      "bytes": 24989,
+      "sha256": "aad7c61cf2bff58f5c78f50165aca5332ddcf2093b85016d1da593580fcb0e80"
+    },
+    {
+      "path": "START_HERE.md",
+      "description": "Human setup and handoff instructions.",
+      "bytes": 3241,
+      "sha256": "79a0e6436fb12a03b2e4569f9ab4d3844e3f1b8ccad5dbe3ecc8cb6e573bc160"
+    },
+    {
+      "path": "docs/CORE_INTEGRATION.md",
+      "description": "Compatibility plan for the upstream Virtual Lab meeting engine.",
+      "bytes": 3323,
+      "sha256": "1807dd9d0857f6a8d183421d3caaafc9e90c83200b8b4f19d85382e1ee0f9702"
+    },
+    {
+      "path": "docs/IMPLEMENTATION_TEST_DEPLOYMENT.md",
+      "description": "Phased build, test matrix, E2E acceptance path, and Replit deployment.",
+      "bytes": 5828,
+      "sha256": "5f829f6cf2897163293392344d9c43a9afcb1418467879f1e7bf4207152a95c3"
+    },
+    {
+      "path": "docs/PRODUCT_AND_UX.md",
+      "description": "Product requirements, routes, flows, components, accessibility, and UX.",
+      "bytes": 9951,
+      "sha256": "015e752706cb8ccd7687d88af47f75b7ee1a0b4b3cc6f0599edf3c0c42f1bc3a"
+    },
+    {
+      "path": "docs/SECURITY_GOVERNANCE.md",
+      "description": "Authorization, secrets, data routing, prompt injection, uploads, audit, and governance.",
+      "bytes": 4980,
+      "sha256": "a5a6ffd1b8501ba72bcaf6bc3a65a7214da14468f841c5698cee44ce76f62a29"
+    },
+    {
+      "path": "docs/SOURCE_ATTRIBUTION.md",
+      "description": "Upstream attribution, scientific disclosure, and third-party service language.",
+      "bytes": 2623,
+      "sha256": "d53d9cfaa3628676807b2e24ddb3003979a601f0f25bafbfc5842428c9a7bd20"
+    },
+    {
+      "path": "docs/TECHNICAL_ARCHITECTURE.md",
+      "description": "Backend/frontend architecture, provider/tool interfaces, events, APIs, and scalability.",
+      "bytes": 6711,
+      "sha256": "28910d9900a6ffc85b6630fe2b6924fb7481b7b1a419fe57566e28ab31a7c666"
+    },
+    {
+      "path": "replit.md",
+      "description": "Persistent repository-wide Replit Agent context and invariants.",
+      "bytes": 5541,
+      "sha256": "8879b278a2b9977c5b2771dce8e9b72806a911909167807668d715cb8342b3f9"
+    },
+    {
+      "path": "specs/.env.example",
+      "description": "Configuration and secure default template.",
+      "bytes": 2772,
+      "sha256": "dedba7bf1dd401d5785552c1bb0c497bb470c8a26b3057504a51c9ac630adf9d"
+    },
+    {
+      "path": "specs/README.md",
+      "description": "Index and implementation notes for all specifications.",
+      "bytes": 1773,
+      "sha256": "dc7cf931dfaf219cd9838fd261db700db8cbd892257ece015eeb9d27d2690ee3"
+    },
+    {
+      "path": "specs/database_schema.sql",
+      "description": "Logical PostgreSQL data model and queue leasing helper.",
+      "bytes": 33822,
+      "sha256": "8487f23c77338af53c84abba7a2a66a17d254a9b4d0ba4131bc5c75881e1e063"
+    },
+    {
+      "path": "specs/demo_provider_scenario.json",
+      "description": "Deterministic simulated meeting and valid structured summary.",
+      "bytes": 22913,
+      "sha256": "b56f97f0819a9d4ae5e898a7cea0acd2b5314f7f1ed42f4099fe3d4f047a9b59"
+    },
+    {
+      "path": "specs/design_tokens.css",
+      "description": "Premium glassmorphic dark/light design tokens.",
+      "bytes": 4210,
+      "sha256": "8716505b6546886bb1dfa747876e185eb8e029a3d37aed099fbbd77fdefa7146"
+    },
+    {
+      "path": "specs/meeting_summary.schema.json",
+      "description": "Structured final meeting summary schema.",
+      "bytes": 8603,
+      "sha256": "9358516f08eee5f0e404f26648ecc6b21bb6df2bcad1d1a9043c13e7a10d72da"
+    },
+    {
+      "path": "specs/run_manifest.schema.json",
+      "description": "Run provenance/reproducibility manifest schema.",
+      "bytes": 11765,
+      "sha256": "b9ae697a36d77eba5f1bbf99fe19d9a626355a5b3d91e2beb038ef00b69c01c7"
+    },
+    {
+      "path": "specs/sample_project_import.json",
+      "description": "Neutral materials-science demonstration project.",
+      "bytes": 3921,
+      "sha256": "3744104b25287c43d7a4f42e3400b0228d7ae1f9b8101d3d9a0156c4ad27ade7"
+    },
+    {
+      "path": "specs/seed_agents.json",
+      "description": "Twelve seed academic agents.",
+      "bytes": 13393,
+      "sha256": "80b49044101d5bc5993713c386e3b25d07b9e8553e6435e8e4305457ed1164e3"
+    },
+    {
+      "path": "specs/seed_meeting_templates.json",
+      "description": "Ten seed academic meeting templates.",
+      "bytes": 20285,
+      "sha256": "55599fa89fcadd766b1fceea299ae1c6727a5cd4fc7e6d7126d960a549bd8587"
+    }
+  ],
+  "validation": {
+    "all_json_parsed": true,
+    "json_schemas_valid_draft_2020_12": true,
+    "demo_summary_validates": true,
+    "seed_cross_references_valid": true,
+    "demo_team_call_formula_valid": true,
+    "sql_structural_checks_passed": true,
+    "markdown_structural_checks_passed": true
+  }
+}

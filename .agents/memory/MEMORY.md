@@ -1,0 +1,1 @@
+- [Virtual Lab Studio build pack](virtual-lab-build-pack.md) — product contract in root MASTER prompt/docs/specs; upstream src/virtual_lab cloned manually, must stay intact with MIT license.

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "virtual-lab"
+dynamic = ["version"]
+authors = [
+    { name = "Kyle Swanson", email = "swansonk.14@gmail.com" },
+]
+maintainers = [
+    { name = "Kyle Swanson", email = "swansonk.14@gmail.com" },
+]
+description = "A virtual lab of large language model agents for scientific research."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "notebook",
+    "openai",
+    "requests",
+    "tiktoken",
+    "tqdm",
+    "typed-argument-parser",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+keywords = [
+    "virtual lab",
+    "large language model",
+    "LLM",
+    "scientific research",
+    "automated science",
+]
+
+[project.optional-dependencies]
+nanobody-design = [
+    "biopython",
+    "pandas",
+    "seaborn",
+    "torch",
+    "transformers",
+]
+
+[tool.hatch.version]
+path = "src/virtual_lab/__about__.py"
+
+[project.urls]
+Homepage = "https://github.com/zou-group/virtual-lab"
+Issues = "https://github.com/zou-group/virtual-lab/issues"

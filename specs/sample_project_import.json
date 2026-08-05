@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "slug": "biodegradable-packaging-pilot",
+    "name": "Biodegradable Barrier Packaging Pilot",
+    "description": "A neutral demonstration project for evaluating a compostable food-packaging film without biomedical, personal, or confidential data.",
+    "status": "active",
+    "discipline": "materials science",
+    "research_question": "Can a chitosan\u2013cellulose nanofiber coating improve the oxygen and water-vapor barrier performance of a compostable film while preserving sealability and practical compostability?",
+    "hypotheses": [
+      "The coating will reduce oxygen transmission compared with the uncoated film.",
+      "Higher coating loading will improve oxygen barrier performance but may reduce heat-seal strength.",
+      "Humidity will moderate barrier performance and must be treated as an experimental factor."
+    ],
+    "objectives": [
+      "Define a feasible bench-scale formulation and coating matrix.",
+      "Identify primary and secondary response variables.",
+      "Design a pilot capable of selecting candidates for confirmatory testing.",
+      "Document evidence, assumptions, safety, data, and reproducibility requirements."
+    ],
+    "constraints": [
+      "Use a maximum of 12 formulation-condition combinations in the first pilot.",
+      "Do not claim food-contact compliance or commercial compostability from the pilot.",
+      "No autonomous laboratory control is permitted.",
+      "All simulated model content must be labeled."
+    ],
+    "human_decision_supported": "Select whether to fund a small controlled pilot and, if so, which formulation matrix and success thresholds to use.",
+    "disclosures": [
+      "This seeded project is fictional and intended only to demonstrate the product workflow.",
+      "The included source excerpts are placeholders and must not be represented as an exhaustive literature review."
+    ],
+    "tags": [
+      "demo",
+      "materials-science",
+      "experimental-design",
+      "packaging"
+    ]
+  },
+  "evidence": [
+    {
+      "evidence_id": "DEMO-EVIDENCE-001",
+      "source_type": "note",
+      "title": "Internal pilot constraints",
+      "citation": null,
+      "content": "The available coater supports three wet-thickness settings. The pilot can accommodate twelve formulation-condition combinations and duplicate measurements. Oxygen transmission, water-vapor transmission, tensile properties, heat-seal strength, coating mass, and visual defects can be measured. The laboratory has not established food-contact regulatory status for any formulation.",
+      "trusted_metadata": {
+        "author": "Demo Research Team",
+        "created_at": "2026-08-05T00:00:00Z"
+      }
+    },
+    {
+      "evidence_id": "DEMO-EVIDENCE-002",
+      "source_type": "note",
+      "title": "Demonstration evidence caveat",
+      "citation": null,
+      "content": "This project intentionally begins with limited evidence. A real meeting should search and attach peer-reviewed sources before making scientific claims. The expected product behavior is to expose this evidence gap rather than hide it.",
+      "trusted_metadata": {
+        "author": "Virtual Lab Studio",
+        "created_at": "2026-08-05T00:00:00Z"
+      }
+    }
+  ],
+  "meeting_draft": {
+    "template_slug": "experiment-design-review",
+    "title": "Barrier film pilot design council",
+    "selected_agent_slugs": [
+      "principal-investigator",
+      "experimental-design-scientist",
+      "biostatistician",
+      "domain-expert",
+      "reproducibility-auditor",
+      "scientific-critic"
+    ],
+    "rounds": 2,
+    "temperature": 0.15,
+    "evidence_ids": [
+      "DEMO-EVIDENCE-001",
+      "DEMO-EVIDENCE-002"
+    ],
+    "provider": "demo",
+    "model": "demo-research-v1",
+    "budgets": {
+      "max_provider_calls": 25,
+      "max_tool_calls": 10,
+      "max_wall_seconds": 900,
+      "max_cost_usd": 0
+    }
+  }
+}
