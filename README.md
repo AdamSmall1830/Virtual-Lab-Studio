@@ -97,6 +97,22 @@ Notes:
 - Roles are role-conditioned model calls sharing one transcript — agreement between roles
   is not independent validation, and the UI/methodology page says so explicitly.
 
+## Repository strategy & contributing upstream
+
+This project uses a **two-repo strategy**:
+
+1. **This app repo** (`Virtual-Lab-Studio` on GitHub) — the full product monorepo. It
+   vendors the upstream engine **unmodified** under `src/virtual_lab/` with its MIT
+   license intact. Never edit `src/virtual_lab/` here; product-side adaptations live
+   outside that directory.
+2. **A personal fork of [zou-group/virtual-lab](https://github.com/zou-group/virtual-lab)** —
+   the only place upstream contributions come from. When work in this repo surfaces an
+   improvement worth proposing upstream (e.g. bug fixes or extension points discovered
+   while integrating the Python engine), extract it as a **minimal, focused branch on the
+   fork** — rebased on upstream `main`, containing only the upstream-relevant change —
+   and open the PR from the fork to `zou-group/virtual-lab`. Never open upstream PRs from
+   this app repo.
+
 ## Upstream attribution
 
 `src/virtual_lab/`, `LICENSE`, `pyproject.toml`, and `UPSTREAM_README.md` are preserved
