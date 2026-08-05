@@ -2,3 +2,4 @@
 - [Orval zod codegen quirks](orval-zod-codegen.md) — lib/api-zod needs zod v4 (not catalog v3); avoid query params in openapi.yaml (Params name collision).
 - [Frontend demo data layer](frontend-demo-data-layer.md) — web app runs on a localStorage demo store + client-side run engine under artifacts/web/src/demo/; backend work must replace it, not add a second data path.
 - [Backend Python runtime](backend-python-runtime.md) — FastAPI in backend/ with backend/.venv; api-server workflow shells out to uvicorn; ENUM values must be listed even with create_type=False.
+- [Evidence, provenance & exports](evidence-provenance.md) — evidence frozen into definition at launch; object-storage Client needs explicit bucket_id; blinded comparison identity is server-side, revealed only after the caller submits.

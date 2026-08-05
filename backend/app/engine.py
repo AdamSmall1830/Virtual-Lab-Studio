@@ -59,6 +59,11 @@ from .models import (
     ToolDefinition,
 )
 from .providers import CompletionRequest, get_demo_provider, get_provider
+from .provenance import (
+    create_citations_from_summary,
+    ensure_manifest_safe,
+    validate_summary,
+)
 
 UTC = timezone.utc
 
@@ -359,35 +364,52 @@ def _turn_prompt(
     return individual_meeting_agent_prompt(critic=critic, agent=expert)
 
 
-def _summary_schema_required_keys() -> list[str]:
-    try:
-        schema = json.loads((SPECS_DIR / "meeting_summary.schema.json").read_text())
-        return list(schema.get("required", []))
-    except Exception:
-        return []
-
-
 def _fallback_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict[str, Any]:
+    """Schema-valid structured summary for non-scripted runs."""
     d = ctx.definition
     return {
-        "agenda": d.agenda,
+        "agenda": d.agenda or "(no agenda)",
         "executive_summary": (
             "[Simulation] Deterministic demo meeting completed. This structured summary is "
             "simulated output for interface testing, not a scientific result."
         ),
         "role_contributions": [],
-        "recommendation": "Connect a real model provider and reviewed evidence before use.",
+        "recommendation": {
+            "decision": "No scientific recommendation — simulated output.",
+            "rationale": "Connect a real model provider and reviewed evidence before use.",
+            "conditions": [],
+        },
         "question_answers": [
-            {"question": q, "answer": "[Simulation] Not answered by the demo scenario.", "confidence": "low"}
+            {
+                "question": q,
+                "answer": "[Simulation] Not answered by the demo scenario.",
+                "evidence_ids": [],
+                "confidence": 0.1,
+            }
             for q in (d.questions or [])
         ],
         "evidence": [],
         "assumptions": [],
         "disagreements": [],
-        "risks_and_limitations": ["Simulated output only."],
+        "risks_and_limitations": [
+            {
+                "risk": "Simulated output only; no scientific validity.",
+                "severity": "high",
+                "likelihood": "likely",
+                "mitigation": "Re-run with a configured model provider and reviewed evidence.",
+            }
+        ],
         "next_steps": [],
-        "confidence": "low",
-        "disclosure": get_demo_provider().disclosure,
+        "confidence": {
+            "overall": 0.1,
+            "basis": "Deterministic simulation without model reasoning.",
+            "uncertainty": "All content is placeholder output.",
+        },
+        "disclosure": {
+            "model_generated": True,
+            "human_review_required": True,
+            "limitations": [get_demo_provider().disclosure],
+        },
     }
 
 
@@ -701,14 +723,13 @@ async def execute_run(
             # marking the run completed; reuse the existing summary and finish
             # in a single transaction so recovery cannot double-insert.
             existing_summary = await db.get(RunSummary, run.id)
-            missing: list[str] = []
+            validation_errors: list[dict[str, str]] = []
             if existing_summary is None:
                 summary_json = (
                     demo.structured_summary() if scripted else _fallback_summary(ctx, messages)
                 )
-                required = _summary_schema_required_keys()
-                missing = [k for k in required if k not in summary_json]
-                validation_status = "valid" if not missing else "invalid"
+                validation_errors = validate_summary(summary_json)
+                validation_status = "valid" if not validation_errors else "invalid"
                 final_text = messages[-1]["content"] if messages else ""
                 summary_markdown = (
                     f"# {d.title}\n\n> {get_demo_provider().disclosure}\n\n"
@@ -723,10 +744,17 @@ async def execute_run(
                     schema_version="1.0",
                     summary_sha256=sha256_text(canonical_json(summary_json)),
                     validation_status=validation_status,
-                    validation_errors=[{"missing_key": k} for k in missing],
+                    validation_errors=validation_errors,
                 ))
             else:
                 validation_status = existing_summary.validation_status
+                summary_json = existing_summary.summary_json
+
+            # Citations from the summary evidence claims, validated against the
+            # evidence frozen into the meeting definition (idempotent).
+            citation_stats = await create_citations_from_summary(
+                db, run, ctx.definition, summary_json
+            )
 
             run.status = "completed"
             run.completed_at = datetime.now(UTC)
@@ -736,16 +764,35 @@ async def execute_run(
             await db.commit()
 
             if existing_summary is None:
-                if missing:
+                if validation_errors:
                     await append_event(
                         db, workspace_id=run.workspace_id, run_id=run.id,
                         event_type="summary.validation_failed",
-                        payload={"missing_keys": missing},
+                        payload={"errors": validation_errors[:10]},
                     )
                 await append_event(
                     db, workspace_id=run.workspace_id, run_id=run.id,
                     event_type="summary.completed",
                     payload={"validation_status": validation_status, "schema_version": "1.0"},
+                )
+            if citation_stats["created"]:
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="citations.recorded",
+                    payload=citation_stats,
+                )
+
+            # Provenance manifest (idempotent; validated against the schema).
+            _manifest, _mf_err = await ensure_manifest_safe(db, run)
+            if _mf_err is None:
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.created", payload={"manifest_version": "1.0"},
+                )
+            else:
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.failed", payload={"message": _mf_err},
                 )
             await append_event(
                 db, workspace_id=run.workspace_id, run_id=run.id,
@@ -769,6 +816,12 @@ async def execute_run(
                 db, workspace_id=run.workspace_id, run_id=run.id,
                 event_type="run.cancelled", payload={},
             )
+            _m, _e = await ensure_manifest_safe(db, run)
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="manifest.created" if _e is None else "manifest.failed",
+                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+            )
         except BudgetExceeded as exc:
             await db.rollback()
             run = await db.get(Run, run_id)
@@ -789,6 +842,12 @@ async def execute_run(
                 event_type="run.failed",
                 payload={"failure_code": "budget_exceeded", "message": run.failure_safe_message},
             )
+            _m, _e = await ensure_manifest_safe(db, run)
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="manifest.created" if _e is None else "manifest.failed",
+                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+            )
         except Exception as exc:  # noqa: BLE001
             await db.rollback()
             run = await db.get(Run, run_id)
@@ -803,5 +862,11 @@ async def execute_run(
                 db, workspace_id=run.workspace_id, run_id=run.id,
                 event_type="run.failed",
                 payload={"failure_code": run.failure_code, "message": run.failure_safe_message},
+            )
+            _m, _e = await ensure_manifest_safe(db, run)
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="manifest.created" if _e is None else "manifest.failed",
+                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
             )
             raise

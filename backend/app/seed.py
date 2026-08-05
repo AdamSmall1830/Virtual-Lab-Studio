@@ -21,9 +21,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import SPECS_DIR
+from .evidence import extract_segments, persist_chunks
 from .models import (
     AgentProfile,
     AgentVersion,
+    EvidenceChunk,
     EvidenceSource,
     Project,
     ProviderConfig,
@@ -321,6 +323,23 @@ async def seed(db: AsyncSession) -> dict[str, int]:
                 created_by=user.id,
             ))
             counts["core"] += 1
+        await db.flush()
+        source = existing or (
+            await db.execute(
+                select(EvidenceSource).where(
+                    EvidenceSource.workspace_id == workspace.id,
+                    EvidenceSource.evidence_key == ev["evidence_key"],
+                )
+            )
+        ).scalar_one()
+        has_chunks = (
+            await db.execute(
+                select(EvidenceChunk.id).where(EvidenceChunk.evidence_source_id == source.id).limit(1)
+            )
+        ).first()
+        if has_chunks is None:
+            segments = extract_segments(ev["content"].encode(), "text/plain")
+            await persist_chunks(db, source, segments)
 
     provider = (
         await db.execute(

@@ -282,6 +282,21 @@ class EvidenceSource(Base):
     updated_at: Mapped[datetime] = ts_default()
 
 
+class EvidenceChunk(Base):
+    __tablename__ = "evidence_chunks"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    evidence_source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("evidence_sources.id"), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    locator: Mapped[str | None] = mapped_column(Text)
+    heading_path: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
+    content_text: Mapped[str] = mapped_column(Text, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    token_count: Mapped[int | None] = mapped_column(Integer)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, server_default=text("'{}'::jsonb"), nullable=False)
+    created_at: Mapped[datetime] = ts_default()
+
+
 class MeetingDraft(Base):
     __tablename__ = "meeting_drafts"
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -330,6 +345,19 @@ class MeetingDefinitionAgent(Base):
     provider_model_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_models.id"), nullable=False)
     temperature_override: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
     tool_definition_ids: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
+
+
+class MeetingDefinitionEvidence(Base):
+    __tablename__ = "meeting_definition_evidence"
+    meeting_definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("meeting_definitions.id"), primary_key=True
+    )
+    evidence_source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("evidence_sources.id"), primary_key=True
+    )
+    included_chunk_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+    content_sha256_at_freeze: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class Run(Base):
@@ -466,6 +494,106 @@ class RunSummary(Base):
     validation_status: Mapped[str] = mapped_column(Text, nullable=False)
     validation_errors: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
     created_at: Mapped[datetime] = ts_default()
+
+
+class RunCitation(Base):
+    __tablename__ = "run_citations"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), nullable=False)
+    run_turn_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("run_turns.id"))
+    evidence_source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("evidence_sources.id"), nullable=False)
+    evidence_chunk_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("evidence_chunks.id"))
+    citation_key: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_text: Mapped[str] = mapped_column(Text, nullable=False)
+    support_type: Mapped[str] = mapped_column(pg_enum("citation_support_type"), nullable=False)
+    source_locator: Mapped[str | None] = mapped_column(Text)
+    validation_status: Mapped[str] = mapped_column(Text, server_default=text("'unvalidated'"), nullable=False)
+    validation_notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = ts_default()
+
+
+class RunManifest(Base):
+    __tablename__ = "run_manifests"
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), primary_key=True)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    manifest_version: Mapped[str] = mapped_column(Text, nullable=False)
+    manifest_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    manifest_payload_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    transcript_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    summary_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    signature: Mapped[str | None] = mapped_column(Text)
+    signature_algorithm: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = ts_default()
+
+
+class RunReview(Base):
+    __tablename__ = "run_reviews"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), nullable=False)
+    reviewer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    status: Mapped[str] = mapped_column(pg_enum("review_status"), nullable=False)
+    rubric_version: Mapped[str | None] = mapped_column(Text)
+    ratings: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)
+    comments_markdown: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class ComparisonSet(Base):
+    __tablename__ = "comparison_sets"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    visibility: Mapped[str] = mapped_column(pg_enum("evaluation_visibility"), server_default=text("'identified'"), nullable=False)
+    rubric: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class ComparisonItem(Base):
+    __tablename__ = "comparison_items"
+    comparison_set_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("comparison_sets.id"), primary_key=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), primary_key=True)
+    blind_label: Mapped[str | None] = mapped_column(Text)
+    display_order: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+
+
+class ComparisonEvaluation(Base):
+    __tablename__ = "comparison_evaluations"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    comparison_set_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("comparison_sets.id"), nullable=False)
+    evaluator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    item_scores: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    ranking: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
+    comments_markdown: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    submitted_at: Mapped[datetime] = ts_default()
+
+
+class ExportJob(Base):
+    __tablename__ = "export_jobs"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"))
+    run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"))
+    requested_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    format: Mapped[str] = mapped_column(Text, nullable=False)
+    options: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)
+    status: Mapped[str] = mapped_column(pg_enum("export_status"), server_default=text("'queued'"), nullable=False)
+    storage_object_key: Mapped[str | None] = mapped_column(Text)
+    byte_size: Mapped[int | None] = mapped_column(BigInteger)
+    sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    error_code: Mapped[str | None] = mapped_column(Text)
+    error_safe_message: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = ts_default()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AuditEvent(Base):

@@ -152,6 +152,7 @@ class MeetingDraftIn(BaseModel):
     budget: dict[str, Any] = Field(default_factory=lambda: {"max_provider_calls": 40, "max_cost_usd": 5.0})
     agents: list[DraftAgentIn] = []
     template_version_id: uuid.UUID | None = None
+    evidence_source_ids: list[uuid.UUID] = []
 
 
 class MeetingDraftOut(ORMModel):
@@ -243,6 +244,179 @@ class RunSummaryOut(ORMModel):
     validation_status: str
     validation_errors: list
     created_at: datetime
+
+
+class EvidenceSourceOut(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    project_id: uuid.UUID | None
+    evidence_key: str
+    source_type: str
+    title: str
+    citation: str | None
+    source_url: str | None
+    external_identifier: str | None
+    author_text: str | None
+    content_type: str | None
+    byte_size: int | None
+    original_filename: str | None
+    content_sha256: str | None
+    processing_status: str
+    processing_error_code: str | None
+    processing_error_safe_message: str | None
+    created_at: datetime
+
+
+class EvidenceChunkOut(ORMModel):
+    id: uuid.UUID
+    evidence_source_id: uuid.UUID
+    chunk_index: int
+    locator: str | None
+    content_text: str
+    content_sha256: str
+    token_count: int | None
+
+
+class EvidenceNoteIn(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    content: str = Field(min_length=1, max_length=100_000)
+    citation: str | None = None
+    source_url: str | None = None
+
+
+class EvidenceSearchIn(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=10, ge=1, le=25)
+
+
+class EvidenceSearchHit(BaseModel):
+    evidence_source_id: uuid.UUID
+    evidence_key: str
+    title: str
+    chunk_id: uuid.UUID
+    chunk_index: int
+    locator: str | None
+    snippet: str
+
+
+class PmcSearchIn(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=10, ge=1, le=25)
+
+
+class PmcImportIn(BaseModel):
+    pmcid: str = Field(min_length=3, max_length=20)
+
+
+class RunCitationOut(ORMModel):
+    id: uuid.UUID
+    run_id: uuid.UUID
+    evidence_source_id: uuid.UUID
+    citation_key: str
+    claim_text: str
+    support_type: str
+    source_locator: str | None
+    validation_status: str
+    validation_notes: str | None
+
+
+class RunManifestOut(ORMModel):
+    run_id: uuid.UUID
+    manifest_version: str
+    manifest_json: dict[str, Any]
+    manifest_payload_sha256: str
+    transcript_sha256: str
+    summary_sha256: str
+    created_at: datetime
+
+
+class RunReviewIn(BaseModel):
+    status: Literal["in_review", "approved", "changes_requested", "rejected"]
+    rubric_version: str | None = None
+    ratings: dict[str, int] = {}
+    comments_markdown: str = Field(default="", max_length=20_000)
+
+
+class RunReviewOut(ORMModel):
+    id: uuid.UUID
+    run_id: uuid.UUID
+    reviewer_id: uuid.UUID
+    status: str
+    rubric_version: str | None
+    ratings: dict[str, Any]
+    comments_markdown: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExportJobOut(ORMModel):
+    id: uuid.UUID
+    run_id: uuid.UUID | None
+    format: str
+    status: str
+    byte_size: int | None
+    sha256: str | None
+    error_code: str | None
+    error_safe_message: str | None
+    created_at: datetime
+    completed_at: datetime | None
+
+
+class ComparisonCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=4000)
+    run_ids: list[uuid.UUID] = Field(min_length=2, max_length=4)
+    rubric_criteria: list[str] = Field(
+        default_factory=lambda: [
+            "Scientific plausibility",
+            "Use of evidence",
+            "Clarity of recommendation",
+            "Identification of risks",
+        ],
+        min_length=1,
+        max_length=10,
+    )
+
+
+class ComparisonItemOut(BaseModel):
+    blind_label: str
+    display_order: int
+    # run identity is only revealed when the comparison is not blinded for the caller
+    run_id: uuid.UUID | None = None
+    run_title: str | None = None
+    summary_json: dict[str, Any] | None = None
+    summary_markdown: str | None = None
+
+
+class ComparisonSetOut(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    description: str
+    visibility: str
+    rubric: dict[str, Any]
+    created_at: datetime
+    items: list[ComparisonItemOut] = []
+    evaluation_count: int = 0
+    my_evaluation_submitted: bool = False
+    revealed: bool = False
+
+
+class ComparisonEvaluationIn(BaseModel):
+    # {"A": {"criterion": score 1-5, ...}, "B": {...}}
+    item_scores: dict[str, dict[str, int]]
+    ranking: list[str] = []
+    comments_markdown: str = Field(default="", max_length=20_000)
+
+
+class ComparisonEvaluationOut(ORMModel):
+    id: uuid.UUID
+    comparison_set_id: uuid.UUID
+    evaluator_id: uuid.UUID
+    item_scores: dict[str, Any]
+    ranking: list
+    comments_markdown: str
+    submitted_at: datetime
 
 
 class InterventionIn(BaseModel):

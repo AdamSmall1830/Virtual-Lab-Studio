@@ -14,6 +14,7 @@ from .bootstrap import bootstrap
 from .config import get_settings
 from .db import get_engine, get_sessionmaker
 from .api.v1 import router as v1_router
+from .api.library import router as library_router
 from .worker import worker_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -53,6 +54,7 @@ app = FastAPI(
 )
 
 app.include_router(v1_router, prefix="/api/v1")
+app.include_router(library_router, prefix="/api/v1")
 
 
 @app.get("/api/health")
