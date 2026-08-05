@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Virtual Lab Studio"
+description = "A premium glassmorphic academic research workspace UI around the Virtual Lab multi-agent meeting pattern: landing page, dashboard, projects, Agent Studio, Template Library, Evidence Library, six-step meeting composer, Live Meeting Room with streaming demo runs, run detail, comparison, and notebook."
+version = "1.0.0"
+id = "artifacts/web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22333
+
+[services.development]
+run = "pnpm --filter @workspace/web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22333"
+BASE_PATH = "/"
