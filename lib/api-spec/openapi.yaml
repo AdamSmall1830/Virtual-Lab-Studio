@@ -3,20 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Virtual Lab Studio API — human-guided multi-agent research workspace
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: dashboard
+  - name: projects
+  - name: agents
+  - name: templates
+  - name: runs
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +27,602 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /v1/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Workspace dashboard summary
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /v1/projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+  /v1/projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+  /v1/projects/{projectId}/runs:
+    get:
+      operationId: listProjectRuns
+      tags: [runs]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Runs for a project
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Run"
+  /v1/agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      responses:
+        "200":
+          description: Agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentProfile"
+    post:
+      operationId: createAgent
+      tags: [agents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentProfile"
+  /v1/agents/{agentId}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentProfile"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateAgent
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentProfile"
+  /v1/templates:
+    get:
+      operationId: listTemplates
+      tags: [templates]
+      responses:
+        "200":
+          description: Meeting templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MeetingTemplate"
+  /v1/templates/{templateId}:
+    get:
+      operationId: getTemplate
+      tags: [templates]
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeetingTemplate"
+        "404":
+          description: Not found
+  /v1/runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      responses:
+        "200":
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Run"
+    post:
+      operationId: launchRun
+      tags: [runs]
+      summary: Launch a meeting run (frozen definition)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunLaunchInput"
+      responses:
+        "201":
+          description: Launched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+  /v1/runs/{runId}:
+    get:
+      operationId: getRun
+      tags: [runs]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: Not found
+  /v1/runs/{runId}/events:
+    get:
+      operationId: listRunEvents
+      tags: [runs]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Ordered run events (replayable)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RunEvent"
+  /v1/runs/{runId}/control:
+    post:
+      operationId: controlRun
+      tags: [runs]
+      summary: Pause, resume, cancel, or add a human intervention
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunControlInput"
+      responses:
+        "200":
+          description: Updated run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "409":
+          description: Control not valid in current state
 components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      schema:
+        type: string
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
+      required: [status]
+    DashboardSummary:
+      type: object
       required:
-        - status
-
+        [
+          projectCount,
+          agentCount,
+          templateCount,
+          runCounts,
+          totalTokens,
+          totalCalls,
+          recentRuns,
+          recentProjects,
+        ]
+      properties:
+        projectCount: { type: integer }
+        agentCount: { type: integer }
+        templateCount: { type: integer }
+        runCounts:
+          type: object
+          additionalProperties: { type: integer }
+        totalTokens: { type: integer }
+        totalCalls: { type: integer }
+        estimatedCost: { type: ["number", "null"] }
+        recentRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/Run"
+        recentProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+    Project:
+      type: object
+      required: [id, name, status, tags, hypotheses, objectives, constraints, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        abstract: { type: ["string", "null"] }
+        domain: { type: ["string", "null"] }
+        tags:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [active, paused, completed, archived]
+        researchQuestion: { type: ["string", "null"] }
+        hypotheses:
+          type: array
+          items: { type: string }
+        objectives:
+          type: array
+          items: { type: string }
+        constraints:
+          type: array
+          items: { type: string }
+        ethicsNotes: { type: ["string", "null"] }
+        disclosureNotes: { type: ["string", "null"] }
+        humanDecision: { type: ["string", "null"] }
+        runCount: { type: integer }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    ProjectInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        abstract: { type: string }
+        domain: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        researchQuestion: { type: string }
+        hypotheses:
+          type: array
+          items: { type: string }
+        objectives:
+          type: array
+          items: { type: string }
+        constraints:
+          type: array
+          items: { type: string }
+        ethicsNotes: { type: string }
+        disclosureNotes: { type: string }
+        humanDecision: { type: string }
+    ProjectUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        abstract: { type: string }
+        domain: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [active, paused, completed, archived]
+        researchQuestion: { type: string }
+        hypotheses:
+          type: array
+          items: { type: string }
+        objectives:
+          type: array
+          items: { type: string }
+        constraints:
+          type: array
+          items: { type: string }
+        ethicsNotes: { type: string }
+        disclosureNotes: { type: string }
+        humanDecision: { type: string }
+    AgentProfile:
+      type: object
+      required: [id, title, expertise, goal, role, provider, model, version, archived, createdAt]
+      properties:
+        id: { type: string }
+        slug: { type: ["string", "null"] }
+        title: { type: string }
+        shortLabel: { type: ["string", "null"] }
+        expertise: { type: string }
+        goal: { type: string }
+        role: { type: string }
+        advancedInstructions: { type: ["string", "null"] }
+        limitations: { type: ["string", "null"] }
+        provider:
+          type: string
+          enum: [demo, openai, openai_compatible, inherit]
+        model: { type: string }
+        temperature: { type: ["number", "null"] }
+        accentColor: { type: ["string", "null"] }
+        version: { type: integer }
+        archived: { type: boolean }
+        isSystem: { type: boolean }
+        createdAt: { type: string }
+    AgentInput:
+      type: object
+      required: [title, expertise, goal, role]
+      properties:
+        title: { type: string, minLength: 1 }
+        shortLabel: { type: string }
+        expertise: { type: string }
+        goal: { type: string }
+        role: { type: string }
+        advancedInstructions: { type: string }
+        limitations: { type: string }
+        provider:
+          type: string
+          enum: [demo, openai, openai_compatible, inherit]
+        model: { type: string }
+        temperature: { type: number }
+        accentColor: { type: string }
+    AgentUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        shortLabel: { type: string }
+        expertise: { type: string }
+        goal: { type: string }
+        role: { type: string }
+        advancedInstructions: { type: string }
+        limitations: { type: string }
+        provider:
+          type: string
+          enum: [demo, openai, openai_compatible, inherit]
+        model: { type: string }
+        temperature: { type: number }
+        accentColor: { type: string }
+        archived: { type: boolean }
+    MeetingTemplate:
+      type: object
+      required: [id, slug, name, kind, category, description, requiredQuestions, rules, defaultRounds, version]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [team, individual, ensemble_merge]
+        category: { type: string }
+        description: { type: string }
+        objective: { type: ["string", "null"] }
+        requiredQuestions:
+          type: array
+          items: { type: string }
+        rules:
+          type: array
+          items: { type: string }
+        suggestedAgentSlugs:
+          type: array
+          items: { type: string }
+        defaultRounds: { type: integer }
+        intendedOutput: { type: ["string", "null"] }
+        version: { type: integer }
+    RunParticipant:
+      type: object
+      required: [agentId, roleType, title]
+      properties:
+        agentId: { type: string }
+        roleType:
+          type: string
+          enum: [lead, member, expert, critic, merger]
+        title: { type: string }
+        shortLabel: { type: ["string", "null"] }
+        provider: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        accentColor: { type: ["string", "null"] }
+    Run:
+      type: object
+      required:
+        [id, projectId, title, kind, status, rounds, currentRound, participants, isSimulation, callCount, tokensUsed, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        projectName: { type: ["string", "null"] }
+        templateId: { type: ["string", "null"] }
+        title: { type: string }
+        kind:
+          type: string
+          enum: [team, individual, ensemble_merge]
+        status:
+          type: string
+          enum:
+            [
+              draft,
+              queued,
+              validating,
+              running,
+              pause_pending,
+              paused,
+              cancelling,
+              cancelled,
+              completed,
+              failed,
+              budget_exceeded,
+            ]
+        agendaObjective: { type: ["string", "null"] }
+        requiredQuestions:
+          type: array
+          items: { type: string }
+        rules:
+          type: array
+          items: { type: string }
+        rounds: { type: integer }
+        currentRound: { type: integer }
+        currentSpeaker: { type: ["string", "null"] }
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunParticipant"
+        isSimulation: { type: boolean }
+        callCount: { type: integer }
+        plannedCallCount: { type: ["integer", "null"] }
+        tokensUsed: { type: integer }
+        estimatedCost: { type: ["number", "null"] }
+        summary:
+          type: ["object", "null"]
+          additionalProperties: true
+        failureReason: { type: ["string", "null"] }
+        startedAt: { type: ["string", "null"] }
+        completedAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+    RunLaunchInput:
+      type: object
+      required: [projectId, title, kind, participants]
+      properties:
+        projectId: { type: string }
+        templateId: { type: string }
+        title: { type: string, minLength: 1 }
+        kind:
+          type: string
+          enum: [team, individual, ensemble_merge]
+        agendaObjective: { type: string }
+        requiredQuestions:
+          type: array
+          items: { type: string }
+        rules:
+          type: array
+          items: { type: string }
+        rounds: { type: integer, minimum: 0, maximum: 5 }
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunParticipant"
+        idempotencyKey: { type: string }
+    RunEvent:
+      type: object
+      required: [id, runId, seq, type, createdAt]
+      properties:
+        id: { type: string }
+        runId: { type: string }
+        seq: { type: integer }
+        type: { type: string }
+        round: { type: ["integer", "null"] }
+        agentId: { type: ["string", "null"] }
+        agentTitle: { type: ["string", "null"] }
+        roleType: { type: ["string", "null"] }
+        content: { type: ["string", "null"] }
+        payload:
+          type: ["object", "null"]
+          additionalProperties: true
+        createdAt: { type: string }
+    RunControlInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [pause, resume, cancel, intervene]
+        instruction: { type: string }

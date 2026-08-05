@@ -106,6 +106,27 @@ specs/                           schemas, tokens, seed data, environment example
 - No information depends on color or motion alone.
 - Use shared components, loading skeletons, empty states, and actionable errors.
 
+## Implementation status (August 2026)
+
+The sections above describe the **target contract** from the build pack. The current,
+actually-running implementation is documented in `docs/CURRENT_IMPLEMENTATION.md` — read
+it first when working in this repo. Summary:
+
+- **Done (task #2):** full React frontend (`artifacts/studio`, landing, methodology,
+  dashboard, projects, Agent Studio, templates, 6-step composer, live meeting room, run
+  detail) backed by an **interim Express API** (`artifacts/api-server`) with Drizzle +
+  Replit PostgreSQL, OpenAPI-first codegen (`lib/api-spec` → generated React Query hooks
+  and Zod schemas), idempotent seeding from `specs/`, and a deterministic, always-labeled
+  Demo Provider run engine (timer-free lazy event materialization, append-only
+  `run_events`, pause/resume/cancel/intervene).
+- **Pending (task #1):** the authoritative Python/FastAPI meeting engine wrapping
+  upstream `src/virtual_lab`, real providers, Postgres-backed run queue/worker, SSE.
+  The Express API is a stand-in honoring the same OpenAPI contract at `/api/v1/...`.
+- **Pending (task #3):** evidence library, exports, reproducibility packets. The
+  composer's evidence step is present and labeled "coming soon".
+- Live updates are currently React Query polling (~1.5 s during active runs); the
+  event log is `seq`-ordered so SSE replay can drop in without contract changes.
+
 ## Completion standard
 
 A feature is not complete because files were generated. It is complete when the relevant end-to-end workflow works in preview, security and provenance invariants hold, responsive and accessible states are inspected, tests pass, and documentation is updated.

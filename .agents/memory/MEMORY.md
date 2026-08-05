@@ -1,1 +1,2 @@
 - [Virtual Lab Studio build pack](virtual-lab-build-pack.md) — product contract in root MASTER prompt/docs/specs; upstream src/virtual_lab cloned manually, must stay intact with MIT license.
+- [Orval zod codegen quirks](orval-zod-codegen.md) — lib/api-zod needs zod v4 (not catalog v3); avoid query params in openapi.yaml (Params name collision).
