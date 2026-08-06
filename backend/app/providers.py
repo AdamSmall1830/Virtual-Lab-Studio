@@ -8,18 +8,25 @@ and costs nothing.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import ipaddress
 import json
+import logging
+import random
 import socket
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
 import httpx
 
 from .config import SPECS_DIR, get_settings
+
+logger = logging.getLogger("vls.providers")
 
 
 @dataclass
@@ -197,6 +204,38 @@ class ProviderCallError(RuntimeError):
         self.safe_message = message
 
 
+# Transient conditions on shared model endpoints. A long deliberation makes many
+# sequential calls, so a single blip must be retried rather than killing the run.
+_RETRYABLE_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+_RETRY_BASE_SECONDS = 2.0
+_RETRY_MAX_DELAY_SECONDS = 30.0
+
+
+def _transient_status_error(status_code: int) -> ProviderCallError:
+    if status_code == 429:
+        return ProviderCallError(
+            "provider_rate_limited", "The provider rate-limited the request."
+        )
+    return ProviderCallError(
+        "provider_unavailable",
+        f"The provider is temporarily unavailable (HTTP {status_code}).",
+    )
+
+
+def _exhausted_message(code: str, attempts: int) -> str:
+    if code == "provider_rate_limited":
+        return (
+            f"The provider rate-limited this session and kept refusing after {attempts} "
+            "attempts. Wait a minute, then run again with fewer researchers or rounds "
+            "so the transcript stays smaller."
+        )
+    if code == "provider_timeout":
+        return f"The model provider timed out after {attempts} attempts."
+    if code == "provider_unreachable":
+        return f"Could not reach the model provider endpoint after {attempts} attempts."
+    return f"The provider was unavailable after {attempts} attempts."
+
+
 @dataclass
 class ModelPricing:
     input_per_million: float | None = None
@@ -254,18 +293,87 @@ class OpenAICompatibleProvider:
         organization_id: str | None = None,
         pricing_by_model: dict[str, ModelPricing] | None = None,
         timeout_seconds: float = 180.0,
+        max_attempts: int = 4,
+        retry_budget_seconds: float = 90.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.organization_id = organization_id
         self.pricing_by_model = pricing_by_model or {}
         self.timeout_seconds = timeout_seconds
+        self.max_attempts = max(1, max_attempts)
+        self.retry_budget_seconds = max(0.0, retry_budget_seconds)
 
     def _headers(self) -> dict[str, str]:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         if self.organization_id:
             headers["OpenAI-Organization"] = self.organization_id
         return headers
+
+    @staticmethod
+    def _retry_after_seconds(resp: httpx.Response) -> float | None:
+        """Parse a Retry-After header (delta-seconds or HTTP-date), if present."""
+        raw = (resp.headers.get("retry-after") or "").strip()
+        if not raw:
+            return None
+        try:
+            return max(0.0, float(raw))
+        except ValueError:
+            pass
+        try:
+            when = parsedate_to_datetime(raw)
+        except (TypeError, ValueError):
+            return None
+        if when is None:
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=UTC)
+        return max(0.0, (when - datetime.now(UTC)).total_seconds())
+
+    async def _post_with_retry(self, payload: dict[str, Any]) -> httpx.Response:
+        """POST the completion, retrying transient provider failures.
+
+        Rate limits and upstream hiccups are routine on shared endpoints and
+        must not destroy a long-running deliberation. Permanent failures (bad
+        key, unknown model) are raised immediately — retrying cannot fix them.
+        """
+        attempt = 0
+        waited = 0.0
+        while True:
+            attempt += 1
+            resp: httpx.Response | None = None
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    resp = await client.post(
+                        f"{self.base_url}/chat/completions",
+                        json=payload,
+                        headers=self._headers(),
+                    )
+            except httpx.TimeoutException:
+                pending = ProviderCallError("provider_timeout", "The model provider timed out.")
+            except httpx.HTTPError:
+                pending = ProviderCallError(
+                    "provider_unreachable", "Could not reach the model provider endpoint."
+                )
+            else:
+                if resp.status_code not in _RETRYABLE_STATUS:
+                    return resp
+                pending = _transient_status_error(resp.status_code)
+
+            delay = self._retry_after_seconds(resp) if resp is not None else None
+            if delay is None:
+                delay = min(_RETRY_BASE_SECONDS * (2 ** (attempt - 1)), _RETRY_MAX_DELAY_SECONDS)
+                delay += random.uniform(0.0, _RETRY_BASE_SECONDS)
+            if attempt >= self.max_attempts or waited + delay > self.retry_budget_seconds:
+                pending.safe_message = _exhausted_message(pending.code, attempt)
+                pending.args = (pending.safe_message,)
+                raise pending
+            logger.warning(
+                "Provider call transient failure (%s); retrying in %.1fs (attempt %d/%d)",
+                pending.code, delay, attempt, self.max_attempts,
+            )
+            await asyncio.sleep(delay)
+            waited += delay
 
     async def complete(self, request: CompletionRequest) -> CompletionResult:
         payload: dict[str, Any] = {
@@ -277,19 +385,7 @@ class OpenAICompatibleProvider:
         if not _model_rejects_temperature(request.model):
             payload["temperature"] = request.temperature
         started = time.monotonic()
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                resp = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    json=payload,
-                    headers=self._headers(),
-                )
-        except httpx.TimeoutException:
-            raise ProviderCallError("provider_timeout", "The model provider timed out.")
-        except httpx.HTTPError:
-            raise ProviderCallError(
-                "provider_unreachable", "Could not reach the model provider endpoint."
-            )
+        resp = await self._post_with_retry(payload)
         latency_ms = int((time.monotonic() - started) * 1000)
         if resp.status_code == 401 or resp.status_code == 403:
             raise ProviderCallError("provider_auth_failed", "The provider rejected the API key.")
@@ -298,8 +394,8 @@ class OpenAICompatibleProvider:
                 "provider_model_not_found",
                 f"The provider endpoint rejected model '{request.model}'.",
             )
-        if resp.status_code == 429:
-            raise ProviderCallError("provider_rate_limited", "The provider rate-limited the request.")
+        # Retryable statuses (429/5xx) never reach here: _post_with_retry either
+        # succeeds or raises once the retry budget is spent.
         if resp.status_code >= 400:
             raise ProviderCallError(
                 "provider_error", f"The provider returned an error (HTTP {resp.status_code})."

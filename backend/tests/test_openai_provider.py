@@ -2,6 +2,7 @@
 import httpx
 import pytest
 
+from app import providers as providers_module
 from app.providers import (
     CompletionRequest,
     ModelPricing,
@@ -95,3 +96,147 @@ async def test_adapter_maps_errors(monkeypatch):
     with pytest.raises(ProviderCallError) as ei:
         await provider.complete(_request())
     assert ei.value.code == "provider_auth_failed"
+
+
+class _SequenceClient:
+    """Returns a scripted sequence of responses/exceptions, one per call."""
+
+    calls = 0
+    script: list = []
+
+    def __init__(self, *a, **kw):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def post(self, url, json=None, headers=None):
+        item = _SequenceClient.script[min(_SequenceClient.calls, len(_SequenceClient.script) - 1)]
+        _SequenceClient.calls += 1
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+def _install_sequence(monkeypatch, script, *, sleeps=None):
+    _SequenceClient.calls = 0
+    _SequenceClient.script = script
+    monkeypatch.setattr(httpx, "AsyncClient", _SequenceClient)
+
+    async def _no_sleep(seconds):
+        if sleeps is not None:
+            sleeps.append(seconds)
+
+    monkeypatch.setattr(providers_module.asyncio, "sleep", _no_sleep)
+
+
+def _ok_response():
+    return httpx.Response(
+        200,
+        json={
+            "id": "resp-1", "model": "gpt-4o-mini",
+            "choices": [{"message": {"content": "Recovered"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        },
+        request=httpx.Request("POST", "https://x"),
+    )
+
+
+async def test_rate_limit_is_retried_then_succeeds(monkeypatch):
+    """A 429 mid-deliberation must not destroy the run."""
+    sleeps: list[float] = []
+    _install_sequence(
+        monkeypatch,
+        [
+            httpx.Response(429, request=httpx.Request("POST", "https://x")),
+            httpx.Response(503, request=httpx.Request("POST", "https://x")),
+            _ok_response(),
+        ],
+        sleeps=sleeps,
+    )
+    provider = OpenAICompatibleProvider("https://api.openai.com/v1", "sk-k")
+    result = await provider.complete(_request(model="gpt-4o-mini"))
+    assert result.content == "Recovered"
+    assert _SequenceClient.calls == 3
+    assert len(sleeps) == 2
+    assert sleeps[1] > sleeps[0]  # exponential backoff
+
+
+async def test_rate_limit_honours_retry_after_header(monkeypatch):
+    sleeps: list[float] = []
+    _install_sequence(
+        monkeypatch,
+        [
+            httpx.Response(429, headers={"retry-after": "5"},
+                           request=httpx.Request("POST", "https://x")),
+            _ok_response(),
+        ],
+        sleeps=sleeps,
+    )
+    provider = OpenAICompatibleProvider("https://api.openai.com/v1", "sk-k")
+    await provider.complete(_request(model="gpt-4o-mini"))
+    assert sleeps == [5.0]
+
+
+async def test_rate_limit_gives_up_with_actionable_message(monkeypatch):
+    _install_sequence(
+        monkeypatch,
+        [httpx.Response(429, request=httpx.Request("POST", "https://x"))],
+        sleeps=[],
+    )
+    provider = OpenAICompatibleProvider(
+        "https://api.openai.com/v1", "sk-k", max_attempts=3, retry_budget_seconds=600
+    )
+    with pytest.raises(ProviderCallError) as ei:
+        await provider.complete(_request(model="gpt-4o-mini"))
+    assert ei.value.code == "provider_rate_limited"
+    assert _SequenceClient.calls == 3
+    assert "fewer researchers or rounds" in ei.value.safe_message
+
+
+async def test_retry_budget_caps_total_waiting(monkeypatch):
+    """A long Retry-After beyond the budget fails fast instead of stalling."""
+    sleeps: list[float] = []
+    _install_sequence(
+        monkeypatch,
+        [httpx.Response(429, headers={"retry-after": "3600"},
+                        request=httpx.Request("POST", "https://x"))],
+        sleeps=sleeps,
+    )
+    provider = OpenAICompatibleProvider(
+        "https://api.openai.com/v1", "sk-k", max_attempts=5, retry_budget_seconds=90
+    )
+    with pytest.raises(ProviderCallError):
+        await provider.complete(_request(model="gpt-4o-mini"))
+    assert _SequenceClient.calls == 1
+    assert sleeps == []
+
+
+async def test_timeouts_are_retried(monkeypatch):
+    _install_sequence(
+        monkeypatch,
+        [httpx.TimeoutException("slow"), _ok_response()],
+        sleeps=[],
+    )
+    provider = OpenAICompatibleProvider("https://api.openai.com/v1", "sk-k")
+    result = await provider.complete(_request(model="gpt-4o-mini"))
+    assert result.content == "Recovered"
+    assert _SequenceClient.calls == 2
+
+
+async def test_permanent_errors_are_not_retried(monkeypatch):
+    """Retrying a bad key or unknown model just wastes the run's time."""
+    for status, code in ((401, "provider_auth_failed"), (404, "provider_model_not_found")):
+        _install_sequence(
+            monkeypatch,
+            [httpx.Response(status, request=httpx.Request("POST", "https://x"))],
+            sleeps=[],
+        )
+        provider = OpenAICompatibleProvider("https://api.openai.com/v1", "sk-k")
+        with pytest.raises(ProviderCallError) as ei:
+            await provider.complete(_request(model="gpt-4o-mini"))
+        assert ei.value.code == code
+        assert _SequenceClient.calls == 1
