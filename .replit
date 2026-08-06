@@ -21,3 +21,8 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+REPLIT_AI_ALLOWED_EMAILS = "adamsmall1830@gmail.com"

@@ -430,8 +430,15 @@ async def list_providers(
 
 @router.get("/providers/environment", response_model=ProviderEnvironmentOut)
 async def provider_environment(user: User = Depends(get_current_user)):
-    """Whether the zero-key Replit AI Integrations option is available."""
-    return ProviderEnvironmentOut(replit_ai_available=replit_ai_credentials() is not None)
+    """Whether the zero-key Replit AI Integrations option is available.
+
+    Owner-billed, so it is restricted to an explicit email allowlist."""
+    settings = get_settings()
+    available = (
+        replit_ai_credentials() is not None
+        and settings.replit_ai_email_allowed(user.email)
+    )
+    return ProviderEnvironmentOut(replit_ai_available=available)
 
 
 def _model_capabilities(m: ProviderModelIn) -> dict[str, Any]:
@@ -507,6 +514,11 @@ async def create_provider(
             raise problem(
                 422, "replit_ai_unavailable",
                 "Replit AI credentials are not configured in this environment.",
+            )
+        if not settings.replit_ai_email_allowed(user.email):
+            raise problem(
+                403, "replit_ai_not_allowed",
+                "The Replit AI option is billed to the app owner and is not enabled for this account. Add your own API key instead.",
             )
     else:
         if not body.api_key or not body.api_key.strip():

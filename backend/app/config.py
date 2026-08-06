@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # Provisioned automatically when the integration is set up; empty = unavailable.
     ai_integrations_openai_base_url: str = ""
     ai_integrations_openai_api_key: str = ""
+    # Comma-separated emails allowed to use the zero-key Replit AI option
+    # (billed to the workspace owner's Replit credits). Empty = nobody.
+    replit_ai_allowed_emails: str = ""
+
+    def replit_ai_email_allowed(self, email: str | None) -> bool:
+        allowed = {
+            e.strip().lower() for e in self.replit_ai_allowed_emails.split(",") if e.strip()
+        }
+        return bool(email) and email.strip().lower() in allowed
 
     @property
     def is_development(self) -> bool:
