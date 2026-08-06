@@ -14,6 +14,8 @@ are checked at every safe checkpoint (before each provider call).
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import json
 import logging
@@ -220,33 +222,10 @@ class LeaseLost(Exception):
     """Another worker reclaimed this run mid-call; abandon without writing."""
 
 
-def _max_call_seconds(provider: ModelProvider) -> float:
-    """Worst-case wall time a single provider call may consume."""
-    return float(getattr(provider, "timeout_seconds", 0.0)) + float(
-        getattr(provider, "retry_budget_seconds", 0.0)
-    )
-
-
-async def _lease_still_held(db: AsyncSession, run_id: uuid.UUID, worker_id: str) -> bool:
-    """True when this worker still owns an unexpired lease on the run.
-
-    Reads columns (not the ORM object) so the identity map cannot serve a
-    stale in-memory copy of the row.
-    """
-    row = (
-        await db.execute(
-            select(Run.lease_owner, Run.lease_expires_at).where(Run.id == run_id)
-        )
-    ).one_or_none()
-    if row is None or row.lease_owner != worker_id or row.lease_expires_at is None:
-        return False
-    expires = row.lease_expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=UTC)
-    return expires > datetime.now(UTC)
-
-
-async def _renew_lease(db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int) -> None:
+async def _claim_lease(
+    db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int
+) -> None:
+    """Take ownership of a run this worker has just been handed."""
     await db.execute(
         update(Run)
         .where(Run.id == run_id)
@@ -257,6 +236,92 @@ async def _renew_lease(db: AsyncSession, run_id: uuid.UUID, worker_id: str, leas
         )
     )
     await db.commit()
+
+
+async def _renew_lease(
+    db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int
+) -> bool:
+    """Extend the lease only while this worker still holds it.
+
+    The update is conditional on ownership so it can never steal a run back
+    from a worker that legitimately reclaimed it after our lease expired.
+    Returns False when ownership has been lost — the caller must abandon.
+    """
+    result = await db.execute(
+        update(Run)
+        .where(
+            Run.id == run_id,
+            Run.lease_owner == worker_id,
+            Run.lease_expires_at.is_not(None),
+            Run.lease_expires_at > datetime.now(UTC),
+        )
+        .values(
+            heartbeat_at=datetime.now(UTC),
+            lease_expires_at=datetime.now(UTC) + timedelta(seconds=lease_seconds),
+        )
+    )
+    await db.commit()
+    return result.rowcount == 1
+
+
+class _LeaseHeartbeat:
+    """Keeps a run's lease alive across an arbitrarily long provider call.
+
+    A single call can run for minutes (model latency plus rate-limit backoff),
+    which no fixed lease can bound. Rather than inflating the lease — which
+    would also delay recovery of genuinely dead workers — this renews it on a
+    timer from a background task. If a renewal finds the lease is no longer
+    ours, ``lost`` is set and the caller must abandon the attempt.
+
+    Uses its own session: an AsyncSession cannot be shared between tasks.
+    """
+
+    def __init__(
+        self,
+        sessionmaker: async_sessionmaker[AsyncSession],
+        run_id: uuid.UUID,
+        worker_id: str,
+        lease_seconds: int,
+    ) -> None:
+        self._sessionmaker = sessionmaker
+        self._run_id = run_id
+        self._worker_id = worker_id
+        self._lease_seconds = lease_seconds
+        self._stop = asyncio.Event()
+        self._task: asyncio.Task | None = None
+        self.lost = False
+
+    async def __aenter__(self) -> _LeaseHeartbeat:
+        self._task = asyncio.create_task(self._loop())
+        return self
+
+    async def __aexit__(self, *exc_info: Any) -> bool:
+        self._stop.set()
+        if self._task is not None:
+            with contextlib.suppress(Exception):
+                await self._task
+        return False
+
+    async def _loop(self) -> None:
+        # Renew well inside the lease window so one slow renewal is survivable.
+        interval = max(5.0, self._lease_seconds / 3)
+        while not self._stop.is_set():
+            try:
+                await asyncio.wait_for(self._stop.wait(), timeout=interval)
+                return  # stopped: the call finished
+            except TimeoutError:
+                pass
+            try:
+                async with self._sessionmaker() as db:
+                    if not await _renew_lease(
+                        db, self._run_id, self._worker_id, self._lease_seconds
+                    ):
+                        self.lost = True
+                        return
+            except Exception:  # noqa: BLE001
+                # A transient DB error must not kill the run; the next tick
+                # retries, and a truly dead lease is caught after the call.
+                logger.warning("Lease heartbeat failed for run %s", self._run_id)
 
 
 async def _apply_pending_interventions(
@@ -304,7 +369,8 @@ async def _checkpoint(
     lease_seconds: int,
 ) -> None:
     """Safe checkpoint: renew lease, honor pause/cancel, apply interventions, check budget."""
-    await _renew_lease(db, ctx.run.id, worker_id, lease_seconds)
+    if not await _renew_lease(db, ctx.run.id, worker_id, lease_seconds):
+        raise LeaseLost(f"run {ctx.run.id} lease lost at checkpoint {checkpoint}")
     await db.refresh(ctx.run)
     await append_event(
         db,
@@ -346,10 +412,9 @@ async def _checkpoint(
                 )
                 await _apply_pending_interventions(db, ctx, checkpoint, messages)
                 break
-            import asyncio
-
             await asyncio.sleep(1.0)
-            await _renew_lease(db, ctx.run.id, worker_id, lease_seconds)
+            if not await _renew_lease(db, ctx.run.id, worker_id, lease_seconds):
+                raise LeaseLost(f"run {ctx.run.id} lease lost while paused")
             continue
         break
 
@@ -529,6 +594,9 @@ async def execute_run(
         if run.status in {"completed", "failed", "cancelled", "budget_stopped"}:
             return  # already terminal (e.g. duplicate reclaim); nothing to do
         ctx = await _load_context(db, run)
+        # This worker has just been handed the run, so take ownership outright.
+        # Every later renewal is fenced on still holding it.
+        await _claim_lease(db, run_id, worker_id, lease_seconds)
 
         started_at = datetime.now(UTC)
         try:
@@ -722,24 +790,25 @@ async def execute_run(
                 )
 
                 provider = providers_by_config[da.provider_config_id]
-                # A single call can legitimately outlast the normal lease: model
-                # latency plus rate-limit backoff. Widen the lease to cover the
-                # worst case first, so the expired-lease sweeper cannot requeue
-                # this run and have a second worker replay the same turn.
-                call_lease_seconds = lease_seconds + int(_max_call_seconds(provider))
-                if call_lease_seconds > lease_seconds:
-                    await _renew_lease(db, run.id, worker_id, call_lease_seconds)
-                if isinstance(provider, DemoProvider):
-                    result = await provider.complete(request, scripted=scripted)
-                else:
-                    result = await provider.complete(request)
-                # Defence in depth: if the lease was lost anyway, another worker
-                # owns this run now. Writing the result would duplicate its work.
-                if not await _lease_still_held(db, run.id, worker_id):
+                # A call can outlast any fixed lease (model latency plus
+                # rate-limit backoff), so hold the lease open with a heartbeat
+                # instead. Without this the sweeper requeues the run mid-call
+                # and a second worker replays the same turn.
+                async with _LeaseHeartbeat(
+                    sessionmaker, run.id, worker_id, lease_seconds
+                ) as heartbeat:
+                    if isinstance(provider, DemoProvider):
+                        result = await provider.complete(request, scripted=scripted)
+                    else:
+                        result = await provider.complete(request)
+                # Re-assert ownership before persisting: if another worker took
+                # over, writing this result would duplicate its work.
+                if heartbeat.lost or not await _renew_lease(
+                    db, run.id, worker_id, lease_seconds
+                ):
                     raise LeaseLost(
                         f"run {run.id} lease lost during call {planned.call_index}"
                     )
-                await _renew_lease(db, run.id, worker_id, lease_seconds)
 
                 if settings.demo_latency_enabled and run.demo_mode:
                     import asyncio

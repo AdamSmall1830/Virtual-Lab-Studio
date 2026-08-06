@@ -142,8 +142,17 @@ def test_fresh_database_boot_login_and_demo_launch(fresh_database_url):
         assert status == "completed", f"run ended in status {status}"
         assert run["provider_call_count"] == 3
 
-        events = _request(opener, "GET", f"{base}/runs/{run_id}/events?after=0&limit=200")
-        types = [e["event_type"] for e in events]
+        # The terminal status is committed before the closing events (summary,
+        # citations, manifest, run.completed) are appended, so poll for the
+        # event rather than assuming it landed the instant status flipped.
+        deadline = time.time() + 30
+        types: list[str] = []
+        while time.time() < deadline:
+            events = _request(opener, "GET", f"{base}/runs/{run_id}/events?after=0&limit=200")
+            types = [e["event_type"] for e in events]
+            if "run.completed" in types:
+                break
+            time.sleep(0.5)
         assert "run.queued" in types and "run.completed" in types
         summary = _request(opener, "GET", f"{base}/runs/{run_id}/summary")
         assert summary["validation_status"] == "valid"

@@ -863,7 +863,7 @@ export default function Composer() {
                            ? 'Free (simulation)'
                            : estimate.estimated_cost_usd != null
                              ? `$${estimate.estimated_cost_usd.toFixed(estimate.estimated_cost_usd > 0 && estimate.estimated_cost_usd < 0.01 ? 4 : 2)}${estimate.pricing_complete === false ? ' (partial pricing)' : ''}`
-                             : 'N/A'}
+                             : 'Billed by your provider'}
                        </span>
                      </div>
                   </div>
