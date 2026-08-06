@@ -135,6 +135,10 @@ export default function Composer() {
     () => (selectedProvider?.models ?? []).find((m) => m.id === modelId && m.is_enabled),
     [selectedProvider, modelId],
   );
+  // A demo run is a deterministic simulation, not real AI. This must be
+  // unmistakable before launch, not buried in advanced controls.
+  const isSimulation = selectedProvider?.provider_type === 'demo';
+  const hasRealProvider = selectableProviders.some((p) => p.provider_type !== 'demo');
   const chooseProvider = (id: string) => {
     setProviderId(id);
     const p = selectableProviders.find((x) => x.id === id);
@@ -810,9 +814,41 @@ export default function Composer() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-display font-bold mb-1.5 text-foreground">Session Ready for Launch</h3>
-                  <p className="text-muted-foreground mb-5 text-sm sm:text-base leading-relaxed">
+                  <p className="text-muted-foreground mb-3 text-sm sm:text-base leading-relaxed">
                     <strong className="text-foreground">{participants.length} researchers</strong> will deliberate for <strong className="text-foreground">{rounds} rounds</strong>, concluding with a synthesized final report.
                   </p>
+                  {isSimulation ? (
+                    <div
+                      className="mb-5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"
+                      data-testid="banner-simulation-notice"
+                    >
+                      <p className="font-bold text-amber-300">Simulation — this will not use real AI</p>
+                      <p className="text-amber-200/80 mt-1 leading-relaxed">
+                        The Demo Provider writes deterministic placeholder contributions, free of charge.{' '}
+                        {hasRealProvider ? (
+                          <>Pick a real model under Advanced Controls to run this for real.</>
+                        ) : (
+                          <>
+                            Add a model provider in{' '}
+                            <button
+                              type="button"
+                              onClick={() => setLocation('/app/settings/providers')}
+                              className="underline font-bold hover:text-amber-100"
+                              data-testid="link-add-provider"
+                            >
+                              Settings
+                            </button>{' '}
+                            to run this with real AI.
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mb-5 text-sm font-bold text-primary" data-testid="text-real-model-notice">
+                      Real AI · {selectedProvider?.name}
+                      {selectedModel?.display_name ? ` — ${selectedModel.display_name}` : ''}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm bg-background/60 p-3 rounded-xl border border-border inline-flex shadow-inner">
                      <div className="flex flex-col">
                        <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold mb-0.5">Est. Calls</span>
@@ -821,9 +857,11 @@ export default function Composer() {
                      <div className="flex flex-col">
                        <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold mb-0.5">Est. Cost</span>
                        <span className="font-bold text-foreground text-base" data-testid="text-est-cost">
-                         {estimate.estimated_cost_usd != null
-                           ? `$${estimate.estimated_cost_usd.toFixed(estimate.estimated_cost_usd > 0 && estimate.estimated_cost_usd < 0.01 ? 4 : 2)}${estimate.pricing_complete === false ? ' (partial pricing)' : ''}`
-                           : 'N/A'}
+                         {isSimulation
+                           ? 'Free (simulation)'
+                           : estimate.estimated_cost_usd != null
+                             ? `$${estimate.estimated_cost_usd.toFixed(estimate.estimated_cost_usd > 0 && estimate.estimated_cost_usd < 0.01 ? 4 : 2)}${estimate.pricing_complete === false ? ' (partial pricing)' : ''}`
+                             : 'N/A'}
                        </span>
                      </div>
                   </div>
@@ -838,7 +876,7 @@ export default function Composer() {
                    data-testid="launch-button"
                  >
                    {launchDraft.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
-                   Launch Session
+                   {isSimulation ? 'Launch Simulation' : 'Launch Session'}
                  </button>
                  <button 
                    onClick={() => setEstimate(null)}
