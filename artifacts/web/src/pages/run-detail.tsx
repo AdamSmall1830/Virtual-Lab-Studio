@@ -33,6 +33,8 @@ import {
   RunReviewInStatus,
 } from '@/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { DemoBadge } from '@/components/demo-badge';
+import { formatRunCost, isUnpricedRun, UNPRICED_COST_HINT } from '@/lib/cost';
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'budget_stopped']);
 // Stopped before finishing: the transcript so far is intact, so the run can be
@@ -159,11 +161,7 @@ export default function RunDetail() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <StatusBadge status={run.status} />
-              {run.demo_mode && (
-                <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-xs font-mono font-bold">
-                  DEMO
-                </span>
-              )}
+              {run.demo_mode && <DemoBadge />}
             </div>
             <h1 className="text-3xl font-display font-bold">{runTitle(run)}</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -273,6 +271,66 @@ export default function RunDetail() {
 // Summary
 // -------------------------------------------------------------------------
 
+function formatValidationError(err: unknown): string {
+  if (err == null) return 'Unknown validation error';
+  if (typeof err === 'string') return err;
+  if (typeof err === 'object') {
+    const e = err as Record<string, any>;
+    // Common JSON-schema error shapes: { loc/path, msg/message }.
+    const loc = e.loc ?? e.path ?? e.instancePath;
+    const msg = e.msg ?? e.message ?? e.error;
+    const locStr = Array.isArray(loc) ? loc.join('.') : loc != null ? String(loc) : '';
+    if (msg && locStr) return `${locStr}: ${msg}`;
+    if (msg) return String(msg);
+    if (locStr) return locStr;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
+// Shown whenever the structured summary failed schema validation. The summary
+// is still rendered (so reviewers can inspect it) but this banner makes clear
+// it must not be relied on or cited.
+export function SummaryValidationBanner({ summary }: { summary: RunSummaryOut }) {
+  if (summary.validation_status === 'valid') return null;
+
+  const errors = Array.isArray(summary.validation_errors) ? summary.validation_errors : [];
+  const shown = errors.slice(0, 5);
+  const remaining = errors.length - shown.length;
+
+  return (
+    <div
+      data-testid="banner-summary-invalid"
+      className="p-6 rounded-xl border-2 border-destructive/30 bg-destructive/5 flex items-start gap-4"
+    >
+      <AlertTriangle className="w-8 h-8 shrink-0 text-destructive" />
+      <div className="flex-1 min-w-0">
+        <h3 className="text-lg font-display font-bold mb-1 text-destructive">
+          Structured summary failed schema validation
+        </h3>
+        <p className="text-sm text-foreground font-medium mb-3">
+          This summary did not conform to the expected schema. It must not be relied on or cited as
+          an authoritative result.
+        </p>
+        {shown.length > 0 && (
+          <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 font-mono">
+            {shown.map((err, i) => (
+              <li key={i} className="break-words">{formatValidationError(err)}</li>
+            ))}
+            {remaining > 0 && (
+              <li className="list-none text-xs italic">+{remaining} more validation error{remaining === 1 ? '' : 's'}</li>
+            )}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SummaryTab({ runId }: { runId: string }) {
   const q = useRunSummary(runId, { query: { enabled: Boolean(runId), retry: false, queryKey: getRunSummaryQueryKey(runId) } });
   if (q.isLoading) return <Spinner label="Loading summary…" />;
@@ -290,6 +348,8 @@ function SummaryTab({ runId }: { runId: string }) {
 
   return (
     <div className="space-y-6">
+      <SummaryValidationBanner summary={summary} />
+
       <div className="vls-reading-surface p-8 rounded-xl border border-border shadow-sm space-y-8">
         <div className="flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
@@ -434,20 +494,31 @@ function CitationsTab({ runId }: { runId: string }) {
 
 function UsageTab({ run }: { run: RunOut }) {
   const tokens = (run.input_tokens ?? 0) + (run.output_tokens ?? 0);
+  const unpriced = isUnpricedRun(run);
   const cards = [
     { value: run.provider_call_count, label: 'Provider Calls' },
     { value: run.tool_call_count, label: 'Tool Calls' },
     { value: tokens.toLocaleString(), label: 'Total Tokens' },
     { value: `${run.wall_seconds}s`, label: 'Wall Time' },
     { value: run.current_round, label: 'Rounds' },
-    { value: `$${Number(run.actual_cost_usd ?? 0).toFixed(2)}`, label: 'Cost USD', accent: true },
+    {
+      value: formatRunCost(run),
+      label: 'Cost USD',
+      accent: true,
+      hint: unpriced ? UNPRICED_COST_HINT : undefined,
+    },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {cards.map((c) => (
-        <div key={c.label} className="vls-glass p-6 rounded-xl text-center">
+        <div key={c.label} className="vls-glass p-6 rounded-xl text-center" title={c.hint}>
           <div className={`text-3xl font-mono font-bold mb-1 ${c.accent ? 'text-accent' : ''}`}>{c.value}</div>
           <div className="text-sm text-muted-foreground">{c.label}</div>
+          {c.hint && (
+            <div className="text-xs text-muted-foreground mt-2 max-w-[16rem] mx-auto" data-testid="hint-cost-unpriced">
+              {c.hint}
+            </div>
+          )}
         </div>
       ))}
     </div>

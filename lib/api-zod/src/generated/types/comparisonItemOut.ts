@@ -13,4 +13,6 @@ export interface ComparisonItemOut {
   run_title?: string | null;
   summary_json?: ComparisonItemOutSummaryJson;
   summary_markdown?: string | null;
+  demo_mode?: boolean;
+  validation_status?: string | null;
 }

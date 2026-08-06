@@ -170,7 +170,7 @@ async def clerk_login(request: Request, response: Response, db: AsyncSession = D
 @router.post("/auth/dev-login")
 async def dev_login(body: DevLoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     settings = get_settings()
-    if not settings.is_development:
+    if not settings.dev_login_enabled:
         raise problem(403, "dev_login_disabled", "Development login is disabled outside development.")
     email = body.email.strip().lower()
     user = (
@@ -712,6 +712,21 @@ async def _validate_draft(
         if pm is None or pm.provider_config_id != pc.id or not pm.is_enabled:
             errors.append({"field": "agents", "message": "Model is missing, disabled, or not part of the provider."})
 
+    if body.template_version_id is not None:
+        tv = await db.get(TemplateVersion, body.template_version_id)
+        profile = (
+            await db.get(TemplateProfile, tv.template_profile_id) if tv is not None else None
+        )
+        # A null-workspace profile is a shared/seeded template usable anywhere;
+        # a workspace-scoped one must match. This mirrors the agent-version
+        # workspace check above.
+        if (
+            tv is None
+            or profile is None
+            or (profile.workspace_id is not None and profile.workspace_id != workspace_id)
+        ):
+            errors.append({"field": "template_version_id", "message": "Template version is missing or not in this workspace."})
+
     for ev_id in body.evidence_source_ids:
         source = await db.get(EvidenceSource, ev_id)
         if source is None or source.workspace_id != workspace_id or source.archived_at is not None:
@@ -728,6 +743,19 @@ async def _validate_draft(
             errors.append({
                 "field": "budget",
                 "message": f"Planned calls ({base_calls}) exceed the budget of {max_calls_budget} provider calls.",
+            })
+        elif max_calls_budget is not None and base_calls + 1 > int(max_calls_budget):
+            # A real run makes one call beyond the meeting turns to extract the
+            # structured record. Say so up front rather than letting the run
+            # finish with an unextracted summary the user did not expect.
+            warnings.append({
+                "field": "budget",
+                "message": (
+                    f"A budget of {max_calls_budget} provider calls leaves no room for the "
+                    f"structured-record extraction, which needs one call beyond the {base_calls} "
+                    "meeting turns. The meeting will still run, but its summary will be marked "
+                    "as not extracted."
+                ),
             })
     if not body.questions:
         warnings.append({"field": "questions", "message": "No agenda questions; the summary will not cover explicit questions."})
@@ -1241,6 +1269,12 @@ async def add_intervention(
     run = await _get_run(db, run_id, user, "researcher")
     if run.status in {"completed", "failed", "cancelled", "budget_stopped"}:
         raise problem(409, "invalid_state", "Cannot intervene in a finished run")
+    # Evidence attached to an intervention must exist and belong to the run's
+    # workspace; never trust client-supplied IDs across the tenancy boundary.
+    for ev_id in body.evidence_source_ids:
+        source = await db.get(EvidenceSource, ev_id)
+        if source is None or source.workspace_id != run.workspace_id or source.archived_at is not None:
+            raise problem(422, "invalid_evidence", f"Evidence {ev_id} is missing or not in this workspace.")
     intervention = RunIntervention(
         workspace_id=run.workspace_id, run_id=run.id, kind=body.kind,
         actor_user_id=user.id, content=body.content,

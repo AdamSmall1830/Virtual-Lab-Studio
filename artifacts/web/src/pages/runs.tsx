@@ -14,6 +14,7 @@ import {
   type RunOut,
   type ProjectOut,
 } from '@/api';
+import { formatRunCost, isUnpricedRun, UNPRICED_COST_HINT } from '@/lib/cost';
 
 type FlatRun = RunOut & { projectName: string };
 
@@ -195,7 +196,17 @@ export default function Runs() {
                       <span>•</span>
                       <span>{tokens.toLocaleString()} tokens</span>
                       <span>•</span>
-                      <span>${Number(run.actual_cost_usd ?? 0).toFixed(2)}</span>
+                      {isUnpricedRun(run) ? (
+                        <span
+                          className="relative z-10 cursor-help"
+                          title={UNPRICED_COST_HINT}
+                          data-testid="text-cost-unpriced"
+                        >
+                          {formatRunCost(run)}
+                        </span>
+                      ) : (
+                        <span>{formatRunCost(run)}</span>
+                      )}
                     </div>
                   </div>
 

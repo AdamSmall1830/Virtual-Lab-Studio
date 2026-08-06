@@ -8,9 +8,14 @@ prompt functions and speaking order:
 - individual: expert then critic per round; a final expert turn follows
   (2 * R + 1 provider calls).
 
-Providers are injected (never constructed inside orchestration), every call
-is persisted as an immutable run turn, and budgets/pause/cancel/interventions
+Providers are injected (never constructed inside orchestration), every meeting
+turn is persisted as an immutable run turn, and budgets/pause/cancel/interventions
 are checked at every safe checkpoint (before each provider call).
+
+A completed real run makes one further provider call to turn the transcript into
+the structured record. It is not a meeting turn — no agent spoke it — so it is
+recorded as a run event carrying its own usage and response hash rather than
+being written into the transcript.
 """
 from __future__ import annotations
 
@@ -545,12 +550,116 @@ def _fallback_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict
     }
 
 
-def _real_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Structured synthesis
+#
+# The structured summary is what researchers read, quote and export, so every
+# judgement in it — the recommendation, the per-question answers and above all
+# the confidence numbers — has to come from the model that actually held the
+# meeting. Filling those fields with application-authored defaults would put
+# words, and a fabricated confidence score, into the model's mouth. Where the
+# extraction cannot be performed we say so in the record itself rather than
+# substituting a plausible-looking value.
+# ---------------------------------------------------------------------------
+
+_SYNTHESIS_SYSTEM_PROMPT = (
+    "You are the recording secretary for a scientific meeting. You produce the "
+    "structured record of what the meeting actually decided. Report only what the "
+    "transcript contains: never introduce a claim, number, citation or conclusion "
+    "that was not discussed, and state plainly wherever the discussion left "
+    "something unresolved. Respond with a single JSON object and nothing else."
+)
+
+_UNEXTRACTED_ANSWER = (
+    "Not extracted. The structured synthesis step did not produce a usable record "
+    "for this meeting; read the transcript for what was actually said."
+)
+
+_UNEXTRACTED_BASIS = (
+    "No model-derived confidence is available: the structured synthesis step did "
+    "not complete, so this is not a scored judgement."
+)
+
+
+def _synthesis_prompt(ctx: RunContext, roster: dict[str, str]) -> str:
+    """Ask the meeting's own model for the structured record of what it decided."""
+    d = ctx.definition
+    q_block = "\n".join(f"- {q}" for q in (d.questions or [])) or "- (no agenda questions)"
+    keys = [
+        str(e.get("evidence_key"))
+        for e in ((d.definition_json or {}).get("evidence") or [])
+        if e.get("evidence_key")
+    ]
+    ev_block = "\n".join(f"- {k}" for k in keys) or "- (no evidence was attached)"
+    roster_block = "\n".join(f"- {t}" for t in roster) or "- (none)"
+    return (
+        "The meeting above is complete. Produce its structured record as a single "
+        "JSON object with exactly these keys:\n\n"
+        '"executive_summary": string — what the meeting concluded, in prose.\n'
+        '"recommendation": {"decision": string, "rationale": string, "conditions": '
+        "[string]} — the course of action the meeting settled on. If it did not "
+        'settle on one, say exactly that in "decision" rather than inventing one.\n'
+        '"question_answers": one entry per agenda question below, in the same order, '
+        'quoting the question verbatim: {"question": string, "answer": string, '
+        '"evidence_ids": [string], "confidence": number between 0 and 1, "open_issue": '
+        "string or null}. Where the discussion did not answer a question, say what is "
+        "actually known, give it a correspondingly low confidence, and put what "
+        'remains open in "open_issue".\n'
+        '"confidence": {"overall": number between 0 and 1, "basis": string, '
+        '"uncertainty": string} — your own confidence in this record, and why.\n'
+        '"evidence": [{"evidence_id": string, "claim": string, "support_type": '
+        '"supports"|"contradicts"|"context"|"uncertain", "locator": string or null}] '
+        "— claims the discussion drew from the attached evidence. Use ONLY the "
+        'evidence IDs listed below, exactly as written. Never invent an ID.\n'
+        '"assumptions": [{"assumption": string, "impact": "low"|"medium"|"high", '
+        '"validation": string}]\n'
+        '"disagreements": [{"topic": string, "positions": [{"agent_title": string, '
+        '"position": string}] (at least two), "resolution_status": '
+        '"resolved"|"lead_decision"|"unresolved"|"needs_evidence"}]\n'
+        '"risks_and_limitations": [{"risk": string, "severity": '
+        '"low"|"medium"|"high"|"critical", "likelihood": "unlikely"|"possible"|"likely", '
+        '"mitigation": string}]\n'
+        '"next_steps": [{"action": string, "owner_role": string, '
+        '"acceptance_criterion": string, "priority": "now"|"next"|"later"}]\n'
+        '"role_contributions": [{"agent_title": string, "contribution": string}] — use '
+        "only the participant titles listed below, exactly as written.\n\n"
+        "Use an empty array for any list the discussion does not support. Do not pad.\n\n"
+        f"Agenda questions:\n{q_block}\n\n"
+        f"Attached evidence IDs:\n{ev_block}\n\n"
+        f"Participants:\n{roster_block}\n"
+    )
+
+
+def _parse_synthesis(raw: str) -> dict[str, Any] | None:
+    """Parse the model's JSON, tolerating a markdown fence or surrounding prose."""
+    text_body = raw.strip()
+    if text_body.startswith("```"):
+        text_body = text_body.split("```")[1] if "```" in text_body[3:] else text_body[3:]
+        if text_body.lstrip().startswith("json"):
+            text_body = text_body.lstrip()[4:]
+    start, end = text_body.find("{"), text_body.rfind("}")
+    if start == -1 or end <= start:
+        return None
+    try:
+        parsed = json.loads(text_body[start:end + 1])
+    except (ValueError, TypeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _real_summary(
+    ctx: RunContext,
+    transcript: list[dict[str, str]],
+    extracted: dict[str, Any] | None,
+    roster: dict[str, str],
+    note: str,
+) -> dict[str, Any]:
     """Schema-valid structured summary for real (non-simulation) provider runs.
 
-    Derived from the recorded final synthesis turn. Truthfully labeled as
-    model-generated decision support requiring human review — never as a
-    simulation, and never as validated science.
+    `extracted` is the model's own structured record, or None when the synthesis
+    step could not run. Nothing in the returned document is invented on the
+    model's behalf: fields the model did not supply come back empty, and the
+    absence of a model-derived confidence is stated rather than scored.
     """
     d = ctx.definition
     final_text = ""
@@ -558,54 +667,262 @@ def _real_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict[str
         if msg.get("role") == "assistant" and msg.get("content"):
             final_text = msg["content"]
             break
-    exec_summary = final_text.strip()[:1500] or "The meeting completed without a final synthesis."
+    src = extracted or {}
+
+    def _list(key: str) -> list[Any]:
+        value = src.get(key)
+        return [v for v in value if isinstance(v, dict)] if isinstance(value, list) else []
+
+    # The model is instructed to cite only the evidence frozen into this meeting,
+    # but a prompt is not an enforcement mechanism. Any identifier it invents is
+    # dropped here rather than persisted: a citation pointing at a source that
+    # was never attached is the most damaging thing this document could carry.
+    frozen_keys = {
+        str(e.get("evidence_key"))
+        for e in ((d.definition_json or {}).get("evidence") or [])
+        if e.get("evidence_key")
+    }
+    dropped_citations = 0
+
+    def _keep_frozen(ids: Any) -> list[str]:
+        nonlocal dropped_citations
+        kept: list[str] = []
+        for ref in ids or []:
+            if isinstance(ref, str) and ref in frozen_keys:
+                kept.append(ref)
+            else:
+                dropped_citations += 1
+        return kept
+
+    exec_summary = str(src.get("executive_summary") or "").strip()
+    if not exec_summary:
+        exec_summary = final_text.strip()[:1500] or "The meeting produced no final synthesis."
+
+    rec = src.get("recommendation")
+    if isinstance(rec, dict) and str(rec.get("decision") or "").strip():
+        recommendation = {
+            "decision": str(rec.get("decision")),
+            "rationale": str(rec.get("rationale") or ""),
+            "conditions": [str(c) for c in (rec.get("conditions") or []) if isinstance(c, str)],
+        }
+    else:
+        recommendation = {
+            "decision": "Not extracted — no recommendation was recorded for this meeting.",
+            "rationale": note,
+            "conditions": [],
+        }
+
+    questions = list(d.questions or [])
+    supplied = {
+        str(a.get("question", "")).strip(): a
+        for a in _list("question_answers")
+    }
+    question_answers = []
+    for q in questions:
+        a = supplied.get(q.strip())
+        conf = a.get("confidence") if isinstance(a, dict) else None
+        if a is not None and isinstance(conf, (int, float)) and 0 <= float(conf) <= 1:
+            entry: dict[str, Any] = {
+                "question": q,
+                "answer": str(a.get("answer") or _UNEXTRACTED_ANSWER),
+                "evidence_ids": _keep_frozen(a.get("evidence_ids")),
+                "confidence": float(conf),
+            }
+            if isinstance(a.get("open_issue"), str) and a["open_issue"].strip():
+                entry["open_issue"] = a["open_issue"]
+            question_answers.append(entry)
+        else:
+            # No model-stated answer: record the absence, do not score it.
+            question_answers.append({
+                "question": q,
+                "answer": _UNEXTRACTED_ANSWER,
+                "evidence_ids": [],
+                "confidence": 0.0,
+                "open_issue": note,
+            })
+
+    conf_obj = src.get("confidence")
+    overall = conf_obj.get("overall") if isinstance(conf_obj, dict) else None
+    if isinstance(overall, (int, float)) and 0 <= float(overall) <= 1:
+        confidence = {
+            "overall": float(overall),
+            "basis": str(conf_obj.get("basis") or "Stated by the model that held the meeting."),
+            "uncertainty": str(conf_obj.get("uncertainty") or "Model-stated; not validated."),
+        }
+    else:
+        confidence = {"overall": 0.0, "basis": _UNEXTRACTED_BASIS, "uncertainty": note}
+
+    # agent_id is resolved from our own roster; the model is only asked for a
+    # title, so it can never mint an identifier for a participant.
+    role_contributions = []
+    for rc in _list("role_contributions"):
+        title = str(rc.get("agent_title") or "").strip()
+        if title in roster and str(rc.get("contribution") or "").strip():
+            role_contributions.append({
+                "agent_id": roster[title],
+                "agent_title": title,
+                "contribution": str(rc["contribution"]),
+            })
+
+    evidence_claims = []
+    for item in _list("evidence"):
+        if str(item.get("evidence_id", "")) in frozen_keys:
+            evidence_claims.append(item)
+        else:
+            dropped_citations += 1
+
+    limitations = [
+        "AI-generated decision support from a real model provider; not "
+        "experimentally, clinically, ethically, or legally validated."
+    ]
+    if extracted is None:
+        limitations.append(note)
+    if dropped_citations:
+        limitations.append(
+            f"{dropped_citations} citation(s) in the model's record referred to evidence "
+            "that was not attached to this meeting and were removed."
+        )
+
     return {
         "agenda": d.agenda or "(no agenda)",
         "executive_summary": exec_summary,
-        "role_contributions": [],
-        "recommendation": {
-            "decision": "See the final synthesis in the transcript.",
-            "rationale": (
-                "Model-generated synthesis of the recorded discussion. "
-                "Requires human scientific review before use."
-            ),
-            "conditions": [],
-        },
-        "question_answers": [
-            {
-                "question": q,
-                "answer": "Addressed in the final synthesis; see transcript.",
-                "evidence_ids": [],
-                "confidence": 0.5,
-            }
-            for q in (d.questions or [])
-        ],
-        "evidence": [],
-        "assumptions": [],
-        "disagreements": [],
-        "risks_and_limitations": [
-            {
-                "risk": "Model-generated conclusions are not experimentally validated.",
-                "severity": "medium",
-                "likelihood": "possible",
-                "mitigation": "Human review of the full transcript and cited evidence.",
-            }
-        ],
-        "next_steps": [],
-        "confidence": {
-            "overall": 0.5,
-            "basis": "Model reasoning over the meeting transcript and attached evidence.",
-            "uncertainty": "Unvalidated model output; confidence is indicative only.",
-        },
+        "role_contributions": role_contributions,
+        "recommendation": recommendation,
+        "question_answers": question_answers,
+        "evidence": evidence_claims,
+        "assumptions": _list("assumptions"),
+        "disagreements": _list("disagreements"),
+        "risks_and_limitations": _list("risks_and_limitations"),
+        "next_steps": _list("next_steps"),
+        "confidence": confidence,
         "disclosure": {
             "model_generated": True,
             "human_review_required": True,
-            "limitations": [
-                "AI-generated decision support from a real model provider; "
-                "not experimentally, clinically, ethically, or legally validated."
-            ],
+            "limitations": limitations,
         },
     }
+
+
+async def _run_structured_synthesis(
+    db: AsyncSession,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    ctx: RunContext,
+    messages: list[dict[str, str]],
+    providers_by_config: dict[uuid.UUID, ModelProvider],
+    roster: dict[str, str],
+    final_agent_position: int,
+    worker_id: str,
+    lease_seconds: int,
+) -> tuple[dict[str, Any] | None, str]:
+    """One extra provider call that turns the transcript into the structured record.
+
+    Returns ``(extracted, note)``. ``extracted`` is None when the step could not
+    run; ``note`` then states why, and that reason is written into the summary in
+    place of the values the model would have supplied.
+
+    This call is deliberately not persisted as a run turn: it is not something an
+    agent said in the meeting, and recording it as a turn would misrepresent the
+    transcript. Its usage is added to the run's counters and its provenance is
+    appended as an immutable run event.
+    """
+    run = ctx.run
+    d = ctx.definition
+
+    # The budget is frozen at launch and counted in provider calls, so this call
+    # has to fit inside it like any other.
+    budget = d.budget or {}
+    max_calls = budget.get("max_provider_calls")
+    max_cost = budget.get("max_cost_usd")
+    if max_calls is not None and run.provider_call_count >= int(max_calls):
+        return None, (
+            "The structured synthesis step was skipped: the meeting had already "
+            "used its full provider-call budget."
+        )
+    if max_cost is not None and float(run.actual_cost_usd) >= float(max_cost):
+        return None, (
+            "The structured synthesis step was skipped: the meeting had already "
+            "reached its cost budget."
+        )
+
+    # Ask the agent that closed the meeting, so the record comes from the same
+    # model and provider that produced the final synthesis.
+    da = next(a for a in ctx.def_agents if a.position == final_agent_position)
+    pm = ctx.provider_models[da.provider_model_id]
+    pc = ctx.provider_configs[da.provider_config_id]
+    provider = providers_by_config[da.provider_config_id]
+
+    convo = list(messages) + [{"role": "user", "content": _synthesis_prompt(ctx, roster)}]
+    request = CompletionRequest(
+        model=pm.model_key,
+        system_prompt=_SYNTHESIS_SYSTEM_PROMPT,
+        messages=convo,
+        temperature=0.0,
+        run_id=str(run.id),
+        call_index=-1,
+        agent_title="Recording secretary",
+        role_type=da.role_type,
+        round_number=0,
+        is_final=True,
+    )
+
+    try:
+        async with _LeaseHeartbeat(sessionmaker, run.id, worker_id, lease_seconds) as hb:
+            if isinstance(provider, DemoProvider):
+                result = await provider.complete(request, scripted=False)
+            else:
+                result = await provider.complete(request)
+        if hb.lost or not await _renew_lease(db, run.id, worker_id, lease_seconds):
+            raise LeaseLost(f"run {run.id} lease lost during structured synthesis")
+    except LeaseLost:
+        raise
+    except Exception as exc:  # provider error, timeout, rate limit
+        logger.warning("Structured synthesis failed for run %s: %s", run.id, exc)
+        await append_event(
+            db, workspace_id=run.workspace_id, run_id=run.id,
+            event_type="summary.synthesis_failed",
+            payload={"error_type": type(exc).__name__},
+        )
+        return None, (
+            f"The structured synthesis step did not complete ({type(exc).__name__}); "
+            "the fields it would have filled are marked as not extracted."
+        )
+
+    run.provider_call_count += 1
+    run.input_tokens += result.input_tokens
+    run.cached_input_tokens += result.cached_input_tokens
+    run.output_tokens += result.output_tokens
+    run.actual_cost_usd = Decimal(str(run.actual_cost_usd)) + Decimal(str(result.cost_usd))
+    if not await _fence_lease(db, run.id, worker_id, lease_seconds):
+        # Read the id before rolling back: the rollback expires every ORM
+        # attribute and touching one here would trigger a lazy load.
+        rid = run.id
+        await db.rollback()
+        raise LeaseLost(f"run {rid} lease lost before recording synthesis usage")
+    await db.commit()
+
+    await append_event(
+        db, workspace_id=run.workspace_id, run_id=run.id,
+        event_type="summary.synthesis_completed",
+        payload={
+            "provider_type": pc.provider_type,
+            "model": pm.model_key,
+            "provider_request_id": result.provider_request_id,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
+            "cost_usd": float(result.cost_usd),
+            "latency_ms": result.latency_ms,
+            "response_sha256": sha256_text(result.content),
+            "simulation": result.is_simulation,
+        },
+    )
+
+    parsed = _parse_synthesis(result.content)
+    if parsed is None:
+        return None, (
+            "The structured synthesis step returned output that was not valid JSON; "
+            "the fields it would have filled are marked as not extracted."
+        )
+    return parsed, "Structured record produced by the model that held the meeting."
 
 
 async def execute_run(
@@ -974,7 +1291,37 @@ async def execute_run(
                     )
                     disclosure_line = get_demo_provider().disclosure
                 else:
-                    summary_json = _real_summary(ctx, messages)
+                    # Every judgement in the structured record — including the
+                    # confidence numbers — comes from the model that held the
+                    # meeting, via one extra call. Where that call cannot run,
+                    # the record says so instead of carrying invented values.
+                    roster = {
+                        upstream_agents[a.position].title: str(a.agent_version_id)
+                        for a in ctx.def_agents
+                    }
+                    extracted, synth_note = await _run_structured_synthesis(
+                        db, sessionmaker, ctx, messages, providers_by_config,
+                        roster, plan[-1].agent_position, worker_id, lease_seconds,
+                    )
+                    summary_json = _real_summary(ctx, messages, extracted, roster, synth_note)
+                    # Schema validation gates the model's record, it does not
+                    # merely label it. Publishing a malformed document as a
+                    # finding is worse than admitting the extraction failed, so
+                    # fall back to the not-extracted record — which is valid by
+                    # construction — and record why.
+                    schema_errors = validate_summary(summary_json) if extracted is not None else []
+                    if schema_errors:
+                        await append_event(
+                            db, workspace_id=run.workspace_id, run_id=run.id,
+                            event_type="summary.synthesis_rejected",
+                            payload={"errors": schema_errors[:10]},
+                        )
+                        summary_json = _real_summary(
+                            ctx, messages, None, roster,
+                            "The structured synthesis step returned a record that failed "
+                            "schema validation; the fields it would have filled are marked "
+                            "as not extracted.",
+                        )
                     disclosure_line = (
                         "AI-generated decision support produced by a configured model "
                         "provider. Requires human scientific review; not a validated result."

@@ -11,6 +11,7 @@ cookie; Clerk tokens are never stored.
 """
 from __future__ import annotations
 
+import base64
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +24,35 @@ from .config import get_settings
 
 CLERK_API_BASE = "https://api.clerk.com/v1"
 _JWKS_TTL_SECONDS = 3600
+
+
+def _expected_issuer() -> str | None:
+    """Expected `iss` claim for the configured Clerk instance.
+
+    Clerk session JWTs carry `iss = https://<frontend-api-domain>`. The
+    publishable key (pk_test_*/pk_live_*) base64-encodes that domain as
+    `<domain>$`, so we can pin the issuer without adding a new operator
+    config value. Returns None only when no publishable key is configured,
+    in which case the caller keeps the previous (unpinned) behavior.
+    """
+    pk = get_settings().clerk_publishable_key.strip()
+    if not pk:
+        return None
+    try:
+        payload = pk.split("_", 2)[2]
+    except IndexError:
+        return None
+    if not payload:
+        return None
+    # base64 without padding; add it back before decoding.
+    padded = payload + "=" * (-len(payload) % 4)
+    try:
+        domain = base64.b64decode(padded).decode("utf-8").rstrip("$")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not domain:
+        return None
+    return f"https://{domain}"
 
 _jwks_cache: dict[str, Any] = {"keys": None, "fetched_at": 0.0}
 
@@ -88,16 +118,29 @@ async def _verify_token(client: httpx.AsyncClient, token: str) -> dict[str, Any]
     if key_data is None:
         raise ClerkAuthError("unknown_key", "Clerk signing key not recognized.")
 
+    expected_issuer = _expected_issuer()
+    decode_kwargs: dict[str, Any] = {}
+    if expected_issuer is not None:
+        # Pin the issuer to the configured Clerk instance so a validly-signed
+        # token from a different instance is rejected. PyJWT raises
+        # InvalidIssuerError (a subclass of InvalidTokenError) on mismatch.
+        decode_kwargs["issuer"] = expected_issuer
     try:
         claims = jwt.decode(
             token,
             PyJWK.from_dict(key_data).key,
             algorithms=["RS256"],
             leeway=10,
+            # verify_aud stays off: Clerk session JWTs do not carry a fixed
+            # `aud` claim for this app, and no audience is configured, so
+            # there is nothing to validate against. Issuer is pinned instead.
             options={"verify_aud": False},
+            **decode_kwargs,
         )
     except jwt.ExpiredSignatureError as exc:
         raise ClerkAuthError("token_expired", "Clerk token expired; sign in again.") from exc
+    except jwt.InvalidIssuerError as exc:
+        raise ClerkAuthError("invalid_issuer", "Clerk token issuer not recognized.") from exc
     except jwt.InvalidTokenError as exc:
         raise ClerkAuthError("invalid_token", "Clerk token failed verification.") from exc
     if not claims.get("sub"):

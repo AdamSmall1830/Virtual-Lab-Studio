@@ -1305,6 +1305,7 @@ export const ListComparisonsApiV1ProjectsProjectIdComparisonsGetParams = zod.obj
   "project_id": zod.uuid()
 })
 
+export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItemsItemDemoModeDefault = false;
 export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItemsDefault = [];
 export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseEvaluationCountDefault = 0;
 export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseMyEvaluationSubmittedDefault = false;
@@ -1324,7 +1325,9 @@ export const ListComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItem = z
   "run_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "run_title": zod.union([zod.string(),zod.null()]).optional(),
   "summary_json": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
-  "summary_markdown": zod.union([zod.string(),zod.null()]).optional()
+  "summary_markdown": zod.union([zod.string(),zod.null()]).optional(),
+  "demo_mode": zod.boolean().default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItemsItemDemoModeDefault),
+  "validation_status": zod.union([zod.string(),zod.null()]).optional()
 })).default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItemsDefault),
   "evaluation_count": zod.int().default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseEvaluationCountDefault),
   "my_evaluation_submitted": zod.boolean().default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseMyEvaluationSubmittedDefault),
@@ -1359,6 +1362,7 @@ export const CreateComparisonApiV1ProjectsProjectIdComparisonsPostBody = zod.obj
   "rubric_criteria": zod.array(zod.string()).min(1).max(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRubricCriteriaMax).optional()
 })
 
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseItemsItemDemoModeDefault = false;
 export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseItemsDefault = [];
 export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseEvaluationCountDefault = 0;
 export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseMyEvaluationSubmittedDefault = false;
@@ -1378,7 +1382,9 @@ export const CreateComparisonApiV1ProjectsProjectIdComparisonsPostResponse = zod
   "run_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "run_title": zod.union([zod.string(),zod.null()]).optional(),
   "summary_json": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
-  "summary_markdown": zod.union([zod.string(),zod.null()]).optional()
+  "summary_markdown": zod.union([zod.string(),zod.null()]).optional(),
+  "demo_mode": zod.boolean().default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseItemsItemDemoModeDefault),
+  "validation_status": zod.union([zod.string(),zod.null()]).optional()
 })).default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseItemsDefault),
   "evaluation_count": zod.int().default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseEvaluationCountDefault),
   "my_evaluation_submitted": zod.boolean().default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseMyEvaluationSubmittedDefault),
@@ -1393,6 +1399,7 @@ export const GetComparisonApiV1ComparisonsComparisonIdGetParams = zod.object({
   "comparison_id": zod.uuid()
 })
 
+export const getComparisonApiV1ComparisonsComparisonIdGetResponseItemsItemDemoModeDefault = false;
 export const getComparisonApiV1ComparisonsComparisonIdGetResponseItemsDefault = [];
 export const getComparisonApiV1ComparisonsComparisonIdGetResponseEvaluationCountDefault = 0;
 export const getComparisonApiV1ComparisonsComparisonIdGetResponseMyEvaluationSubmittedDefault = false;
@@ -1412,7 +1419,9 @@ export const GetComparisonApiV1ComparisonsComparisonIdGetResponse = zod.object({
   "run_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "run_title": zod.union([zod.string(),zod.null()]).optional(),
   "summary_json": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
-  "summary_markdown": zod.union([zod.string(),zod.null()]).optional()
+  "summary_markdown": zod.union([zod.string(),zod.null()]).optional(),
+  "demo_mode": zod.boolean().default(getComparisonApiV1ComparisonsComparisonIdGetResponseItemsItemDemoModeDefault),
+  "validation_status": zod.union([zod.string(),zod.null()]).optional()
 })).default(getComparisonApiV1ComparisonsComparisonIdGetResponseItemsDefault),
   "evaluation_count": zod.int().default(getComparisonApiV1ComparisonsComparisonIdGetResponseEvaluationCountDefault),
   "my_evaluation_submitted": zod.boolean().default(getComparisonApiV1ComparisonsComparisonIdGetResponseMyEvaluationSubmittedDefault),

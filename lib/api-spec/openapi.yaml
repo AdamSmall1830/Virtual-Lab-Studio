@@ -1672,6 +1672,15 @@ components:
           - type: string
           - type: 'null'
           title: Summary Markdown
+        demo_mode:
+          type: boolean
+          title: Demo Mode
+          default: false
+        validation_status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Validation Status
       type: object
       required:
       - blind_label

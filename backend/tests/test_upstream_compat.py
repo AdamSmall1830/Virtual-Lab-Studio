@@ -148,3 +148,38 @@ def test_agent_prompt_property_remains_compatible():
         "Your role is to review designs."
     )
     assert agent.message == {"role": "system", "content": agent.prompt}
+
+
+# Recomputed digest of every file under src/virtual_lab (excluding __pycache__).
+# See NOTICE: the vendored tree is kept byte-for-byte identical to upstream.
+UPSTREAM_TREE_SHA256 = "d3fccffb535bde20a6b892685a8691cd455b43ba47f13bc7c145397d075be865"
+
+
+def test_upstream_tree_is_pristine():
+    """The vendored upstream package must never be edited in place.
+
+    Studio adapts to `src/virtual_lab`; it does not patch it. Anything intended
+    to change that package belongs in a pull request upstream. If this fails
+    because you deliberately re-synced to a newer upstream release, update
+    UPSTREAM_TREE_SHA256 in the same commit so the change is reviewable.
+    """
+    import hashlib
+
+    root = REPO_ROOT / "src" / "virtual_lab"
+    files = sorted(
+        p for p in root.rglob("*") if p.is_file() and "__pycache__" not in p.parts
+    )
+    assert files, f"vendored upstream package is missing at {root}"
+
+    digest = hashlib.sha256()
+    for path in files:
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode())
+        digest.update(b"\n")
+
+    assert digest.hexdigest() == UPSTREAM_TREE_SHA256, (
+        "src/virtual_lab has been modified, added to, or had files removed. "
+        "Revert the change and adapt around it, or re-sync upstream deliberately "
+        "and update UPSTREAM_TREE_SHA256."
+    )

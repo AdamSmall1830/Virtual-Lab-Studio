@@ -30,6 +30,13 @@ async def lifespan(app: FastAPI):
     global _worker_task
     settings = get_settings()
     get_engine()
+    if settings.dev_login_enabled:
+        logger.warning(
+            "SECURITY: /api/v1/auth/dev-login is ENABLED — this is a PASSWORDLESS "
+            "AUTH BYPASS that grants a session for any email. It is gated on "
+            "APP_ENV=development AND absence of REPLIT_DEPLOYMENT; it must never "
+            "be reachable in a deployment."
+        )
     # A fresh database must come up working: migrations + idempotent seed.
     await bootstrap()
     if settings.run_worker_enabled:

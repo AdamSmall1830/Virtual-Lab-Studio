@@ -135,7 +135,10 @@ export default function Guide() {
                 research pattern — a Lead Investigator, domain specialists, and a Scientific Critic
                 debating in structured rounds — into a graphical instrument. You pose a research
                 agenda; the team deliberates in front of you; you can pause, redirect, and resume;
-                and every run ends in a structured synthesis you can export and verify.
+                and every run ends in a structured record you can export and verify. A completed
+                run carries the lead's synthesis; a run that fails, is cancelled, or hits its
+                budget instead gets a terminal-outcome record that states plainly that no
+                scientific conclusions were produced.
               </p>
               <div className="grid sm:grid-cols-3 gap-3 text-sm">
                 <div className="bg-background/50 rounded-lg p-4">
@@ -231,16 +234,21 @@ export default function Guide() {
             <ChapterHeading chapter={CHAPTERS[3]} />
             <div className="vls-reading-surface rounded-xl p-6">
               <Step n={1} title="Add sources to the Evidence Library">
-                Upload papers, notes, and datasets. Each source gets a stable identity and checksum
-                so citations always point at exactly what the agents saw.
+                Upload papers, notes, and datasets. Each source gets a stable identity and a
+                SHA-256 checksum, so you can confirm a cited source is byte-for-byte the one that
+                was attached.
               </Step>
               <Step n={2} title="Attach evidence when composing a meeting">
                 Selected sources are frozen into the meeting definition at launch — the run's
                 evidence set can never drift afterwards.
               </Step>
               <Step n={3} title="Read citations in the synthesis">
-                Claims in the final synthesis link back to specific sources, and each citation is
-                marked by how strongly the source supports the claim.
+                Each citation in the synthesis names an evidence ID and the support type the agent
+                claimed. Validation checks whether that ID was frozen into this meeting: a citation
+                is marked <strong className="text-foreground">validated</strong> when it resolves to
+                attached evidence, and flagged when it points to a library item that was not
+                attached or to an ID that does not exist. Validation confirms the reference, not
+                that the cited passage actually supports the claim — that judgment is yours.
                 <div>
                   <TryIt href="/app/evidence" label="Open the Evidence Library" />
                 </div>
@@ -294,8 +302,9 @@ export default function Guide() {
                 transcript.
               </Step>
               <Step n={4} title="Resume, or stop early">
-                Resume to continue from exactly where the team paused. Every run ends with the
-                lead's structured synthesis.
+                Resume to continue from exactly where the team paused. A run you let finish ends
+                with the lead's structured synthesis; one you stop early is recorded with a
+                terminal-outcome summary instead.
                 <div>
                   <TryIt href="/app/runs" label="See your runs" />
                 </div>
@@ -308,21 +317,24 @@ export default function Guide() {
             <ChapterHeading chapter={CHAPTERS[6]} />
             <div className="vls-reading-surface rounded-xl p-6 space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">
-                A finished run is a permanent, tamper-evident record:
+                A finished run is a durable, hash-verified record:
               </p>
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
                 <div className="bg-background/50 rounded-lg p-4">
                   <strong className="block text-foreground mb-1">Transcript & synthesis</strong>
                   <span className="text-muted-foreground">
-                    Every turn, every intervention, and the final structured summary — hashed so
-                    integrity is verifiable.
+                    Every turn, every intervention, and the final structured summary. The manifest
+                    records SHA-256 hashes over the ordered transcript and the summary, so you can
+                    detect if either was altered after the run.
                   </span>
                 </div>
                 <div className="bg-background/50 rounded-lg p-4">
                   <strong className="block text-foreground mb-1">Reproducibility packet</strong>
                   <span className="text-muted-foreground">
-                    Export a manifest of the exact frozen definition — agents, evidence, settings,
-                    checksums — enough for someone else to re-run the study.
+                    Export the frozen definition — agents, evidence, settings, and SHA-256 content
+                    hashes — so a reviewer can inspect exactly what was configured. The hashes let
+                    you verify the packet's contents; they are content checksums, not a
+                    cryptographic signature.
                   </span>
                 </div>
                 <div className="bg-background/50 rounded-lg p-4">
@@ -426,8 +438,10 @@ export default function Guide() {
                 </li>
                 <li className="flex gap-3">
                   <span className="text-primary shrink-0">•</span>
-                  Every output needs qualified human review before any external use. Interventions
-                  and reviews exist precisely so that review is part of the record.
+                  Treat qualified human review as a prerequisite before any external use. The
+                  system does not block export or download of unreviewed output — that discipline
+                  is yours to keep. Interventions and reviews exist so that review, when done,
+                  becomes part of the record.
                 </li>
                 <li className="flex gap-3">
                   <span className="text-primary shrink-0">•</span>

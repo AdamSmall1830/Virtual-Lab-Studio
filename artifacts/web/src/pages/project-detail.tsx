@@ -16,6 +16,7 @@ import {
 import type { RunOut, EvidenceSourceOut, ComparisonSetOut, ProjectCreateIn } from '@/api';
 import { useSession } from '@/api/session';
 import ProjectCompare from './project-compare';
+import { formatRunCost, isUnpricedRun, UNPRICED_COST_HINT } from '@/lib/cost';
 import {
   ArrowLeft,
   FileText,
@@ -448,8 +449,13 @@ function ProjectDetailView() {
                           <div className="font-medium text-foreground">{run.provider_call_count}</div>
                           <div className="text-xs">Calls</div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium text-foreground">${run.actual_cost_usd.toFixed(2)}</div>
+                        <div className="text-right" title={isUnpricedRun(run) ? UNPRICED_COST_HINT : undefined}>
+                          <div
+                            className={`font-medium text-foreground ${isUnpricedRun(run) ? 'cursor-help' : ''}`}
+                            data-testid={isUnpricedRun(run) ? 'text-cost-unpriced' : undefined}
+                          >
+                            {formatRunCost(run)}
+                          </div>
                           <div className="text-xs">Cost</div>
                         </div>
                       </div>

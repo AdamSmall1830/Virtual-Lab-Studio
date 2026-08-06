@@ -602,6 +602,8 @@ async def _comparison_out(
             run_title=definition_title if revealed else None,
             summary_json=summary.summary_json if summary else None,
             summary_markdown=summary_md,
+            demo_mode=bool(run.demo_mode) if run is not None else False,
+            validation_status=summary.validation_status if summary else None,
         ))
     return ComparisonSetOut(
         id=cset.id, project_id=cset.project_id, name=cset.name,

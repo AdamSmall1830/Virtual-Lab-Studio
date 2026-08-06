@@ -91,7 +91,7 @@ export default function Landing() {
               <Database className="w-6 h-6" />
             </div>
             <h3 className="font-display font-semibold text-lg mb-2">Full Reproducibility</h3>
-            <p className="text-muted-foreground text-sm">Every meeting generates a reproducibility manifest with SHA-256 content hashes containing exact prompts, tools, and human interventions.</p>
+            <p className="text-muted-foreground text-sm">Every meeting generates a reproducibility manifest recording the frozen definition alongside SHA-256 hashes of the ordered transcript, the summary, each agent's system prompt, and every human intervention.</p>
           </div>
         </motion.div>
       </main>

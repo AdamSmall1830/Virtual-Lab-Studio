@@ -145,8 +145,17 @@ it first when working in this repo. Summary:
   ensemble_merge meetings deferred. Tests: `cd backend && .venv/bin/python -m pytest` (upstream
   compatibility call-count/order, turn plan, seed idempotency, engine pause/resume/
   cancel/budget, clean-database boot end-to-end).
-- **Pending (task #3):** evidence library, exports, reproducibility packets. The
-  composer's evidence step is present and labeled "coming soon".
+- **Done (task #3):** evidence library, exports, and reproducibility packets are wired
+  end-to-end (evidence CRUD, `POST /runs/{id}/exports` → downloadable ZIP with manifest,
+  transcript, summary, evidence, citations, agents, usage, interventions, reviews, and
+  `hashes.json`). Known-partial points: reproducibility integrity is **hash-based, not
+  signed** (manifest `signature`/`signature_algorithm` are `null` — content-checksum
+  tamper detection, not a cryptographic signature; hashes live in the same DB as the
+  content); the packet omits raw source bytes and per-call provider parameters; citation
+  validation confirms a cited evidence key was frozen into the definition (flagging
+  `unmatched_attachment` / `unknown_evidence`) but does not verify the passage supports
+  the claim; and nothing gates export/download on an approved review. `ensemble_merge`
+  meetings remain a follow-up.
 - Live updates use SSE (`/api/v1/runs/{id}/events/stream`, replay via
   `last_event_id`) with a ~5 s React Query polling fallback while a run is active.
 

@@ -443,6 +443,11 @@ class ComparisonItemOut(BaseModel):
     run_title: str | None = None
     summary_json: dict[str, Any] | None = None
     summary_markdown: str | None = None
+    # Always sent, blinded or not. Neither field identifies the run, and a
+    # reviewer must never rank simulated output, or a summary that failed schema
+    # validation, as though it were a real finding.
+    demo_mode: bool = False
+    validation_status: str | None = None
 
 
 class ComparisonSetOut(BaseModel):

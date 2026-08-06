@@ -18,6 +18,7 @@ import {
   type ComparisonSetOut,
   type ComparisonItemOut,
 } from '@/api';
+import { DemoBadge } from '@/components/demo-badge';
 
 const DEFAULT_CRITERIA = ['Evidence use', 'Rigor', 'Actionability'];
 
@@ -291,6 +292,14 @@ function ComparisonDetail({ comparisonId, onBack }: { comparisonId: string; onBa
   const criteria = ((cset?.rubric as any)?.criteria as string[] | undefined) ?? [];
   const alreadySubmitted = cset?.my_evaluation_submitted ?? false;
 
+  // Demo runs produce simulated summaries that must never be read or ranked as
+  // real results. The server sends demo_mode on every item, blinded or not: it
+  // reveals nothing about which run a candidate is, and a reviewer scoring a
+  // blinded set has to know when a candidate is simulated.
+  const isDemoItem = (item: ComparisonItemOut): boolean => Boolean(item.demo_mode);
+  const isInvalidItem = (item: ComparisonItemOut): boolean =>
+    Boolean(item.validation_status && item.validation_status !== 'valid');
+
   const setScore = (label: string, criterion: string, value: number) => {
     setScores((prev) => ({
       ...prev,
@@ -360,10 +369,23 @@ function ComparisonDetail({ comparisonId, onBack }: { comparisonId: string; onBa
               return (
                 <div key={item.blind_label} className="vls-reading-surface rounded-xl flex flex-col border-2 border-border">
                   <div className="p-4 border-b border-border bg-background/50">
-                    <h3 className="font-display font-bold text-lg">Candidate {item.blind_label}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-display font-bold text-lg">Candidate {item.blind_label}</h3>
+                      {isDemoItem(item) && <DemoBadge />}
+                    </div>
                     {cset.revealed && item.run_id && (
                       <div className="text-xs text-muted-foreground mt-1 font-mono">
                         {item.run_title ?? `Run ${item.run_id.slice(0, 8)}`}
+                      </div>
+                    )}
+                    {isDemoItem(item) && (
+                      <div className="mt-2 text-xs text-primary bg-primary/5 border border-primary/20 rounded px-2 py-1" data-testid="text-demo-warning">
+                        Simulated demo output — not a real result. Do not read or cite as fact.
+                      </div>
+                    )}
+                    {isInvalidItem(item) && (
+                      <div className="mt-2 text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded px-2 py-1" data-testid="text-invalid-warning">
+                        This summary failed schema validation. Do not score or cite it as a finding.
                       </div>
                     )}
                   </div>

@@ -1,0 +1,43 @@
+Virtual Lab Studio
+==================
+
+This repository contains two distinct bodies of work.
+
+1. Vendored upstream: `src/virtual_lab/`
+---------------------------------------
+
+The directory `src/virtual_lab/` is an unmodified copy of the Virtual Lab
+package from:
+
+    https://github.com/zou-group/virtual-lab
+
+Copyright (c) 2026 Kyle Swanson, and the Virtual Lab contributors.
+Licensed under the MIT License (see LICENSE).
+
+This tree is vendored verbatim and is deliberately kept byte-for-byte
+identical to upstream. Virtual Lab Studio adapts to it; it is never patched
+in place. Any change intended for this package belongs in a pull request to
+the upstream repository, not in this copy.
+
+`backend/tests/test_upstream_compat.py` enforces this: it fails if any file
+under `src/virtual_lab/` is added, removed, or altered. When you intentionally
+re-sync with a newer upstream release, update the recorded digest in that test
+in the same commit, so the change is explicit and reviewable.
+
+2. Virtual Lab Studio itself: everything else
+---------------------------------------------
+
+The rest of this repository — the FastAPI backend under `backend/`, the web
+application under `artifacts/`, the shared packages under `lib/`, and the
+specifications and documentation under `specs/` and `docs/` — is the Studio
+application built around the upstream package. It is a separate work and is
+not part of the upstream project.
+
+Attribution note
+----------------
+
+The root LICENSE file currently carries only the upstream copyright line.
+If you intend to assert your own copyright over the Studio code while keeping
+the upstream package under its original terms, that is a decision to make
+deliberately: the usual approach is a second copyright line scoped to the
+Studio work, leaving the upstream line intact and unmodified.

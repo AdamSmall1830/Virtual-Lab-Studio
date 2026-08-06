@@ -67,8 +67,8 @@ export default function Methodology() {
                 Outputs cannot be used for clinical diagnosis, treatment planning, or direct patient care.
               </div>
               <div className="bg-background/50 p-4 rounded-lg">
-                <strong className="text-foreground block mb-1">Mandatory Human Review</strong>
-                Every action generated must be reviewed by a qualified human researcher before any external utilization.
+                <strong className="text-foreground block mb-1">Human Review Expected</strong>
+                Every output should be reviewed by a qualified human researcher before any external utilization. This is an obligation on you — the platform records reviews but does not block export or download of unreviewed output.
               </div>
             </div>
           </div>

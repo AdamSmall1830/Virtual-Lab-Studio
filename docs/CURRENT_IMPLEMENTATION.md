@@ -9,13 +9,28 @@ the pack docs describe the destination._
 
 | Task | Scope | Status |
 |------|-------|--------|
-| #2 | Web interface (landing, methodology, dashboard, projects, agents, templates, composer, live room, run detail) | **Done** (still on its localStorage demo layer) |
+| #2 | Web interface (landing, methodology, dashboard, projects, agents, templates, evidence library, composer, live room, run detail, comparisons, settings) | **Done** — fully API-backed |
 | #1 | Authoritative Python/FastAPI backend wrapping upstream `src/virtual_lab`: PostgreSQL schema + Alembic, auth + workspace roles, Demo Provider, async run queue/worker, SSE | **Done** |
-| #3 | Evidence library, exports, reproducibility packets | Pending |
+| #3 | Evidence library, exports, reproducibility packets | **Done** — see notes below on what remains partial |
 
 The former interim Express/Drizzle API has been **deleted**; the `artifacts/api-server`
-workflow now runs the FastAPI backend. The React frontend has not yet been rewired to it
-(follow-up): it still uses its client-side demo store under `artifacts/web/src/demo/`.
+workflow now runs the FastAPI backend. The React frontend is **fully wired to `/api/v1`**:
+the client-side demo store was removed (there is no `artifacts/web/src/demo/`), and all
+server state flows through the generated OpenAPI hooks aliased in
+`artifacts/web/src/api/index.ts`, with session/workspace context in `src/api/session.tsx`
+and a fetch-based SSE client in `src/api/sse.ts`.
+
+Evidence, exports, and reproducibility packets are implemented end-to-end (evidence
+library CRUD, `POST /runs/{id}/exports` producing a ZIP packet with the manifest,
+transcript, summary, evidence, citations, agents, usage, interventions, reviews, and a
+`hashes.json`). Genuinely partial: reproducibility integrity is **hash-based, not
+signed** — the manifest's `signature`/`signature_algorithm` fields are `null`, so the
+guarantee is content-checksum tamper detection (hashes stored alongside the content),
+not a cryptographic signature; the export packet omits raw source bytes and per-call
+provider parameters; citation validation confirms a cited evidence key was frozen into
+the definition (and flags `unmatched_attachment` / `unknown_evidence`), but does not
+verify a passage supports the claim; and nothing gates export/download on an approved
+review. `ensemble_merge` meetings remain a follow-up.
 
 ## 2. Repository layout (actual)
 
@@ -28,7 +43,7 @@ backend/app/                config, db, models, security, providers, engine,
                             events, worker, seed, bootstrap, api/v1.py, main.py
 backend/tests/              pytest suite (upstream compat, engine, seed, clean boot)
 alembic/, alembic.ini       migrations; 0001 executes specs/database_schema.sql
-artifacts/studio/           React 19 + Vite frontend (served at previewPath "/")
+artifacts/web/              React 19 + Vite frontend (served at previewPath "/")
 artifacts/api-server/       thin package.json that launches uvicorn (no TS code)
 lib/api-spec/openapi.yaml   OpenAPI contract used by the frontend codegen
 lib/api-client-react/       Orval-generated TanStack Query hooks (frontend client)
@@ -126,18 +141,22 @@ units, seed idempotency, engine end-to-end (events, summary, pause/resume/cancel
 budget stop), and a clean-database boot test (new empty DB → uvicorn boot → dev login →
 demo launch → completed run).
 
-## 9. Frontend map (`artifacts/studio/src/`)
+## 9. Frontend map (`artifacts/web/src/`)
 
-Unchanged from task #2 (landing, methodology, dashboard, projects, Agent Studio,
-templates, runs, 6-step composer, live room, run detail). It still runs on the
-localStorage demo layer under `artifacts/web/src/demo/`; wiring it to `/api/v1` (React
-Query + SSE) is the next follow-up. Design system: restrained glassmorphism per
+Single canonical React frontend served at preview path `/` (the older duplicate
+`artifacts/studio` was deleted): landing, methodology, sign-in (dev-login), dashboard,
+projects, Agent Studio, templates, evidence library, 6-step composer, live meeting room,
+run detail (summary/transcript/citations/manifest/reviews/exports), comparisons, and
+settings. It is fully API-backed via the generated OpenAPI React Query hooks aliased in
+`src/api/index.ts`, with session/workspace context in `src/api/session.tsx` and a
+fetch-based SSE client (with polling fallback) in `src/api/sse.ts`; there is no
+localStorage demo layer. Design system: restrained glassmorphism per
 `specs/design_tokens.css`; no emojis in UI.
 
 ## 10. Operating the project
 
-- Workflows: `artifacts/api-server: API Server` (uvicorn), `artifacts/studio: web`,
-  `artifacts/web: web`, plus the canvas mockup sandbox. Restart after code changes.
+- Workflows: `artifacts/api-server: API Server` (uvicorn) and `artifacts/web: web`, plus
+  the canvas mockup sandbox. Restart after code changes.
 - Schema changes: add an Alembic migration (never edit migration 0001), keep
   `specs/database_schema.sql` and `_ENUM_VALUES` in sync.
 - Backend commands run with `backend/.venv/bin/python` from the repo root
