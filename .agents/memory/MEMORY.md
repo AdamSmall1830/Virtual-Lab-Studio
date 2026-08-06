@@ -6,4 +6,5 @@
 - [Real model providers](real-providers.md) — OpenAI-compatible adapters built per config; AES-GCM secrets from SESSION_SECRET; pricing in ProviderModel.capabilities; demo_mode drives truthful labeling.
 - [Recurring env failures](replit-env-recurring.md) — post-merge port-bind failures, stale generated client types, and how a dead backend masquerades as a disabled feature.
 - [Run lease fencing](run-lease-fencing.md) — heartbeat long provider calls; owner-conditional renewal; the fence must commit in the same transaction as the writes it guards.
+- [Terminal artifacts vs. requeue](terminal-artifacts-and-requeue.md) — un-terminalling a run races the later summary/manifest write; both sides must take the run row lock, and a stale summary gets reused.
 - [Evidence, provenance & exports](evidence-provenance.md) — evidence frozen into definition at launch; object-storage Client needs explicit bucket_id; blinded comparison identity is server-side, revealed only after the caller submits.
