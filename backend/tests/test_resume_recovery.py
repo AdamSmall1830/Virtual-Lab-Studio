@@ -38,6 +38,70 @@ class CrashAfter:
         return await self.inner.complete(request, **kwargs)
 
 
+class LeaseStealer:
+    """Simulates the recovery sweeper reclaiming the run while a call is in flight."""
+
+    def __init__(self, inner, sessionmaker, run_id, steal_after: int) -> None:
+        self.inner = inner
+        self.sessionmaker = sessionmaker
+        self.run_id = run_id
+        self.steal_after = steal_after
+        self.calls = 0
+
+    async def complete(self, request, **kwargs):
+        result = await self.inner.complete(request, **kwargs)
+        self.calls += 1
+        if self.calls == self.steal_after:
+            async with self.sessionmaker() as db:
+                await db.execute(
+                    text(
+                        "UPDATE runs SET status = 'queued', lease_owner = NULL, "
+                        "lease_expires_at = NULL WHERE id = :rid"
+                    ),
+                    {"rid": str(self.run_id)},
+                )
+                await db.commit()
+        return result
+
+
+async def test_lost_lease_abandons_attempt_without_clobbering_new_owner(
+    sessionmaker, monkeypatch
+):
+    """A long provider call can outlive the lease; the old worker must not write.
+
+    Otherwise the sweeper requeues the run, a second worker starts it, and both
+    workers persist the same turn — duplicate transcript entries and charges.
+    """
+    async with sessionmaker() as db:
+        await seed(db)
+        run = await _make_demo_run(db, rounds=2)
+        run_id = run.id
+
+    stealer = LeaseStealer(get_demo_provider(), sessionmaker, run_id, steal_after=2)
+    monkeypatch.setattr(engine_module, "build_provider", lambda pc, key, pricing=None: stealer)
+
+    # Must return quietly rather than raising or failing the run.
+    await execute_run(sessionmaker, run_id, "worker-a")
+
+    async with sessionmaker() as db:
+        run = await db.get(Run, run_id)
+        assert run.status == "queued", "the new owner's requeue must survive"
+        assert run.failure_code is None
+        completed = list(
+            (
+                await db.execute(
+                    select(RunTurn).where(
+                        RunTurn.run_id == run_id, RunTurn.status == "completed"
+                    )
+                )
+            ).scalars()
+        )
+        # The call that was in flight when the lease was stolen is discarded:
+        # only the turn persisted before the steal survives.
+        assert len(completed) == 1
+        assert completed[0].sequence == 0
+
+
 async def test_interrupted_run_resumes_without_duplicates(sessionmaker, monkeypatch):
     async with sessionmaker() as db:
         await seed(db)

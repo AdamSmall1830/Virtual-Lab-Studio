@@ -209,6 +209,11 @@ class ProviderCallError(RuntimeError):
 _RETRYABLE_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 _RETRY_BASE_SECONDS = 2.0
 _RETRY_MAX_DELAY_SECONDS = 30.0
+# Chat completions are not idempotent. When a failure leaves it unknown whether
+# the provider already generated (and billed) a completion, retrying can pay
+# twice for one turn, so ambiguous failures get far less latitude than a clean
+# rejection like a 429.
+_MAX_AMBIGUOUS_RETRIES = 1
 
 
 def _transient_status_error(status_code: int) -> ProviderCallError:
@@ -330,18 +335,27 @@ class OpenAICompatibleProvider:
             when = when.replace(tzinfo=UTC)
         return max(0.0, (when - datetime.now(UTC)).total_seconds())
 
-    async def _post_with_retry(self, payload: dict[str, Any]) -> httpx.Response:
+    async def _post_with_retry(self, payload: dict[str, Any]) -> tuple[httpx.Response, int]:
         """POST the completion, retrying transient provider failures.
 
         Rate limits and upstream hiccups are routine on shared endpoints and
         must not destroy a long-running deliberation. Permanent failures (bad
         key, unknown model) are raised immediately — retrying cannot fix them.
+
+        Returns the response together with the latency of the attempt that
+        produced it, so stored per-turn latency reflects the model rather than
+        the time this adapter spent waiting out a rate limit.
         """
         attempt = 0
         waited = 0.0
+        ambiguous_failures = 0
         while True:
             attempt += 1
             resp: httpx.Response | None = None
+            call_started = time.monotonic()
+            # "Ambiguous" means the provider may already have generated and
+            # billed a completion that never reached us.
+            ambiguous = False
             try:
                 async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                     resp = await client.post(
@@ -349,28 +363,49 @@ class OpenAICompatibleProvider:
                         json=payload,
                         headers=self._headers(),
                     )
-            except httpx.TimeoutException:
+            except (httpx.ConnectTimeout, httpx.PoolTimeout):
+                # No request ever reached the provider: safe to retry.
                 pending = ProviderCallError("provider_timeout", "The model provider timed out.")
+            except httpx.TimeoutException:
+                ambiguous = True
+                pending = ProviderCallError("provider_timeout", "The model provider timed out.")
+            except httpx.ConnectError:
+                pending = ProviderCallError(
+                    "provider_unreachable", "Could not reach the model provider endpoint."
+                )
             except httpx.HTTPError:
+                ambiguous = True
                 pending = ProviderCallError(
                     "provider_unreachable", "Could not reach the model provider endpoint."
                 )
             else:
                 if resp.status_code not in _RETRYABLE_STATUS:
-                    return resp
+                    return resp, int((time.monotonic() - call_started) * 1000)
+                # A 429 is a clean refusal; a 5xx may hide a completion the
+                # upstream already produced.
+                ambiguous = resp.status_code >= 500
                 pending = _transient_status_error(resp.status_code)
+
+            if ambiguous:
+                ambiguous_failures += 1
 
             delay = self._retry_after_seconds(resp) if resp is not None else None
             if delay is None:
                 delay = min(_RETRY_BASE_SECONDS * (2 ** (attempt - 1)), _RETRY_MAX_DELAY_SECONDS)
                 delay += random.uniform(0.0, _RETRY_BASE_SECONDS)
-            if attempt >= self.max_attempts or waited + delay > self.retry_budget_seconds:
+            if (
+                attempt >= self.max_attempts
+                or waited + delay > self.retry_budget_seconds
+                or ambiguous_failures > _MAX_AMBIGUOUS_RETRIES
+            ):
                 pending.safe_message = _exhausted_message(pending.code, attempt)
                 pending.args = (pending.safe_message,)
                 raise pending
             logger.warning(
-                "Provider call transient failure (%s); retrying in %.1fs (attempt %d/%d)",
-                pending.code, delay, attempt, self.max_attempts,
+                "Provider call transient failure (%s%s); retrying in %.1fs (attempt %d/%d)",
+                pending.code,
+                "; upstream may have billed the lost attempt" if ambiguous else "",
+                delay, attempt, self.max_attempts,
             )
             await asyncio.sleep(delay)
             waited += delay
@@ -384,9 +419,7 @@ class OpenAICompatibleProvider:
         }
         if not _model_rejects_temperature(request.model):
             payload["temperature"] = request.temperature
-        started = time.monotonic()
-        resp = await self._post_with_retry(payload)
-        latency_ms = int((time.monotonic() - started) * 1000)
+        resp, latency_ms = await self._post_with_retry(payload)
         if resp.status_code == 401 or resp.status_code == 403:
             raise ProviderCallError("provider_auth_failed", "The provider rejected the API key.")
         if resp.status_code == 404:

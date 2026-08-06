@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import sys
 import uuid
 from dataclasses import dataclass
@@ -76,6 +77,7 @@ from .provenance import (
 )
 
 UTC = timezone.utc
+logger = logging.getLogger("vls.engine")
 
 
 def sha256_text(value: str) -> str:
@@ -212,6 +214,36 @@ async def _load_context(db: AsyncSession, run: Run) -> RunContext:
         provider_models=provider_models,
         project_slug=project_slug,
     )
+
+
+class LeaseLost(Exception):
+    """Another worker reclaimed this run mid-call; abandon without writing."""
+
+
+def _max_call_seconds(provider: ModelProvider) -> float:
+    """Worst-case wall time a single provider call may consume."""
+    return float(getattr(provider, "timeout_seconds", 0.0)) + float(
+        getattr(provider, "retry_budget_seconds", 0.0)
+    )
+
+
+async def _lease_still_held(db: AsyncSession, run_id: uuid.UUID, worker_id: str) -> bool:
+    """True when this worker still owns an unexpired lease on the run.
+
+    Reads columns (not the ORM object) so the identity map cannot serve a
+    stale in-memory copy of the row.
+    """
+    row = (
+        await db.execute(
+            select(Run.lease_owner, Run.lease_expires_at).where(Run.id == run_id)
+        )
+    ).one_or_none()
+    if row is None or row.lease_owner != worker_id or row.lease_expires_at is None:
+        return False
+    expires = row.lease_expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    return expires > datetime.now(UTC)
 
 
 async def _renew_lease(db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int) -> None:
@@ -690,10 +722,24 @@ async def execute_run(
                 )
 
                 provider = providers_by_config[da.provider_config_id]
+                # A single call can legitimately outlast the normal lease: model
+                # latency plus rate-limit backoff. Widen the lease to cover the
+                # worst case first, so the expired-lease sweeper cannot requeue
+                # this run and have a second worker replay the same turn.
+                call_lease_seconds = lease_seconds + int(_max_call_seconds(provider))
+                if call_lease_seconds > lease_seconds:
+                    await _renew_lease(db, run.id, worker_id, call_lease_seconds)
                 if isinstance(provider, DemoProvider):
                     result = await provider.complete(request, scripted=scripted)
                 else:
                     result = await provider.complete(request)
+                # Defence in depth: if the lease was lost anyway, another worker
+                # owns this run now. Writing the result would duplicate its work.
+                if not await _lease_still_held(db, run.id, worker_id):
+                    raise LeaseLost(
+                        f"run {run.id} lease lost during call {planned.call_index}"
+                    )
+                await _renew_lease(db, run.id, worker_id, lease_seconds)
 
                 if settings.demo_latency_enabled and run.demo_mode:
                     import asyncio
@@ -898,6 +944,13 @@ async def execute_run(
                     "wall_seconds": float(run.wall_seconds),
                 },
             )
+        except LeaseLost as exc:
+            # The recovery sweeper already requeued (or failed) this run and a
+            # second worker owns it. Touching run state here would clobber that
+            # decision, so drop the attempt and let the new owner proceed.
+            await db.rollback()
+            logger.warning("Abandoning run attempt: %s", exc)
+            return
         except RunCancelled:
             await db.rollback()
             run = await db.get(Run, run_id)
