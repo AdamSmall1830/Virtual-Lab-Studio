@@ -26,7 +26,7 @@ from tests.test_seed_and_run import _make_demo_run  # noqa: E402
 async def test_crash_after_summary_before_completion_recovers(sessionmaker, monkeypatch):
     async with sessionmaker() as db:
         await seed(db)
-        run = await _make_demo_run(db, rounds=1)  # 3 calls
+        run = await _make_demo_run(db, rounds=1, lease_owner="worker-a")  # 3 calls
         run_id = run.id
 
     # Attempt 1 completes normally...
@@ -102,7 +102,7 @@ async def test_crash_after_summary_before_completion_recovers(sessionmaker, monk
 async def test_terminal_run_is_noop_on_duplicate_reclaim(sessionmaker):
     async with sessionmaker() as db:
         await seed(db)
-        run = await _make_demo_run(db, rounds=1)
+        run = await _make_demo_run(db, rounds=1, lease_owner="worker-a")
         run_id = run.id
 
     await execute_run(sessionmaker, run_id, "worker-a")

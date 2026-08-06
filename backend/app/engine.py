@@ -27,7 +27,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select, text, update
+from sqlalchemy import or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -224,11 +224,25 @@ class LeaseLost(Exception):
 
 async def _claim_lease(
     db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int
-) -> None:
-    """Take ownership of a run this worker has just been handed."""
-    await db.execute(
+) -> bool:
+    """Take ownership of a run, but never from a worker holding a live lease.
+
+    A duplicate dispatch or a delayed task must not produce two active writers,
+    so ownership is only granted when the run is unowned, already ours, or its
+    lease has expired. Returns False when someone else is legitimately running
+    it — the caller must not start.
+    """
+    result = await db.execute(
         update(Run)
-        .where(Run.id == run_id)
+        .where(
+            Run.id == run_id,
+            or_(
+                Run.lease_owner.is_(None),
+                Run.lease_owner == worker_id,
+                Run.lease_expires_at.is_(None),
+                Run.lease_expires_at <= datetime.now(UTC),
+            ),
+        )
         .values(
             heartbeat_at=datetime.now(UTC),
             lease_expires_at=datetime.now(UTC) + timedelta(seconds=lease_seconds),
@@ -236,15 +250,18 @@ async def _claim_lease(
         )
     )
     await db.commit()
+    return result.rowcount == 1
 
 
-async def _renew_lease(
+async def _fence_lease(
     db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int
 ) -> bool:
-    """Extend the lease only while this worker still holds it.
+    """Owner-conditional lease renewal *inside the caller's transaction*.
 
-    The update is conditional on ownership so it can never steal a run back
-    from a worker that legitimately reclaimed it after our lease expired.
+    Commits nothing. The caller commits this fence together with the writes it
+    protects, so a worker that lost the run cannot land a stale turn: either
+    both the fence and the writes commit, or neither does.
+
     Returns False when ownership has been lost — the caller must abandon.
     """
     result = await db.execute(
@@ -260,8 +277,16 @@ async def _renew_lease(
             lease_expires_at=datetime.now(UTC) + timedelta(seconds=lease_seconds),
         )
     )
-    await db.commit()
     return result.rowcount == 1
+
+
+async def _renew_lease(
+    db: AsyncSession, run_id: uuid.UUID, worker_id: str, lease_seconds: int
+) -> bool:
+    """Extend the lease only while this worker still holds it, and commit."""
+    held = await _fence_lease(db, run_id, worker_id, lease_seconds)
+    await db.commit()
+    return held
 
 
 class _LeaseHeartbeat:
@@ -594,9 +619,13 @@ async def execute_run(
         if run.status in {"completed", "failed", "cancelled", "budget_stopped"}:
             return  # already terminal (e.g. duplicate reclaim); nothing to do
         ctx = await _load_context(db, run)
-        # This worker has just been handed the run, so take ownership outright.
-        # Every later renewal is fenced on still holding it.
-        await _claim_lease(db, run_id, worker_id, lease_seconds)
+        # Take ownership before doing anything. Every later renewal is fenced
+        # on still holding it.
+        if not await _claim_lease(db, run_id, worker_id, lease_seconds):
+            logger.warning(
+                "Run %s holds a live lease for another worker; not starting", run_id
+            )
+            return
 
         started_at = datetime.now(UTC)
         try:
@@ -894,6 +923,18 @@ async def execute_run(
                 run.cached_input_tokens += result.cached_input_tokens
                 run.output_tokens += result.output_tokens
                 run.actual_cost_usd = Decimal(str(run.actual_cost_usd)) + Decimal(str(result.cost_usd))
+                # Fence the turn and its usage counters on still owning the run.
+                # The fence commits in the same transaction as these writes, so
+                # a worker that lost the lease cannot land a stale turn.
+                if not await _fence_lease(db, run.id, worker_id, lease_seconds):
+                    call_index = planned.call_index
+                    await db.rollback()
+                    # Use the plain id: the rollback expired every ORM
+                    # attribute, and touching one here would trigger a lazy
+                    # load that asyncio cannot service.
+                    raise LeaseLost(
+                        f"run {run_id} lease lost before persisting call {call_index}"
+                    )
                 await db.commit()
 
                 messages.append({"role": "assistant", "content": content})

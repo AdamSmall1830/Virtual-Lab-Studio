@@ -64,6 +64,60 @@ class LeaseStealer:
         return result
 
 
+async def test_takeover_after_recheck_cannot_persist_a_stale_turn(
+    sessionmaker, monkeypatch
+):
+    """The post-call ownership re-check is not enough on its own.
+
+    If another worker takes over in the window between that re-check and the
+    commit, the turn's writes must still be rejected — they are fenced inside
+    the same transaction that persists them.
+    """
+    async with sessionmaker() as db:
+        await seed(db)
+        run = await _make_demo_run(db, rounds=2, lease_owner="worker-a")
+        run_id = run.id
+
+    real_renew = engine_module._renew_lease
+    seen = {"renewals": 0}
+
+    async def renew_then_steal(db, rid, worker_id, lease_seconds):
+        held = await real_renew(db, rid, worker_id, lease_seconds)
+        seen["renewals"] += 1
+        # Renewal 1 is the first checkpoint; renewal 2 is the post-call
+        # re-assert. Steal immediately after it, before the turn is committed.
+        if seen["renewals"] == 2:
+            async with sessionmaker() as other:
+                await other.execute(
+                    text(
+                        "UPDATE runs SET lease_owner = 'worker-b', "
+                        "lease_expires_at = now() + interval '1 hour' WHERE id = :rid"
+                    ),
+                    {"rid": str(rid)},
+                )
+                await other.commit()
+        return held
+
+    monkeypatch.setattr(engine_module, "_renew_lease", renew_then_steal)
+    await execute_run(sessionmaker, run_id, "worker-a")
+
+    async with sessionmaker() as db:
+        run = await db.get(Run, run_id)
+        assert run.lease_owner == "worker-b", "the new owner must keep the run"
+        assert run.status != "failed", "the stale worker must not fail the new owner's run"
+        assert run.provider_call_count == 0, "stale usage counters must not land"
+        completed = list(
+            (
+                await db.execute(
+                    select(RunTurn).where(
+                        RunTurn.run_id == run_id, RunTurn.status == "completed"
+                    )
+                )
+            ).scalars()
+        )
+        assert completed == [], "no turn may be persisted after losing the lease"
+
+
 async def test_lost_lease_abandons_attempt_without_clobbering_new_owner(
     sessionmaker, monkeypatch
 ):
@@ -74,7 +128,7 @@ async def test_lost_lease_abandons_attempt_without_clobbering_new_owner(
     """
     async with sessionmaker() as db:
         await seed(db)
-        run = await _make_demo_run(db, rounds=2)
+        run = await _make_demo_run(db, rounds=2, lease_owner="worker-a")
         run_id = run.id
 
     stealer = LeaseStealer(get_demo_provider(), sessionmaker, run_id, steal_after=2)
@@ -105,7 +159,7 @@ async def test_lost_lease_abandons_attempt_without_clobbering_new_owner(
 async def test_interrupted_run_resumes_without_duplicates(sessionmaker, monkeypatch):
     async with sessionmaker() as db:
         await seed(db)
-        run = await _make_demo_run(db, rounds=2)  # team, 1 member -> 5 calls
+        run = await _make_demo_run(db, rounds=2, lease_owner="worker-a")  # team, 1 member -> 5 calls
         run_id = run.id
 
     # Attempt 1: crash after 2 provider calls (mid-round).
@@ -169,7 +223,7 @@ async def test_interrupted_run_resumes_without_duplicates(sessionmaker, monkeypa
 async def test_inflight_streaming_turn_is_reused_not_duplicated(sessionmaker, monkeypatch):
     async with sessionmaker() as db:
         await seed(db)
-        run = await _make_demo_run(db, rounds=1)  # 3 calls
+        run = await _make_demo_run(db, rounds=1, lease_owner="worker-a")  # 3 calls
         run_id = run.id
 
     # Crash after 1 call but *during* turn 1: crash_after=1 raises before the

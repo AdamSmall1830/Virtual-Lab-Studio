@@ -62,7 +62,9 @@ async def test_seed_is_idempotent(sessionmaker):
     assert after["templates"] >= 10
 
 
-async def _make_demo_run(db, rounds: int = 1, budget: dict | None = None) -> Run:
+async def _make_demo_run(
+    db, rounds: int = 1, budget: dict | None = None, lease_owner: str = "test-worker"
+) -> Run:
     workspace = (await db.execute(select(Workspace).where(Workspace.slug == "virtual-lab"))).scalar_one()
     project = (
         await db.execute(select(Project).where(Project.workspace_id == workspace.id).limit(1))
@@ -113,13 +115,15 @@ async def _make_demo_run(db, rounds: int = 1, budget: dict | None = None) -> Run
         meeting_definition_id=definition.id, position=1, role_type="member",
         agent_version_id=member.id, provider_config_id=provider.id, provider_model_id=model.id,
     ))
-    # Lease the run to the test worker with a far-future expiry so the live
-    # application worker (polling the same development database) cannot claim
-    # it concurrently — that race caused duplicate (run_id, sequence) inserts.
+    # Lease the run to the worker that will execute it, with a far-future
+    # expiry so the live application worker (polling the same development
+    # database) cannot claim it concurrently — that race caused duplicate
+    # (run_id, sequence) inserts. This mirrors production, where the atomic
+    # queue claim hands a run to a worker that already owns its lease.
     run = Run(
         workspace_id=workspace.id, project_id=project.id,
         meeting_definition_id=definition.id, status="leased", demo_mode=True,
-        lease_owner="test-worker",
+        lease_owner=lease_owner,
         lease_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
     db.add(run)
