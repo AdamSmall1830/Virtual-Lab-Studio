@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Api
+  title: Virtual Lab Studio API
   version: 0.1.0
 paths:
   /v1/auth/clerk-login:
@@ -284,7 +284,10 @@ paths:
   /v1/providers/environment:
     get:
       summary: Provider Environment
-      description: Whether the zero-key Replit AI Integrations option is available.
+      description: 'Whether the zero-key Replit AI Integrations option is available.
+
+
+        Owner-billed, so it is restricted to an explicit email allowlist.'
       operationId: provider_environment_api_v1_providers_environment_get
       responses:
         '200':

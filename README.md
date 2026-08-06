@@ -41,6 +41,25 @@ Open the preview to use the app. Launch a meeting from **New Meeting**: the buil
 **Demo Provider** runs a complete, deterministic simulated deliberation — free, with no
 API keys — and is always visibly labeled "Simulation".
 
+### Real AI providers
+
+Real model providers work end-to-end. In **Settings → Providers & Models**, anyone can
+add an **OpenAI** or **OpenAI-compatible** provider with their own API key (keys are
+write-only: encrypted server-side, never returned to the browser). Register models with
+per-million-token pricing, then pick the provider and model in the meeting composer's
+**Advanced Controls** — validation shows the call count and a real cost estimate, and
+per-run call/cost budget caps are enforced at every checkpoint.
+
+Only demo runs are labeled "Simulation"; real runs carry a human-review disclosure
+instead.
+
+Optional environment variables (`backend/app/config.py` is the source of truth):
+
+| Variable | Purpose |
+|---|---|
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` / `AI_INTEGRATIONS_OPENAI_API_KEY` | Replit AI Integrations proxy — powers the zero-key "Replit AI" provider option. Empty = option unavailable. |
+| `REPLIT_AI_ALLOWED_EMAILS` | Comma-separated emails allowed to use the zero-key Replit AI option (it bills the workspace owner's Replit credits). Empty = nobody. |
+
 Common commands:
 
 ```bash
@@ -79,7 +98,9 @@ pnpm --filter @workspace/web run dev
 
 Then open the Vite dev URL it prints. The **Demo Provider** requires no API keys —
 you can launch, pause, intervene in, and resume complete simulated meetings out of
-the box. Health check: `GET /api/health/ready` returns database + migration status.
+the box. To run real meetings, add an OpenAI or OpenAI-compatible provider with your
+own API key in **Settings → Providers & Models** (no environment variables required).
+Health check: `GET /api/health/ready` returns database + migration status.
 
 Notes:
 

@@ -139,8 +139,10 @@ it first when working in this repo. Summary:
   meeting-drafts (create → validate/estimate → launch, frozen sha256 definitions),
   runs (turns, summary, events with `?after=` replay, SSE `events/stream` with
   Last-Event-ID, pause/resume/cancel, interventions), health at `/api/health/*`.
-  Deterministic Demo Provider only (real providers are follow-ups); ensemble_merge
-  meetings deferred. Tests: `cd backend && .venv/bin/python -m pytest` (upstream
+  Providers: deterministic Demo Provider plus real OpenAI-compatible providers
+  (encrypted write-only API keys, SSRF-validated base URLs, pricing-driven cost
+  estimates, allowlisted zero-key Replit AI via `REPLIT_AI_ALLOWED_EMAILS`);
+  ensemble_merge meetings deferred. Tests: `cd backend && .venv/bin/python -m pytest` (upstream
   compatibility call-count/order, turn plan, seed idempotency, engine pause/resume/
   cancel/budget, clean-database boot end-to-end).
 - **Pending (task #3):** evidence library, exports, reproducibility packets. The

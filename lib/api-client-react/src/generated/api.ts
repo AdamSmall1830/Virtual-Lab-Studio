@@ -1000,6 +1000,8 @@ export const getProviderEnvironmentApiV1ProvidersEnvironmentGetUrl = () => {
 
 /**
  * Whether the zero-key Replit AI Integrations option is available.
+ *
+ * Owner-billed, so it is restricted to an explicit email allowlist.
  * @summary Provider Environment
  */
 export const providerEnvironmentApiV1ProvidersEnvironmentGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderEnvironmentOut> => {

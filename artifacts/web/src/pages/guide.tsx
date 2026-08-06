@@ -348,39 +348,65 @@ export default function Guide() {
             <div className="vls-glass border-warning/20 rounded-xl p-6 space-y-4">
               <p className="leading-relaxed">
                 Every meeting runs through a <strong>provider</strong> — the engine that powers the
-                agents. Today the workspace ships with the{' '}
-                <strong className="text-foreground">Demo Provider</strong>: a deterministic,
-                zero-cost simulation that exercises the entire platform — composing, streaming,
-                pausing, intervening, exports — with no API keys. Its output is always labeled{' '}
-                <em>Simulation</em>, and that label never lies.
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Real model providers (OpenAI and OpenAI-compatible endpoints) are the next step on
-                the roadmap — the data model, provider registry, and settings surface are already
-                in place. When they land, connecting real AI agents will work like this:
+                agents. The built-in <strong className="text-foreground">Demo Provider</strong> is
+                a deterministic, zero-cost simulation for learning the platform with no API keys.
+                Real model providers — OpenAI and any OpenAI-compatible endpoint — run genuine
+                deliberations with real models, real token accounting, and real dollar costs.
               </p>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex gap-3">
                   <span className="font-mono text-primary shrink-0">1.</span>
-                  Open <em>Settings → Providers &amp; Models</em> and add a provider with your API
-                  key. Credentials stay server-side and never reach the browser.
+                  <span>
+                    Open <em>Settings → Providers &amp; Models</em> and add a provider with your
+                    own API key (OpenAI, or a custom base URL for any OpenAI-compatible endpoint).
+                    Keys are write-only: sent once on save, encrypted server-side, and never
+                    returned to the browser. Use <em>Test</em> to verify the connection before
+                    running anything.
+                  </span>
                 </div>
                 <div className="flex gap-3">
                   <span className="font-mono text-primary shrink-0">2.</span>
-                  In the meeting composer, choose that provider and a model for the run (or per
-                  agent).
+                  <span>
+                    Register the models you want under the provider, with their per-million-token
+                    pricing. Pricing drives the composer's pre-launch cost estimate; models without
+                    complete pricing are estimated honestly as incomplete rather than pretending
+                    they're free.
+                  </span>
                 </div>
                 <div className="flex gap-3">
                   <span className="font-mono text-primary shrink-0">3.</span>
-                  Budgets do the guarding: per-run call caps and cost ceilings apply to real
-                  providers exactly as they do in simulation.
+                  <span>
+                    In the meeting composer, pick the provider and model under{' '}
+                    <em>Advanced Controls</em>. Validation shows the expected call count and a real
+                    cost estimate before you launch.
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  <span className="font-mono text-primary shrink-0">4.</span>
+                  <span>
+                    Budgets do the guarding: per-run call caps and cost ceilings are enforced at
+                    every checkpoint, and a run that would exceed them is stopped with its partial
+                    record intact.
+                  </span>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Until then, everything you practice with the Demo Provider — team design, agenda
-                craft, intervention timing, export review — transfers directly to real runs.
+                <strong className="text-foreground">Replit AI (no key)</strong> is a special
+                zero-key option that routes through the workspace's Replit AI integration. Because
+                usage is billed to the workspace owner's Replit account, it is restricted to an
+                explicit allowlist of accounts (set by the operator via the{' '}
+                <code className="text-foreground">REPLIT_AI_ALLOWED_EMAILS</code> environment
+                variable). If your account isn't allowlisted, the option simply isn't available —
+                add your own API key instead.
               </p>
-              <TryIt href="/app/settings/providers" label="View provider settings" />
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                <strong className="text-foreground">Labeling never lies.</strong> Only demo runs
+                carry the <em>Simulation</em> label. Real runs are never labeled as simulation —
+                their syntheses are genuine model output and instead carry the human-review
+                disclosure: results may contain errors and require qualified review before any
+                external use.
+              </p>
+              <TryIt href="/app/settings/providers" label="Open provider settings" />
             </div>
           </section>
 

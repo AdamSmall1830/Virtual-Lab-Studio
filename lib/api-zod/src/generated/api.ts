@@ -368,6 +368,8 @@ export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostResponse = zod
 
 /**
  * Whether the zero-key Replit AI Integrations option is available.
+ *
+ * Owner-billed, so it is restricted to an explicit email allowlist.
  * @summary Provider Environment
  */
 export const ProviderEnvironmentApiV1ProvidersEnvironmentGetResponse = zod.object({

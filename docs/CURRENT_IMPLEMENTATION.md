@@ -1,6 +1,6 @@
 # Current Implementation — How the Platform Works Today
 
-_Last updated: August 5, 2026. This is the authoritative description of what is actually
+_Last updated: August 6, 2026. This is the authoritative description of what is actually
 built and running, as opposed to the target contract in `docs/TECHNICAL_ARCHITECTURE.md`
 and `MASTER_REPLIT_AGENT_PROMPT.md`. When the two disagree, this file describes reality;
 the pack docs describe the destination._
@@ -46,7 +46,11 @@ docs/, specs/               build-pack product contract, tokens, seed data, sche
   (`backend/app/bootstrap.py`) before serving, so an empty database comes up fully
   working with no manual steps. Verified by `backend/tests/test_clean_boot.py`.
 - Config via env (`backend/app/config.py`): `DATABASE_URL`, `SESSION_SECRET`,
-  `APP_ENV`, `RUN_WORKER_ENABLED`, worker lease/poll knobs.
+  `APP_ENV`, `RUN_WORKER_ENABLED`, worker lease/poll knobs. Real-provider options:
+  `AI_INTEGRATIONS_OPENAI_BASE_URL` / `AI_INTEGRATIONS_OPENAI_API_KEY` (Replit AI
+  Integrations proxy for the zero-key "Replit AI" provider source; empty = unavailable)
+  and `REPLIT_AI_ALLOWED_EMAILS` (comma-separated allowlist for that owner-billed
+  option; empty = nobody).
 
 ## 4. API surface (`backend/app/api/v1.py`, mounted at `/api/v1`)
 
@@ -84,10 +88,18 @@ get 404 (`backend/app/security.py`).
   allocated under an advisory lock; an in-process broadcaster wakes SSE streams.
 - Structured summaries are validated against `specs/meeting_summary.schema.json` and
   stored with a sha256 in `run_summaries`.
-- Only the deterministic **Demo Provider** exists (`backend/app/providers.py`): scripted
-  scenario for the seeded demo project, deterministic hash-labeled fallback otherwise,
-  always labeled as simulation, zero cost. Real providers and `ensemble_merge` meetings
-  are follow-ups.
+- Providers (`backend/app/providers.py`): the deterministic **Demo Provider** (scripted
+  scenario for the seeded demo project, hash-labeled fallback otherwise, always labeled
+  as simulation, zero cost) plus **real OpenAI-compatible providers**, constructed per
+  `ProviderConfig`. API keys are AES-256-GCM encrypted (key derived from
+  `SESSION_SECRET`) and write-only through the API; user-supplied base URLs pass SSRF
+  validation. A zero-key **Replit AI** source resolves credentials from the
+  `AI_INTEGRATIONS_OPENAI_*` env at runtime and is gated by the
+  `REPLIT_AI_ALLOWED_EMAILS` allowlist. Model pricing lives in
+  `ProviderModel.capabilities["pricing"]` and drives real cost estimates. Truthful
+  labeling: only demo runs (`run.demo_mode`) get the simulation summary; real runs get
+  a model-generated summary with a human-review disclosure. `ensemble_merge` meetings
+  remain a follow-up.
 
 ## 6. Data model and migrations
 
