@@ -112,8 +112,10 @@ export default function Composer() {
   
   const resolvedProjectId = projectId || initialProject || projects[0]?.id || '';
 
-  // Provider + model selection for the whole session team. Defaults to the
-  // Demo Provider; any enabled real provider with enabled models is selectable.
+  // Provider + model selection for the whole session team. Defaults to a
+  // configured real provider when the workspace has one, falling back to the
+  // Demo Provider only when no real model is available — a user who has set up
+  // a provider expects real runs, not a silent simulation.
   const [providerId, setProviderId] = useState('');
   const [modelId, setModelId] = useState('');
   const selectableProviders = useMemo(
@@ -122,8 +124,8 @@ export default function Composer() {
   );
   useEffect(() => {
     if (providerId || selectableProviders.length === 0) return;
-    const demo = selectableProviders.find((p) => p.provider_type === 'demo');
-    const pick = demo ?? selectableProviders[0];
+    const real = selectableProviders.find((p) => p.provider_type !== 'demo');
+    const pick = real ?? selectableProviders[0];
     setProviderId(pick.id);
     setModelId((pick.models ?? []).find((m) => m.is_enabled)?.id ?? '');
   }, [providerId, selectableProviders]);
