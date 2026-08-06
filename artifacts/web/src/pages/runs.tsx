@@ -84,16 +84,16 @@ export default function Runs() {
     <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto pb-12">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold">Run History</h1>
+          <h1 className="text-3xl font-display font-bold">Meetings &amp; Results</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Traceability and audit log for all multi-agent meetings across your projects.
+            Every multi-agent meeting across your projects — conclusions, transcripts, and audit trail.
           </p>
         </div>
         <Link
           href="/app/meetings/new"
           className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
         >
-          <Play className="w-4 h-4" /> Start New Run
+          <Play className="w-4 h-4" /> New Meeting
         </Link>
       </header>
 

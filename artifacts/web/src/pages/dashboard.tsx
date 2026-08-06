@@ -5,11 +5,15 @@ import {
   useProjects,
   useAgents,
   useTemplates,
+  useProviders,
   listRunsApiV1ProjectsProjectIdRunsGet,
+  listEvidenceApiV1ProjectsProjectIdEvidenceGet,
   getProjectRunsQueryKey,
   getProjectsQueryKey,
+  getProjectEvidenceQueryKey,
   getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryKey,
   getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryKey,
+  getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey,
 } from '@/api';
 import type { ProjectOut, RunOut } from '@/api';
 import { useSession } from '@/api/session';
@@ -23,6 +27,12 @@ import {
   Clock,
   Loader2,
   AlertTriangle,
+  CheckCircle2,
+  Circle,
+  Sparkles,
+  Zap,
+  Users,
+  Library,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -68,6 +78,93 @@ function StatCard({
   );
 }
 
+type SetupStep = {
+  key: string;
+  n: number;
+  title: string;
+  description: string;
+  href: string;
+  cta: string;
+  icon: typeof FolderOpen;
+  done: boolean;
+};
+
+function SetupChecklist({ steps, loading }: { steps: SetupStep[]; loading: boolean }) {
+  const nextStep = steps.find((s) => !s.done);
+  const doneCount = steps.filter((s) => s.done).length;
+
+  return (
+    <div className="vls-glass rounded-xl p-6 border border-primary/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2 text-primary mb-1">
+            <Sparkles className="w-4 h-4" />
+            <span className="text-xs font-mono tracking-widest uppercase">Set up your lab</span>
+          </div>
+          <h2 className="text-xl font-display font-semibold">
+            {doneCount === 0
+              ? 'Five steps from empty workspace to your first meeting'
+              : `${doneCount} of ${steps.length} steps done — keep going`}
+          </h2>
+        </div>
+        {nextStep && (
+          <Link
+            href={nextStep.href}
+            className="bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-2 shrink-0"
+          >
+            <Play className="w-4 h-4" />
+            Set up &amp; run
+          </Link>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-14 rounded-lg bg-muted/50 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <ol className="space-y-2">
+          {steps.map((step) => {
+            const isNext = nextStep?.key === step.key;
+            return (
+              <li key={step.key}>
+                <Link
+                  href={step.href}
+                  className={`flex items-center gap-4 p-3 rounded-lg border transition-colors group ${
+                    step.done
+                      ? 'border-transparent opacity-70 hover:opacity-100 hover:bg-background/50'
+                      : isNext
+                      ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                      : 'border-transparent hover:bg-background/50'
+                  }`}
+                >
+                  {step.done ? (
+                    <CheckCircle2 className="w-5 h-5 text-accent shrink-0" aria-label="Done" />
+                  ) : (
+                    <Circle className={`w-5 h-5 shrink-0 ${isNext ? 'text-primary' : 'text-muted-foreground/50'}`} aria-label="Not done yet" />
+                  )}
+                  <step.icon className={`w-4 h-4 shrink-0 ${step.done ? 'text-muted-foreground' : isNext ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className={`text-sm font-medium ${step.done ? 'line-through decoration-muted-foreground/50' : ''}`}>
+                      {step.n}. {step.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">{step.description}</div>
+                  </div>
+                  <span className={`text-xs font-medium shrink-0 inline-flex items-center gap-1 ${isNext ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity'}`}>
+                    {step.done ? 'Review' : step.cta} <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { workspaceId, workspace } = useSession();
   const enabled = Boolean(workspaceId);
@@ -82,6 +179,9 @@ export default function Dashboard() {
   const templatesQuery = useTemplates(wsId, {
     query: { enabled, queryKey: getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryKey(wsId) },
   });
+  const providersQuery = useProviders(wsId, {
+    query: { enabled, queryKey: getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey(wsId) },
+  });
 
   const projects = projectsQuery.data ?? [];
 
@@ -89,6 +189,14 @@ export default function Dashboard() {
     queries: projects.map((p: ProjectOut) => ({
       queryKey: getProjectRunsQueryKey(p.id),
       queryFn: () => listRunsApiV1ProjectsProjectIdRunsGet(p.id),
+      enabled: enabled && Boolean(p.id),
+    })),
+  });
+
+  const evidenceQueries = useQueries({
+    queries: projects.map((p: ProjectOut) => ({
+      queryKey: getProjectEvidenceQueryKey(p.id),
+      queryFn: () => listEvidenceApiV1ProjectsProjectIdEvidenceGet(p.id),
       enabled: enabled && Boolean(p.id),
     })),
   });
@@ -112,6 +220,73 @@ export default function Dashboard() {
         .slice(0, 6),
     [allRuns],
   );
+
+  const evidenceCount = useMemo(
+    () => evidenceQueries.reduce((sum, q) => sum + (q.data?.length ?? 0), 0),
+    [evidenceQueries],
+  );
+  const evidenceLoading = evidenceQueries.some((q) => q.isLoading);
+
+  const setupLoading =
+    projectsQuery.isLoading ||
+    agentsQuery.isLoading ||
+    providersQuery.isLoading ||
+    runsLoading ||
+    evidenceLoading;
+
+  const setupSteps: SetupStep[] = [
+    {
+      key: 'provider',
+      n: 1,
+      title: 'Choose your AI power source',
+      description: 'The Demo Provider is ready now — deterministic, free, no API key needed.',
+      href: '/app/settings/providers',
+      cta: 'Open providers',
+      icon: Zap,
+      done: (providersQuery.data?.length ?? 0) > 0,
+    },
+    {
+      key: 'agents',
+      n: 2,
+      title: 'Meet your research team',
+      description: 'A Lead Investigator, specialists, and a Scientific Critic debate on your behalf.',
+      href: '/app/agents',
+      cta: 'View team',
+      icon: Users,
+      done: (agentsQuery.data?.length ?? 0) > 0,
+    },
+    {
+      key: 'project',
+      n: 3,
+      title: 'Start your first project',
+      description: 'One container for a line of inquiry — its meetings, evidence, and exports.',
+      href: '/app/projects/new',
+      cta: 'Create project',
+      icon: FolderOpen,
+      done: projects.length > 0,
+    },
+    {
+      key: 'evidence',
+      n: 4,
+      title: 'Add evidence & knowledge',
+      description: 'Upload papers or notes so the team grounds its arguments in your sources.',
+      href: '/app/evidence',
+      cta: 'Add evidence',
+      icon: Library,
+      done: evidenceCount > 0,
+    },
+    {
+      key: 'run',
+      n: 5,
+      title: 'Run your first meeting',
+      description: 'Compose the agenda, launch, and watch the deliberation live.',
+      href: '/app/meetings/new',
+      cta: 'Start meeting',
+      icon: Play,
+      done: allRuns.length > 0,
+    },
+  ];
+  const setupComplete = !setupLoading && setupSteps.every((s) => s.done);
 
   const recentProjects = useMemo(
     () =>
@@ -139,6 +314,8 @@ export default function Dashboard() {
         </Link>
       </header>
 
+      {!setupComplete && <SetupChecklist steps={setupSteps} loading={setupLoading} />}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={FolderOpen} label="Projects" tone="text-primary" value={projects.length} loading={projectsQuery.isLoading} />
         <StatCard icon={Activity} label="Total Runs" tone="text-secondary" value={allRuns.length} loading={runsLoading || projectsQuery.isLoading} />
@@ -150,7 +327,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 space-y-6">
           <div className="vls-reading-surface rounded-xl border border-border p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-display font-semibold">Recent Runs</h2>
+              <h2 className="text-lg font-display font-semibold">Recent Meetings</h2>
               <Link href="/app/runs" className="text-sm text-primary hover:underline">View all</Link>
             </div>
 

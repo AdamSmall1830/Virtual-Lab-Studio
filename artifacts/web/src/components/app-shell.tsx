@@ -26,13 +26,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Ordered to mirror the "Set up & run" flow: power the lab, meet the team,
+  // start a project, add knowledge, then run meetings and read results.
   const navItems = [
     { href: '/app', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/app/agents', label: 'Research Team', icon: Users },
     { href: '/app/projects', label: 'Projects', icon: FolderOpen },
-    { href: '/app/agents', label: 'Agents', icon: Users },
-    { href: '/app/templates', label: 'Templates', icon: LayoutTemplate },
-    { href: '/app/evidence', label: 'Evidence', icon: Library },
-    { href: '/app/runs', label: 'Runs', icon: Activity },
+    { href: '/app/evidence', label: 'Evidence & Knowledge', icon: Library },
+    { href: '/app/templates', label: 'Meeting Templates', icon: LayoutTemplate },
+    { href: '/app/runs', label: 'Meetings & Results', icon: Activity },
   ];
 
   const bottomNavItems = [

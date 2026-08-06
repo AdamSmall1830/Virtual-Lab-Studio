@@ -124,7 +124,7 @@ export default function RunDetail() {
   }
 
   const tabs = [
-    { id: 'summary', label: 'Summary' },
+    { id: 'summary', label: 'Conclusions' },
     { id: 'transcript', label: 'Transcript' },
     { id: 'evidence', label: 'Evidence & Citations' },
     { id: 'usage', label: 'Usage & Cost' },
@@ -210,7 +210,11 @@ function SummaryTab({ runId }: { runId: string }) {
   const q = useRunSummary(runId, { query: { enabled: Boolean(runId), retry: false, queryKey: getRunSummaryQueryKey(runId) } });
   if (q.isLoading) return <Spinner label="Loading summary…" />;
   if (q.isError || !q.data) {
-    return <EmptyState icon={FileText}>Summary not available for this run yet.</EmptyState>;
+    return (
+      <EmptyState icon={FileText}>
+        Your team's conclusions will appear here once the meeting finishes.
+      </EmptyState>
+    );
   }
   const summary: RunSummaryOut = q.data;
   const sj = (summary.summary_json ?? {}) as Record<string, any>;
@@ -220,6 +224,10 @@ function SummaryTab({ runId }: { runId: string }) {
   return (
     <div className="space-y-6">
       <div className="vls-reading-surface p-8 rounded-xl border border-border shadow-sm space-y-8">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
+          <h2 className="text-xl font-display font-semibold">What your team concluded</h2>
+        </div>
         {sj.executive_summary && (
           <section>
             <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Executive Summary</h3>
