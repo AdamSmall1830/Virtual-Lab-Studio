@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
 import {
-  ChevronRight, ArrowLeft, Play, Settings, Users, Clock, AlertTriangle,
-  ShieldCheck, Loader2, CheckCircle2, XCircle, Plus, X,
+  ArrowLeft, Users, Database, Settings, Sparkles, Plus, X, Loader2,
+  ChevronDown, ChevronRight, Play, AlertTriangle, Check, BookOpen, Layers
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useSession } from '@/api/session';
@@ -30,7 +30,6 @@ import {
   type TemplateProfileOut,
 } from '@/api';
 
-const STEPS = ['Mode & Template', 'Agenda', 'Team', 'Evidence', 'Controls', 'Review'];
 type MeetingType = 'team' | 'individual';
 
 interface Participant {
@@ -64,6 +63,7 @@ export default function Composer() {
 
   const enabled = Boolean(workspaceId);
   const wsId = workspaceId ?? '';
+  
   const projectsQuery = useProjects(wsId, {
     query: { queryKey: getProjectsQueryKey(wsId), enabled },
   });
@@ -83,10 +83,9 @@ export default function Composer() {
   const providers: ProviderConfigOut[] = providersQuery.data ?? [];
 
   // ---- draft state ----
-  const [step, setStep] = useState(0);
   const [projectId, setProjectId] = useState<string>('');
   const [templateId, setTemplateId] = useState<string>('');
-  const [title, setTitle] = useState('New Meeting');
+  const [title, setTitle] = useState('New Research Session');
   const [meetingType, setMeetingType] = useState<MeetingType>('team');
   const [agenda, setAgenda] = useState('');
   const [questions, setQuestions] = useState('');
@@ -99,6 +98,10 @@ export default function Composer() {
   const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
   const [prefilledTemplate, setPrefilledTemplate] = useState(false);
 
+  // ---- UI state ----
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAgentLibrary, setShowAgentLibrary] = useState(false);
+
   // Default project selection once projects load.
   useEffect(() => {
     if (projectId || projects.length === 0) return;
@@ -106,6 +109,7 @@ export default function Composer() {
       (initialProject && projects.find((p) => p.id === initialProject)?.id) || projects[0].id;
     setProjectId(preferred);
   }, [projectId, projects, initialProject]);
+  
   const resolvedProjectId = projectId || initialProject || projects[0]?.id || '';
 
   // Provider defaults: prefer demo provider + its first enabled model.
@@ -113,13 +117,14 @@ export default function Composer() {
     const demo = providers.find((p) => p.provider_type === 'demo' && p.is_enabled);
     return demo ?? providers.find((p) => p.is_enabled) ?? providers[0];
   }, [providers]);
+  
   const defaultModel = useMemo(() => {
     const models = defaultProvider?.models ?? [];
     return models.find((m) => m.is_enabled) ?? models[0];
   }, [defaultProvider]);
 
-  const evidenceQuery = useProjectEvidence(projectId, {
-    query: { queryKey: getProjectEvidenceQueryKey(projectId), enabled: Boolean(projectId) && enabled },
+  const evidenceQuery = useProjectEvidence(resolvedProjectId, {
+    query: { queryKey: getProjectEvidenceQueryKey(resolvedProjectId), enabled: Boolean(resolvedProjectId) && enabled },
   });
   const evidence: EvidenceSourceOut[] = evidenceQuery.data ?? [];
 
@@ -128,6 +133,7 @@ export default function Composer() {
   const launchDraft = useLaunchDraft();
 
   const [estimate, setEstimate] = useState<ValidationEstimateOut | null>(null);
+  const [validatedDraftId, setValidatedDraftId] = useState<string | null>(null);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const busy = createDraft.isPending || validateDraft.isPending || launchDraft.isPending;
 
@@ -137,6 +143,7 @@ export default function Composer() {
     setPrefilledTemplate(false);
     const t = templates.find((x) => x.id === id);
     if (!t) return;
+    
     const def = TemplateDef(t);
     const mt = (def.meeting_type as MeetingType) ?? (t.latest_version?.meeting_type as MeetingType);
     if (mt === 'team' || mt === 'individual') setMeetingType(mt);
@@ -175,23 +182,75 @@ export default function Composer() {
       applyTemplate(match.id);
       setAppliedUrlTemplate(true);
     }
-    // applyTemplate reads latest state via closure; deps kept minimal intentionally.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedUrlTemplate, initialTemplate, templateId, templates, agents]);
 
+  // Set default team once agents are loaded, if empty and not prefilled
+  const [hasSetDefaultTeam, setHasSetDefaultTeam] = useState(false);
+  useEffect(() => {
+    if (agents.length > 0 && participants.length === 0 && !hasSetDefaultTeam && !prefilledTemplate && !initialTemplate) {
+      const validAgents = agents.filter(a => a.latest_version);
+      const defaultParticipants: Participant[] = [];
+      
+      if (meetingType === 'team') {
+        if (validAgents[0]) defaultParticipants.push({ agent: validAgents[0], roleType: 'lead' });
+        if (validAgents[1]) defaultParticipants.push({ agent: validAgents[1], roleType: 'member' });
+      } else {
+        if (validAgents[0]) defaultParticipants.push({ agent: validAgents[0], roleType: 'expert' });
+        if (validAgents[1]) defaultParticipants.push({ agent: validAgents[1], roleType: 'critic' });
+      }
+      setParticipants(defaultParticipants);
+      setHasSetDefaultTeam(true);
+    }
+  }, [agents, participants.length, hasSetDefaultTeam, meetingType, prefilledTemplate, initialTemplate]);
+
+  // Clear estimate if any configuration changes
+  useEffect(() => {
+    setEstimate(null);
+    setValidatedDraftId(null);
+    setLaunchError(null);
+  }, [title, meetingType, agenda, questions, rules, rounds, temperature, maxProviderCalls, maxCostUsd, participants, evidenceIds]);
+
   // ---- roster helpers ----
+  const handleMeetingTypeChange = (type: MeetingType) => {
+    if (type === meetingType) return;
+    setMeetingType(type);
+    
+    if (type === 'individual') {
+       const newP = [...participants].slice(0, 2);
+       if (newP[0]) newP[0].roleType = 'expert';
+       if (newP[1]) newP[1].roleType = 'critic';
+       setParticipants(newP);
+    } else {
+       const newP = [...participants];
+       if (newP.length > 0) newP[0].roleType = 'lead';
+       for (let i = 1; i < newP.length; i++) {
+         newP[i].roleType = 'member';
+       }
+       setParticipants(newP);
+    }
+  };
+
   const addParticipant = (agent: AgentProfileOut) => {
     if (participants.some((p) => p.agent.id === agent.id)) return;
     const defaultRole: DraftAgentInRoleType =
       meetingType === 'team' ? 'member' : participants.some((p) => p.roleType === 'expert') ? 'critic' : 'expert';
     setParticipants((prev) => [...prev, { agent, roleType: defaultRole }]);
   };
+
   const removeParticipant = (agentId: string) => {
     setParticipants((prev) => prev.filter((p) => p.agent.id !== agentId));
   };
+
   const setRole = (agentId: string, roleType: DraftAgentInRoleType) => {
     setParticipants((prev) =>
       prev.map((p) => (p.agent.id === agentId ? { ...p, roleType } : p)),
+    );
+  };
+
+  const toggleEvidence = (id: string) => {
+    setEvidenceIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
@@ -199,21 +258,21 @@ export default function Composer() {
   const roleBlockers = useMemo(() => {
     const b: string[] = [];
     if (!resolvedProjectId) b.push('Select a project.');
-    if (!title.trim()) b.push('Provide a meeting title.');
-    if (!agenda.trim()) b.push('Provide an agenda.');
+    if (!title.trim()) b.push('Provide a session title.');
+    if (!agenda.trim()) b.push('State your research question or agenda.');
     if (!defaultProvider || !defaultModel) b.push('No enabled provider/model is available in this workspace.');
     const roles = participants.map((p) => p.roleType);
     if (meetingType === 'team') {
-      if (roles.filter((r) => r === 'lead').length !== 1) b.push('A team meeting needs exactly one lead.');
-      if (roles.filter((r) => r === 'member').length < 1) b.push('A team meeting needs at least one member.');
+      if (roles.filter((r) => r === 'lead').length !== 1) b.push('A team council needs exactly one lead investigator.');
+      if (roles.filter((r) => r === 'member').length < 1) b.push('A team council needs at least one specialist.');
       if (roles.some((r) => r === 'expert' || r === 'critic')) {
-        b.push('Team meetings only use lead and member roles.');
+        b.push('Team councils only use lead and specialist roles.');
       }
     } else {
-      if (roles.filter((r) => r === 'expert').length !== 1) b.push('An individual meeting needs exactly one expert.');
-      if (roles.filter((r) => r === 'critic').length !== 1) b.push('An individual meeting needs exactly one critic.');
+      if (roles.filter((r) => r === 'expert').length !== 1) b.push('An individual session needs exactly one expert.');
+      if (roles.filter((r) => r === 'critic').length !== 1) b.push('An individual session needs exactly one critic.');
       if (roles.some((r) => r === 'lead' || r === 'member')) {
-        b.push('Individual meetings only use expert and critic roles.');
+        b.push('Individual sessions only use expert and critic roles.');
       }
     }
     if (rounds < 1 || rounds > 12) b.push('Rounds must be between 1 and 12.');
@@ -250,10 +309,10 @@ export default function Composer() {
     };
   };
 
-  // ---- create + validate (on entering Review step) ----
   const runValidation = async () => {
     setLaunchError(null);
     setEstimate(null);
+    setValidatedDraftId(null);
     if (!canLaunch) return;
     try {
       const draft = await createDraft.mutateAsync({
@@ -262,62 +321,58 @@ export default function Composer() {
       });
       const est = await validateDraft.mutateAsync({ draftId: draft.id });
       setEstimate(est);
-      return draft.id;
+      setValidatedDraftId(draft.id);
     } catch (err) {
-      setLaunchError(errMessage(err, 'Failed to prepare the draft.'));
-      return undefined;
+      setLaunchError(errMessage(err, 'Failed to prepare the session.'));
     }
-  };
-
-  const goToReview = async () => {
-    setStep(5);
-    await runValidation();
   };
 
   const handleLaunch = async () => {
     setLaunchError(null);
     if (!canLaunch) return;
     try {
-      // Recreate + validate to capture the latest edits, then launch.
-      const draft = await createDraft.mutateAsync({
-        projectId: resolvedProjectId,
-        data: buildDraft(),
-      });
-      const est = await validateDraft.mutateAsync({ draftId: draft.id });
-      setEstimate(est);
-      if (!est.valid) {
-        setLaunchError('The draft failed server validation. Review the errors below.');
-        return;
+      let targetDraftId = validatedDraftId;
+      
+      if (!targetDraftId) {
+        const draft = await createDraft.mutateAsync({
+          projectId: resolvedProjectId,
+          data: buildDraft(),
+        });
+        const est = await validateDraft.mutateAsync({ draftId: draft.id });
+        if (!est.valid) {
+          setLaunchError('The session failed server validation. Review the configuration.');
+          return;
+        }
+        targetDraftId = draft.id;
       }
-      const launched = await launchDraft.mutateAsync({ draftId: draft.id });
-      toast({ title: 'Meeting launched', description: 'The run is queued and starting.' });
+
+      const launched = await launchDraft.mutateAsync({ draftId: targetDraftId });
+      toast({ title: 'Session launched', description: 'The research session is starting.' });
       setLocation(`/app/runs/${launched.run_id}/live`);
     } catch (err) {
       setLaunchError(errMessage(err, 'Launch failed.'));
     }
   };
 
-  // ---- loading / error gates ----
-  const coreLoading =
-    projectsQuery.isLoading || templatesQuery.isLoading || agentsQuery.isLoading || providersQuery.isLoading;
-  const coreError =
-    projectsQuery.isError || templatesQuery.isError || agentsQuery.isError || providersQuery.isError;
+  const coreLoading = projectsQuery.isLoading || templatesQuery.isLoading || agentsQuery.isLoading || providersQuery.isLoading;
+  const coreError = projectsQuery.isError || templatesQuery.isError || agentsQuery.isError || providersQuery.isError;
 
   if (coreLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-3 text-muted-foreground">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm">Loading the composer…</p>
+        <p className="text-sm">Initializing composer…</p>
       </div>
     );
   }
+
   if (coreError) {
     return (
-      <div className="max-w-md mx-auto mt-16 vls-glass rounded-xl p-8 text-center border border-destructive/30 bg-destructive/5">
+      <div className="max-w-md mx-auto mt-24 vls-glass rounded-2xl p-10 text-center border border-destructive/30 bg-destructive/5">
         <AlertTriangle className="w-10 h-10 text-destructive mx-auto mb-4" />
         <h2 className="text-lg font-semibold mb-2">Could not load workspace data</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          We couldn&apos;t load projects, agents, or providers. Try again.
+        <p className="text-sm text-muted-foreground mb-6">
+          We couldn't load projects, agents, or providers. Please try again.
         </p>
         <button
           onClick={() => {
@@ -326,24 +381,27 @@ export default function Composer() {
             agentsQuery.refetch();
             providersQuery.refetch();
           }}
-          className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 hover:bg-foreground/90 transition-colors"
+          className="bg-foreground text-background px-6 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 hover:bg-foreground/90 transition-colors"
         >
-          <Loader2 className="w-4 h-4" /> Retry
+          <Loader2 className="w-4 h-4" /> Retry Connection
         </button>
       </div>
     );
   }
+
   if (projects.length === 0) {
     return (
-      <div className="max-w-md mx-auto mt-16 vls-glass rounded-xl p-8 text-center border-dashed">
-        <Users className="w-10 h-10 text-muted-foreground mx-auto mb-4 opacity-60" />
-        <h2 className="text-lg font-semibold mb-2">No projects yet</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Create a project before composing a meeting.
+      <div className="max-w-md mx-auto mt-24 vls-glass rounded-2xl p-10 text-center border-dashed">
+        <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Users className="w-8 h-8 text-muted-foreground opacity-60" />
+        </div>
+        <h2 className="text-xl font-display font-semibold mb-3">No projects found</h2>
+        <p className="text-sm text-muted-foreground mb-8">
+          Create a project to contain your research sessions.
         </p>
         <button
           onClick={() => setLocation('/app/projects')}
-          className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-semibold hover:bg-foreground/90 transition-colors"
+          className="bg-foreground text-background px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-foreground/90 transition-colors shadow-sm"
         >
           Go to Projects
         </button>
@@ -351,611 +409,469 @@ export default function Composer() {
     );
   }
 
-  const getStepForBlocker = (b: string) => {
-    const l = b.toLowerCase();
-    if (l.includes('project')) return 0;
-    if (l.includes('title') || l.includes('agenda')) return 1;
-    if (l.includes('lead') || l.includes('member') || l.includes('expert') || l.includes('critic')) return 2;
-    if (l.includes('rounds')) return 4;
-    return 0;
-  };
-
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-300 max-w-6xl mx-auto pb-4">
-      {/* Wizard header */}
-      <div className="shrink-0 mb-6 border-b border-border pb-6">
+    <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 max-w-4xl mx-auto">
+      
+      {/* Header */}
+      <div className="shrink-0 flex items-center justify-between pb-6 pt-2">
         <button
           onClick={() => setLocation('/app/runs')}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
         >
-          <ArrowLeft className="w-4 h-4" /> Back
+          <ArrowLeft className="w-4 h-4" /> Back to Runs
         </button>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-display font-bold">Meeting Composer</h1>
-          <div className="hidden md:flex items-center gap-2 text-sm">
-            {STEPS.map((s, i) => (
-              <React.Fragment key={i}>
-                <div
-                  className={`flex items-center gap-2 ${
-                    i === step ? 'text-primary font-semibold' : i < step ? 'text-foreground' : 'text-muted-foreground'
-                  }`}
-                >
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                      i === step
-                        ? 'bg-primary text-primary-foreground'
-                        : i < step
-                          ? 'bg-foreground text-background'
-                          : 'bg-background border border-border'
-                    }`}
-                  >
-                    {i + 1}
-                  </div>
-                  {s}
-                </div>
-                {i < STEPS.length - 1 && <ChevronRight className="w-4 h-4 text-border" />}
-              </React.Fragment>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground font-medium">Project:</span>
+          <select
+            className="bg-background border border-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-semibold shadow-sm cursor-pointer"
+            value={resolvedProjectId}
+            onChange={(e) => {
+              setProjectId(e.target.value);
+              setEvidenceIds([]);
+            }}
+          >
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-background/50 rounded-xl border border-border p-6 shadow-sm relative">
-        {/* Step 0: Mode & Template */}
-        {step === 0 && (
-          <div className="max-w-2xl mx-auto space-y-8 py-8 animate-in slide-in-from-right-4">
-            <div className="text-center">
-              <h2 className="text-3xl font-display font-bold mb-2">Select a Meeting Mode</h2>
-              <p className="text-muted-foreground">The mode defines the interaction pattern between agents.</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div
-                className={`p-6 rounded-xl cursor-pointer border-2 transition-all ${
-                  meetingType === 'team' ? 'border-primary bg-primary/5' : 'border-transparent vls-glass hover:border-border'
-                }`}
-                onClick={() => setMeetingType('team')}
-              >
-                <h3 className="text-xl font-semibold mb-2">Team Council</h3>
-                <p className="text-sm text-muted-foreground">
-                  Lead investigator + ordered specialists. Best for multidisciplinary synthesis and complex
-                  experimental design.
-                </p>
-              </div>
-              <div
-                className={`p-6 rounded-xl cursor-pointer border-2 transition-all ${
-                  meetingType === 'individual' ? 'border-primary bg-primary/5' : 'border-transparent vls-glass hover:border-border'
-                }`}
-                onClick={() => setMeetingType('individual')}
-              >
-                <h3 className="text-xl font-semibold mb-2">Expert &amp; Critic</h3>
-                <p className="text-sm text-muted-foreground">
-                  One expert alternates with a dedicated critic. Best for rigorous stress-testing of a specific
-                  hypothesis.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Project Context</label>
-              <select
-                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                value={resolvedProjectId}
-                onChange={(e) => {
-                  setProjectId(e.target.value);
-                  setEvidenceIds([]);
-                }}
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Start from a Template (optional)</label>
-              <select
-                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                value={templateId}
-                onChange={(e) => (e.target.value ? applyTemplate(e.target.value) : setTemplateId(''))}
-              >
-                <option value="">Blank meeting</option>
-                {templates
-                  .filter((t) => {
-                    const mt = (TemplateDef(t).meeting_type as string) ?? t.latest_version?.meeting_type;
-                    return mt === meetingType;
-                  })
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-              </select>
-              {prefilledTemplate && (
-                <p className="text-xs text-muted-foreground">
-                  Prefilled agenda, questions, rules, and roster from the template.
-                </p>
-              )}
+      {/* Main Scrolling Area */}
+      <div className="flex-1 overflow-auto bg-background/40 backdrop-blur-md rounded-t-3xl border border-border border-b-0 shadow-sm relative">
+        <div className="p-8 sm:p-12 space-y-16 max-w-3xl mx-auto">
+          
+          {/* Block 1: Research Question */}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <input 
+              type="text"
+              className="w-full bg-transparent border-none text-3xl sm:text-4xl font-display font-bold focus:outline-none placeholder:text-muted-foreground/30 mb-8 p-0 text-foreground"
+              placeholder="Research Session Title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              data-testid="input-title"
+            />
+            
+            <div className="vls-glass rounded-2xl p-1 relative group focus-within:ring-2 focus-within:ring-primary/50 focus-within:bg-primary/5 transition-all duration-300">
+               <textarea
+                 className="w-full min-h-[160px] bg-transparent p-5 text-lg resize-y focus:outline-none placeholder:text-muted-foreground/50 text-foreground"
+                 placeholder="What is your research question? Be specific about hypotheses, constraints, and desired outcomes..."
+                 value={agenda}
+                 onChange={(e) => setAgenda(e.target.value)}
+                 data-testid="input-agenda"
+               />
+               <div className="absolute top-5 right-5 text-muted-foreground/30 pointer-events-none transition-colors group-focus-within:text-primary/50">
+                 <Sparkles className="w-6 h-6" />
+               </div>
             </div>
           </div>
-        )}
 
-        {/* Step 1: Agenda */}
-        {step === 1 && (
-          <div className="max-w-3xl mx-auto space-y-6 py-4 animate-in slide-in-from-right-4">
-            <h2 className="text-2xl font-display font-bold">Agenda &amp; Objectives</h2>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Meeting Title</label>
-                <input
-                  type="text"
-                  className="w-full bg-background border border-input rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
+          {/* Block 2: Team Assembly */}
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-xl font-display font-bold flex items-center gap-2 text-foreground mb-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  Research Team
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  {meetingType === 'team' 
+                    ? 'A lead investigator synthesizes insights from ordered specialists. Best for complex, multi-disciplinary research.' 
+                    : 'An expert iterates on the problem while a critic actively tries to find flaws. Best for rigorous stress-testing.'}
+                </p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Primary Objective / Agenda</label>
-                <textarea
-                  className="w-full bg-background border border-input rounded-md px-3 py-2 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={agenda}
-                  onChange={(e) => setAgenda(e.target.value)}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Agenda Questions (one per line)</label>
-                  <textarea
-                    className="w-full bg-background border border-input rounded-md px-3 py-2 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                    value={questions}
-                    onChange={(e) => setQuestions(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-warning">Constraints / Rules (one per line)</label>
-                  <textarea
-                    className="w-full bg-background border border-warning/50 rounded-md px-3 py-2 min-h-[150px] focus:outline-none focus:ring-2 focus:ring-warning/50 text-sm"
-                    value={rules}
-                    onChange={(e) => setRules(e.target.value)}
-                  />
-                </div>
+              
+              <div className="flex bg-background p-1.5 rounded-xl border border-border shadow-sm w-fit flex-shrink-0">
+                <button 
+                  className={`px-4 py-2 text-sm rounded-lg transition-all ${meetingType === 'team' ? 'bg-primary/15 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'}`}
+                  onClick={() => handleMeetingTypeChange('team')}
+                >
+                  Team Council
+                </button>
+                <button 
+                  className={`px-4 py-2 text-sm rounded-lg transition-all ${meetingType === 'individual' ? 'bg-primary/15 text-primary font-bold shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-medium'}`}
+                  onClick={() => handleMeetingTypeChange('individual')}
+                >
+                  Expert & Critic
+                </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Step 2: Team */}
-        {step === 2 && (
-          <div className="max-w-4xl mx-auto space-y-6 py-4 animate-in slide-in-from-right-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-display font-bold">Team Assembly</h2>
-              <span className="text-sm text-muted-foreground">{participants.length} agents selected</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2 space-y-4">
-                <div className="vls-glass p-4 rounded-xl border-l-4 border-l-primary">
-                  <div className="text-sm font-semibold mb-3 uppercase tracking-wider text-muted-foreground">
-                    Meeting Roster (Speaking Order)
-                  </div>
-                  <div className="space-y-2">
-                    {participants.map((p, idx) => (
-                      <div
-                        key={p.agent.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between bg-background p-3 rounded-lg border border-border gap-3"
+            
+            {participants.length === 0 ? (
+              <button 
+                onClick={() => setShowAgentLibrary(true)}
+                className="w-full vls-glass rounded-2xl p-10 flex flex-col items-center justify-center gap-4 text-muted-foreground hover:text-primary hover:border-primary/50 transition-all border-dashed"
+              >
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <Plus className="w-7 h-7" />
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-foreground text-lg mb-1">Assemble your team</div>
+                  <div className="text-sm">Select agents from the library to participate in this session.</div>
+                </div>
+              </button>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {participants.map((p) => (
+                  <div key={p.agent.id} className="vls-glass rounded-xl p-5 flex flex-col relative group hover:border-primary/30 transition-colors">
+                    <button 
+                      onClick={() => removeParticipant(p.agent.id)} 
+                      className="absolute top-3 right-3 p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                      title="Remove from team"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    
+                    <div className="flex items-start gap-4 mb-5 pr-6">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                        <span className="text-primary font-display font-bold text-xl">{p.agent.title.charAt(0)}</span>
+                      </div>
+                      <div className="min-w-0 pt-0.5">
+                        <div className="font-bold text-foreground leading-tight truncate">{p.agent.title}</div>
+                        <div className="text-xs text-muted-foreground line-clamp-1 mt-1 font-medium">{p.agent.latest_version?.expertise || 'General intelligence'}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-auto pt-4 border-t border-border/50">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-bold">Assigned Role</div>
+                      <select 
+                        value={p.roleType}
+                        onChange={(e) => setRole(p.agent.id, e.target.value as DraftAgentInRoleType)}
+                        className="w-full text-sm bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 text-primary font-bold focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer appearance-none shadow-sm"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded bg-primary/10 text-primary text-xs flex items-center justify-center font-mono">
-                            {idx + 1}
-                          </div>
-                          <div className="font-medium text-sm">{p.agent.title}</div>
-                        </div>
-                        <div className="flex items-center gap-3 sm:ml-auto">
-                          <select
-                            value={p.roleType}
-                            onChange={(e) => setRole(p.agent.id, e.target.value as DraftAgentInRoleType)}
-                            className="text-xs bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          >
-                            {meetingType === 'team' ? (
-                              <>
-                                <option value="lead">Lead</option>
-                                <option value="member">Member</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="expert">Expert</option>
-                                <option value="critic">Critic</option>
-                              </>
-                            )}
-                          </select>
-                          <button
-                            className="text-destructive hover:bg-destructive/10 rounded p-1"
-                            onClick={() => removeParticipant(p.agent.id)}
-                            title="Remove"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {participants.length === 0 && (
-                      <div className="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg">
-                        Add agents from the library to build your team.
-                      </div>
-                    )}
+                        {meetingType === 'team' ? (
+                          <>
+                            <option value="lead">Lead Investigator</option>
+                            <option value="member">Specialist</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="expert">Expert</option>
+                            <option value="critic">Critic</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                ))}
+                
+                <button 
+                  onClick={() => setShowAgentLibrary(true)}
+                  className="vls-glass rounded-xl p-5 flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-all border-dashed min-h-[160px]"
+                >
+                  <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-semibold">Add Researcher</span>
+                </button>
               </div>
-
-              <div className="vls-reading-surface rounded-xl p-4 border h-[500px] overflow-auto">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Users className="w-4 h-4" /> Agent Library
-                </h3>
-                {agents.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-8">
-                    No agents available in this workspace.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {agents.map((a) => {
-                      const isSelected = participants.some((p) => p.agent.id === a.id);
-                      const noVersion = !a.latest_version;
-                      return (
-                        <div
-                          key={a.id}
-                          className={`p-3 rounded-lg border text-sm transition-colors ${
-                            isSelected || noVersion
-                              ? 'border-primary/50 bg-primary/5 opacity-50 cursor-not-allowed'
-                              : 'border-border bg-background cursor-pointer hover:border-primary/50'
-                          }`}
-                          onClick={() => !isSelected && !noVersion && addParticipant(a)}
-                        >
-                          <div className="font-medium mb-1 flex items-center justify-between">
-                            {a.title}
-                            {!isSelected && !noVersion && <Plus className="w-3.5 h-3.5 text-primary" />}
-                          </div>
-                          <div className="text-xs text-muted-foreground line-clamp-2">
-                            {a.latest_version?.expertise ?? (noVersion ? 'No version available' : a.description)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
-        )}
 
-        {/* Step 3: Evidence */}
-        {step === 3 && (
-          <div className="max-w-4xl mx-auto space-y-6 py-4 animate-in slide-in-from-right-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-display font-bold">Evidence Context</h2>
-              <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
-                {evidenceIds.length} sources attached
+          {/* Block 3: Knowledge Sources */}
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-display font-bold flex items-center gap-2 text-foreground">
+                <Database className="w-5 h-5 text-primary" />
+                Knowledge Sources
+              </h2>
+              <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
+                {evidenceIds.length} attached
               </span>
             </div>
-
-            {evidenceQuery.isLoading ? (
-              <div className="space-y-3">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-20 rounded-xl bg-muted/40 animate-pulse" />
-                ))}
-              </div>
-            ) : evidenceQuery.isError ? (
-              <div className="p-6 rounded-xl border border-destructive/30 bg-destructive/5 text-sm text-destructive text-center">
-                Failed to load evidence for this project.
-              </div>
-            ) : evidence.length === 0 ? (
-              <div className="text-center py-12 vls-glass border-dashed rounded-xl text-muted-foreground">
-                No evidence available. Upload documents in the Evidence Library.
+            
+            {evidence.length === 0 ? (
+              <div className="vls-glass rounded-2xl p-10 text-center text-sm text-muted-foreground border-dashed">
+                <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <div className="font-medium text-base mb-1 text-foreground">No knowledge sources available</div>
+                <div>Upload documents to this project to attach them here.</div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {evidence.map((ev) => {
-                  const selected = evidenceIds.includes(ev.id);
-                  const notReady = ev.processing_status !== 'ready';
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2">
+                {evidence.map(ev => {
+                  const isAttached = evidenceIds.includes(ev.id);
                   return (
-                    <label
-                      key={ev.id}
-                      className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${
-                        selected ? 'border-primary bg-primary/5' : 'border-border vls-glass hover:border-primary/30'
-                      } ${notReady ? 'opacity-60' : 'cursor-pointer'}`}
+                    <div 
+                      key={ev.id} 
+                      onClick={() => toggleEvidence(ev.id)}
+                      className={`p-4 rounded-xl border cursor-pointer flex items-start gap-4 transition-all duration-200 ${
+                        isAttached 
+                          ? 'bg-primary/10 border-primary/50 shadow-[inset_0_0_20px_rgba(var(--vls-primary),0.05)]' 
+                          : 'vls-glass hover:border-primary/50 hover:bg-muted/10'
+                      }`}
                     >
-                      <input
-                        type="checkbox"
-                        className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                        checked={selected}
-                        disabled={notReady}
-                        onChange={(e) => {
-                          setEvidenceIds((prev) =>
-                            e.target.checked ? [...prev, ev.id] : prev.filter((id) => id !== ev.id),
-                          );
-                        }}
-                      />
-                      <div className="min-w-0">
-                        <div className="font-medium text-foreground mb-1 flex items-center gap-2">
+                      <div className={`mt-0.5 w-5 h-5 rounded-[4px] border flex items-center justify-center flex-shrink-0 transition-colors ${isAttached ? 'bg-primary border-primary text-primary-foreground' : 'border-border/80 bg-background'}`}>
+                         {isAttached && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                      <div className="min-w-0 pt-0.5">
+                        <div className={`text-sm font-bold line-clamp-1 ${isAttached ? 'text-primary' : 'text-foreground'}`}>
                           {ev.title}
-                          <span className="text-[10px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                            {ev.evidence_key}
-                          </span>
-                          {notReady && (
-                            <span className="text-[10px] text-warning uppercase tracking-wider">
-                              {ev.processing_status}
-                            </span>
-                          )}
                         </div>
-                        <div className="text-sm text-muted-foreground line-clamp-2">
-                          {ev.citation ?? ev.source_type}
+                        <div className="text-[10px] text-muted-foreground mt-1.5 uppercase tracking-wider font-bold">
+                          {ev.source_type}
                         </div>
                       </div>
-                    </label>
-                  );
+                    </div>
+                  )
                 })}
               </div>
             )}
           </div>
-        )}
 
-        {/* Step 4: Controls */}
-        {step === 4 && (
-          <div className="max-w-2xl mx-auto space-y-8 py-4 animate-in slide-in-from-right-4">
-            <h2 className="text-2xl font-display font-bold mb-6">Execution Controls</h2>
-            <div className="space-y-6">
-              <div className="vls-reading-surface p-6 rounded-xl border space-y-4">
-                <h3 className="font-semibold border-b border-border pb-2">Debate Parameters</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Rounds (1–12)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={12}
-                      className="w-full bg-background border border-input rounded-md px-3 py-2"
+          {/* Block 4: Advanced Controls */}
+          <div className="pt-8 border-t border-border/60">
+            <button 
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-3 text-lg font-display font-bold text-foreground hover:text-primary transition-colors group"
+            >
+              <Settings className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              Advanced Controls
+              <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showAdvanced && (
+              <div className="mt-8 space-y-10 animate-in slide-in-from-top-4 fade-in duration-300">
+                
+                {/* Templates */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-primary" />
+                    Session Template
+                  </label>
+                  <p className="text-sm text-muted-foreground mb-3 max-w-2xl">Apply a pre-configured template to set the agenda, questions, rules, and team automatically.</p>
+                  <select
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground cursor-pointer shadow-sm"
+                    value={templateId}
+                    onChange={(e) => {
+                      if (e.target.value) applyTemplate(e.target.value);
+                      else { setTemplateId(''); setPrefilledTemplate(false); }
+                    }}
+                  >
+                    <option value="">No Template (Blank Session)</option>
+                    {templates
+                      .filter((t) => {
+                        const mt = (TemplateDef(t).meeting_type as string) ?? t.latest_version?.meeting_type;
+                        return mt === meetingType;
+                      })
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-foreground">Specific Questions to Address</label>
+                    <textarea
+                      className="w-full bg-background border border-border rounded-xl px-4 py-4 min-h-[140px] text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y shadow-sm"
+                      placeholder="One question per line..."
+                      value={questions}
+                      onChange={(e) => setQuestions(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-warning">Rules & Constraints</label>
+                    <textarea
+                      className="w-full bg-warning/5 border border-warning/30 rounded-xl px-4 py-4 min-h-[140px] text-sm focus:outline-none focus:ring-2 focus:ring-warning/50 resize-y shadow-sm"
+                      placeholder="One rule per line..."
+                      value={rules}
+                      onChange={(e) => setRules(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-6 border-t border-border/60">
+                  <div className="space-y-4">
+                    <label className="text-sm font-bold text-foreground flex justify-between">
+                      Discussion Rounds <span className="text-primary">{rounds}</span>
+                    </label>
+                    <input 
+                      type="range" 
+                      min="1" max="12" step="1"
                       value={rounds}
-                      onChange={(e) => setRounds(Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                      onChange={e => setRounds(parseInt(e.target.value))}
+                      className="w-full accent-primary cursor-pointer"
                     />
-                    <div className="text-xs text-muted-foreground">Full cycles through the speaking roster</div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Temperature (0–2)</label>
-                    <input
-                      type="number"
-                      step={0.1}
-                      min={0}
-                      max={2}
-                      className="w-full bg-background border border-input rounded-md px-3 py-2"
+                  <div className="space-y-4">
+                    <label className="text-sm font-bold text-foreground flex justify-between">
+                      Temperature <span className="text-primary">{temperature}</span>
+                    </label>
+                    <input 
+                      type="range" 
+                      min="0" max="1" step="0.1"
                       value={temperature}
-                      onChange={(e) =>
-                        setTemperature(Math.min(2, Math.max(0, parseFloat(e.target.value) || 0)))
-                      }
+                      onChange={e => setTemperature(parseFloat(e.target.value))}
+                      className="w-full accent-primary cursor-pointer"
                     />
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-sm font-bold text-foreground">Budget Limits (Optional)</label>
+                    <div className="flex gap-3">
+                      <input 
+                        type="number" 
+                        placeholder="Max Calls"
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+                        value={maxProviderCalls || ''}
+                        onChange={e => setMaxProviderCalls(parseInt(e.target.value) || 0)}
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="Max USD"
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+                        value={maxCostUsd || ''}
+                        onChange={e => setMaxCostUsd(parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-              <div className="vls-reading-surface p-6 rounded-xl border space-y-4 border-warning/30">
-                <div className="border-b border-border pb-2">
-                  <h3 className="font-semibold text-warning flex items-center gap-2">
-                    <Settings className="w-4 h-4" /> Budgets &amp; Limits
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Limits are enforced at safe checkpoints. Set a limit to 0 for unlimited.
+      {/* Bottom Bar Content */}
+      <div className="shrink-0 bg-background border border-border border-t-0 rounded-b-3xl shadow-xl z-10 transition-all duration-500 overflow-hidden">
+        {launchError && (
+          <div className="bg-destructive text-destructive-foreground px-6 py-3 text-sm font-bold flex items-center justify-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            {launchError}
+          </div>
+        )}
+
+        {estimate ? (
+          <div className="p-6 sm:p-8 bg-vls-surface-strong">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6 justify-between max-w-3xl mx-auto">
+              <div className="flex items-start gap-5">
+                <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 border border-primary/30 shadow-[0_0_20px_rgba(var(--vls-primary),0.2)]">
+                  <Check className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-display font-bold mb-1.5 text-foreground">Session Ready for Launch</h3>
+                  <p className="text-muted-foreground mb-5 text-sm sm:text-base leading-relaxed">
+                    <strong className="text-foreground">{participants.length} researchers</strong> will deliberate for <strong className="text-foreground">{rounds} rounds</strong>, concluding with a synthesized final report.
                   </p>
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Max Provider Calls</label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="w-full bg-background border border-input rounded-md px-3 py-2"
-                      value={maxProviderCalls}
-                      onChange={(e) => setMaxProviderCalls(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Max Cost (USD)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      className="w-full bg-background border border-input rounded-md px-3 py-2"
-                      value={maxCostUsd}
-                      onChange={(e) => setMaxCostUsd(Math.max(0, parseFloat(e.target.value) || 0))}
-                    />
-                    <p className="text-xs text-muted-foreground">Demo Provider runs cost $0.</p>
+                  <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm bg-background/60 p-3 rounded-xl border border-border inline-flex shadow-inner">
+                     <div className="flex flex-col">
+                       <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold mb-0.5">Est. Calls</span>
+                       <span className="font-bold text-foreground text-base">{estimate.max_calls ?? 'Unknown'}</span>
+                     </div>
+                     <div className="flex flex-col">
+                       <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold mb-0.5">Est. Cost</span>
+                       <span className="font-bold text-foreground text-base">{estimate.estimated_cost_usd ? `$${estimate.estimated_cost_usd.toFixed(2)}` : 'N/A'}</span>
+                     </div>
                   </div>
                 </div>
+              </div>
+              
+              <div className="flex flex-col gap-3 min-w-[220px] w-full md:w-auto mt-2 md:mt-0">
+                 <button 
+                   onClick={handleLaunch}
+                   disabled={busy}
+                   className="w-full bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-3 shadow-[0_0_40px_-10px_rgba(var(--vls-primary),0.6)] hover:shadow-[0_0_50px_-5px_rgba(var(--vls-primary),0.8)] disabled:opacity-50 disabled:cursor-not-allowed"
+                   data-testid="launch-button"
+                 >
+                   {launchDraft.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5 fill-current" />}
+                   Launch Session
+                 </button>
+                 <button 
+                   onClick={() => setEstimate(null)}
+                   className="w-full text-sm text-muted-foreground hover:text-foreground py-2 font-bold transition-colors"
+                 >
+                   Make adjustments
+                 </button>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Step 5: Review */}
-        {step === 5 && (
-          <div className="max-w-3xl mx-auto space-y-6 py-4 animate-in slide-in-from-right-4">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-display font-bold">Review &amp; Launch</h2>
-              <p className="text-muted-foreground mt-2">
-                Verify parameters before launching the meeting run.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="vls-glass p-5 rounded-xl space-y-4">
-                <h3 className="font-semibold flex items-center gap-2 border-b border-border pb-2">
-                  <Users className="w-4 h-4 text-primary" /> Setup
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mode</span>
-                    <span className="font-medium capitalize">{meetingType}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Team Size</span>
-                    <span className="font-medium">{participants.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Evidence</span>
-                    <span className="font-medium">{evidenceIds.length} sources</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rounds</span>
-                    <span className="font-medium">{rounds}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Provider</span>
-                    <span className="font-medium">
-                      {defaultProvider?.name ?? '—'} ({defaultModel?.model_key ?? '—'})
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="vls-glass p-5 rounded-xl space-y-4">
-                <h3 className="font-semibold flex items-center gap-2 border-b border-border pb-2">
-                  <Clock className="w-4 h-4 text-secondary" /> Estimates
-                </h3>
-                {validateDraft.isPending || createDraft.isPending ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Validating…
-                  </div>
-                ) : estimate ? (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Provider Calls</span>
-                      <span className="font-mono">~{estimate.base_calls ?? '—'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Input Tokens</span>
-                      <span className="font-mono">
-                        ~{(estimate.estimated_input_tokens ?? 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Output Tokens</span>
-                      <span className="font-mono">
-                        ~{(estimate.estimated_output_tokens ?? 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Cost</span>
-                      <span className="font-mono">
-                        ${(estimate.estimated_cost_usd ?? 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground py-4">
-                    Estimates will appear once validated.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Server validation results */}
-            {estimate && estimate.errors.length > 0 && (
-              <div className="vls-glass p-5 rounded-xl border border-destructive/30 bg-destructive/5 space-y-2">
-                <h3 className="font-semibold text-destructive flex items-center gap-2">
-                  <XCircle className="w-4 h-4" /> Validation Errors
-                </h3>
-                <ul className="list-disc pl-5 text-sm text-destructive/90 space-y-1">
-                  {estimate.errors.map((e, i) => (
-                    <li key={i}>{Object.values(e).join(' — ')}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {estimate && estimate.warnings.length > 0 && (
-              <div className="vls-glass p-5 rounded-xl border border-warning/30 bg-warning/5 space-y-2">
-                <h3 className="font-semibold text-warning flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" /> Warnings
-                </h3>
-                <ul className="list-disc pl-5 text-sm text-warning/90 space-y-1">
-                  {estimate.warnings.map((w, i) => (
-                    <li key={i}>{Object.values(w).join(' — ')}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {estimate && estimate.valid && estimate.errors.length === 0 && (
-              <div className="bg-accent/5 border border-accent/20 p-4 rounded-xl flex gap-3 items-center">
-                <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
-                <p className="text-sm text-foreground">
-                  Draft validated. Ready to launch.
-                </p>
-              </div>
-            )}
-
-            <div className="bg-primary/5 border border-primary/20 p-5 rounded-xl flex gap-4">
-              <ShieldCheck className="w-6 h-6 text-primary shrink-0" />
-              <div>
-                <h4 className="font-semibold text-sm mb-1 text-primary">Oversight Notice</h4>
-                <p className="text-xs text-muted-foreground">
-                  AI participants are model personas, not human experts. Outputs are decision support, not
-                  validated conclusions, and require human review.
-                </p>
-              </div>
-            </div>
-
-            {roleBlockers.length > 0 && (
-              <div className="vls-glass p-5 rounded-xl border border-warning/30 bg-warning/5 space-y-3">
-                <h3 className="font-semibold text-warning flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" /> Cannot Launch Yet
-                </h3>
-                <ul className="list-disc pl-5 text-sm text-warning/80 space-y-1.5">
-                  {roleBlockers.map((b, i) => (
-                    <li key={i}>
-                      <button onClick={() => setStep(getStepForBlocker(b))} className="hover:underline text-left">
-                        {b}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {launchError && (
-              <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm font-medium">
-                {launchError}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Footer navigation */}
-      <div className="shrink-0 mt-6 pt-4 border-t border-border flex justify-between items-center bg-background z-10 relative">
-        <button
-          className="px-6 py-2.5 rounded-lg font-medium text-sm border border-border hover:bg-background/50 transition-colors disabled:opacity-50"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0 || busy}
-        >
-          Previous
-        </button>
-        {step < STEPS.length - 1 ? (
-          <button
-            className="px-6 py-2.5 bg-foreground text-background rounded-lg font-medium text-sm hover:bg-foreground/90 transition-colors disabled:opacity-50"
-            onClick={() => (step === 4 ? goToReview() : setStep((s) => Math.min(STEPS.length - 1, s + 1)))}
-            disabled={busy}
-          >
-            {step === 4 ? 'Review' : 'Continue'}
-          </button>
         ) : (
-          <button
-            className="px-8 py-2.5 bg-primary text-primary-foreground rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50"
-            onClick={handleLaunch}
-            disabled={!canLaunch || busy}
-          >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-            Launch Meeting
-          </button>
+          <div className="p-5 sm:p-7 bg-background/80 flex flex-col sm:flex-row items-center justify-between gap-4 max-w-3xl mx-auto w-full">
+             <div className="flex-1 text-center sm:text-left">
+               {roleBlockers.length > 0 ? (
+                 <div className="text-sm text-warning flex items-center justify-center sm:justify-start gap-2 font-bold">
+                   <AlertTriangle className="w-4 h-4" />
+                   {roleBlockers[0]}
+                 </div>
+               ) : (
+                 <div className="text-sm text-muted-foreground font-bold flex items-center justify-center sm:justify-start gap-2">
+                   <Check className="w-4 h-4 text-emerald-500" />
+                   Configuration complete. Ready to estimate.
+                 </div>
+               )}
+             </div>
+             
+             <button 
+               onClick={runValidation} 
+               disabled={roleBlockers.length > 0 || busy}
+               className="w-full sm:w-auto bg-foreground text-background px-8 py-3.5 rounded-xl font-bold text-base hover:bg-foreground/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+             >
+               {validateDraft.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Review & Estimate'}
+               {!validateDraft.isPending && <ChevronRight className="w-5 h-5" />}
+             </button>
+          </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showAgentLibrary && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="vls-reading-surface w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-border">
+            <div className="p-6 sm:p-8 border-b border-border flex items-start justify-between bg-background/50">
+              <div>
+                <h3 className="text-2xl font-display font-bold">Agent Library</h3>
+                <p className="text-sm text-muted-foreground mt-1.5 font-medium">Select researchers to add to your session.</p>
+              </div>
+              <button onClick={() => setShowAgentLibrary(false)} className="text-muted-foreground hover:text-foreground p-2 rounded-xl hover:bg-muted/50 transition-colors"><X className="w-6 h-6"/></button>
+            </div>
+            
+            <div className="p-6 sm:p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 bg-background/20">
+              {agents.length === 0 ? (
+                <div className="col-span-full py-16 text-center text-base font-medium text-muted-foreground border-dashed border-2 rounded-2xl vls-glass">
+                   No agents available. Create them in the Agents tab first.
+                </div>
+              ) : (
+                agents.map(a => {
+                   const isSelected = participants.some(p => p.agent.id === a.id);
+                   const noVersion = !a.latest_version;
+                   return (
+                     <div 
+                       key={a.id} 
+                       onClick={() => {
+                         if (!isSelected && !noVersion) {
+                           addParticipant(a);
+                         }
+                       }}
+                       className={`p-5 rounded-2xl border flex gap-4 text-left transition-all ${isSelected || noVersion ? 'opacity-50 cursor-not-allowed bg-muted/10 border-border/50' : 'cursor-pointer hover:border-primary/50 vls-glass hover:shadow-lg hover:-translate-y-0.5'}`}
+                     >
+                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary font-display font-bold text-lg border border-primary/20">
+                         {a.title.charAt(0)}
+                       </div>
+                       <div className="flex-1 min-w-0 pt-0.5">
+                         <div className="flex items-start justify-between mb-1.5 gap-2">
+                           <div className="font-bold text-foreground truncate">{a.title}</div>
+                           {!isSelected && !noVersion && <Plus className="w-5 h-5 text-primary flex-shrink-0" />}
+                           {isSelected && <Check className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
+                         </div>
+                         <div className="text-xs text-muted-foreground line-clamp-2 font-medium leading-relaxed">
+                           {a.latest_version?.expertise ?? (noVersion ? 'No published version' : a.description)}
+                         </div>
+                       </div>
+                     </div>
+                   )
+                })
+              )}
+            </div>
+            <div className="p-6 border-t border-border flex justify-end bg-background/50">
+              <button onClick={() => setShowAgentLibrary(false)} className="bg-foreground text-background px-8 py-3.5 rounded-xl text-sm font-bold hover:bg-foreground/90 transition-colors shadow-md">
+                Done Adding
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
