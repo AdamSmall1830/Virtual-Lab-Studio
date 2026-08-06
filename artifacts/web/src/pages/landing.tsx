@@ -14,6 +14,7 @@ export default function Landing() {
           <span className="font-display font-bold text-xl">Virtual Lab Studio</span>
         </div>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
+          <Link href="/guide" className="hover:text-foreground transition-colors">Guide</Link>
           <Link href="/methodology" className="hover:text-foreground transition-colors">Methodology</Link>
           <a href="https://github.com/zou-group/virtual-lab" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">Upstream Project</a>
         </nav>

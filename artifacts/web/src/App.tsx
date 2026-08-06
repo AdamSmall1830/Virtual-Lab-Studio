@@ -12,6 +12,7 @@ import NotFound from '@/pages/not-found';
 
 import Landing from '@/pages/landing';
 import Methodology from '@/pages/methodology';
+import Guide from '@/pages/guide';
 import SignIn from '@/pages/sign-in';
 import Dashboard from '@/pages/dashboard';
 import Projects from '@/pages/projects';
@@ -78,6 +79,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/methodology" component={Methodology} />
+      <Route path="/guide" component={Guide} />
       <Route path="/sign-in" component={SignIn} />
       <Route path="/app/*" component={AppRoutes} />
       <Route path="/app" component={AppRoutes} />

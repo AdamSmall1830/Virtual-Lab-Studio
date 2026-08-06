@@ -16,7 +16,8 @@ import {
   Moon,
   LogOut,
   FlaskConical,
-  Beaker
+  Beaker,
+  BookOpen
 } from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   ];
 
   const bottomNavItems = [
+    { href: '/guide', label: 'Guide', icon: BookOpen },
     { href: '/app/settings/profile', label: 'Settings', icon: Settings },
   ];
 
