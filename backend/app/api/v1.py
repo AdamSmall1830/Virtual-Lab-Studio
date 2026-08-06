@@ -819,6 +819,7 @@ async def launch_draft(
         raise HTTPException(status_code=422, detail={"code": "invalid_draft", "message": "Draft failed validation", "field_errors": errors})
 
     # Freeze the definition (immutable snapshot).
+    settings = get_settings()
     agents_snapshot = []
     demo_mode = True
     for a in sorted(body.agents, key=lambda x: x.position):
@@ -827,6 +828,12 @@ async def launch_draft(
         pm = await db.get(ProviderModel, a.provider_model_id)
         if pc.provider_type != "demo":
             demo_mode = False
+        source = (pc.routing_policy or {}).get("credential_source", "api_key")
+        if source == "replit_ai" and not settings.replit_ai_email_allowed(user.email):
+            raise problem(
+                403, "replit_ai_not_allowed",
+                "The Replit AI option is billed to the app owner and is not enabled for this account. Add your own API key instead.",
+            )
         agents_snapshot.append({
             "position": a.position, "role_type": a.role_type,
             "agent_version_id": str(a.agent_version_id),
