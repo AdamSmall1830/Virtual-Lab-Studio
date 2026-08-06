@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ThemeProvider } from '@/components/theme-provider';
+import { SessionProvider, useSession } from '@/api/session';
 import { AppShell } from '@/components/app-shell';
+import { Loader2 } from 'lucide-react';
+import { Redirect } from 'wouter';
 import NotFound from '@/pages/not-found';
 
 import Landing from '@/pages/landing';
@@ -33,6 +36,20 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
+  const { isLoading, isAuthenticated } = useSession();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label="Loading workspace" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect to="/sign-in" />;
+  }
+
   return (
     <AppShell>
       <Switch>
@@ -72,14 +89,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </ThemeProvider>
+      <SessionProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

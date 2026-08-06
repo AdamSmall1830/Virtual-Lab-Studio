@@ -314,10 +314,13 @@ async def test_queued_cancel_produces_manifest_immediately(sessionmaker):
     async with sessionmaker() as db:
         await seed(db)
         run = await _make_run_with_evidence(db, [])
-        # Reset to queued (the helper leases it) and clear the lease.
+        # Reset to queued (the helper leases it) and clear the lease. Push
+        # queue_available_at into the future so the live dev worker cannot
+        # claim this run mid-test (claim_next_run requires it <= now()).
         run.status = "queued"
         run.lease_owner = None
         run.lease_expires_at = None
+        run.queue_available_at = datetime.now(timezone.utc) + timedelta(hours=1)
         await db.commit()
         run_id = run.id
         ws_id = run.workspace_id

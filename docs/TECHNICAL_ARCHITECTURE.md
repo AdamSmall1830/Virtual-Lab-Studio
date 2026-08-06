@@ -21,7 +21,7 @@ FastAPI on Replit Reserved VM
 
 ## Why one deployable service in v1
 
-The first release should be easy to operate in Replit. FastAPI serves the frontend and runs a single database-backed worker. Queue and event contracts must be designed so the worker can split into a separate service later.
+The first release should be easy to operate in Replit. The platform's shared reverse proxy routes by path — the static web build is served at `/` and FastAPI owns `/api` (routes are matched most-specific-first, so `/api` always reaches FastAPI); FastAPI runs a single database-backed worker. Queue and event contracts must be designed so the worker can split into a separate service later.
 
 Use one process/instance initially unless a database singleton election prevents duplicate worker loops.
 

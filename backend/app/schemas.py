@@ -43,6 +43,18 @@ class DevLoginIn(BaseModel):
     display_name: str | None = Field(default=None, max_length=200)
 
 
+class ProjectCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=300)
+    description: str = Field(default="", max_length=10000)
+    discipline: str | None = Field(default=None, max_length=200)
+    research_question: str | None = Field(default=None, max_length=2000)
+    human_decision_supported: str | None = Field(default=None, max_length=2000)
+    hypotheses: list[str] = Field(default_factory=list, max_length=25)
+    objectives: list[str] = Field(default_factory=list, max_length=25)
+    constraints: list[str] = Field(default_factory=list, max_length=25)
+    tags: list[str] = Field(default_factory=list, max_length=25)
+
+
 class ProjectOut(ORMModel):
     id: uuid.UUID
     workspace_id: uuid.UUID

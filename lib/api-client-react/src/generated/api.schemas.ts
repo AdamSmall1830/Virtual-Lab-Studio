@@ -5,42 +5,122 @@
  * Virtual Lab Studio API — human-guided multi-agent research workspace
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
+export interface AgentVersionOut {
+  id: string;
+  agent_profile_id: string;
+  version_number: number;
+  expertise: string;
+  goal: string;
+  role: string;
+  behavioral_rules: unknown[];
+  system_prompt: string;
+  system_prompt_sha256: string;
+  default_role_type: string;
+  default_tool_ids: unknown[];
+  recommended_temperature: number | null;
+  created_at: string;
 }
 
-export type DashboardSummaryRunCounts = {[key: string]: number};
+export interface AgentProfileOut {
+  id: string;
+  workspace_id: string | null;
+  slug: string;
+  title: string;
+  description: string;
+  category: string | null;
+  icon: string | null;
+  accent: string | null;
+  visibility: string;
+  latest_version?: AgentVersionOut | null;
+}
 
-export type RunKind = typeof RunKind[keyof typeof RunKind];
+export interface BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost {
+  file: Blob;
+  title?: string | null;
+  citation?: string | null;
+}
+
+export interface ComparisonCreateIn {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @maxLength 4000 */
+  description?: string;
+  /**
+     * @minItems 2
+     * @maxItems 4
+     */
+  run_ids: string[];
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  rubric_criteria?: string[];
+}
+
+export type ComparisonEvaluationInItemScores = {[key: string]: {[key: string]: number}};
+
+export interface ComparisonEvaluationIn {
+  item_scores: ComparisonEvaluationInItemScores;
+  ranking?: string[];
+  /** @maxLength 20000 */
+  comments_markdown?: string;
+}
+
+export type ComparisonEvaluationOutItemScores = { [key: string]: unknown };
+
+export interface ComparisonEvaluationOut {
+  id: string;
+  comparison_set_id: string;
+  evaluator_id: string;
+  item_scores: ComparisonEvaluationOutItemScores;
+  ranking: unknown[];
+  comments_markdown: string;
+  submitted_at: string;
+}
+
+export type ComparisonItemOutSummaryJson = { [key: string]: unknown } | null;
+
+export interface ComparisonItemOut {
+  blind_label: string;
+  display_order: number;
+  run_id?: string | null;
+  run_title?: string | null;
+  summary_json?: ComparisonItemOutSummaryJson;
+  summary_markdown?: string | null;
+}
+
+export type ComparisonSetOutRubric = { [key: string]: unknown };
+
+export interface ComparisonSetOut {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string;
+  visibility: string;
+  rubric: ComparisonSetOutRubric;
+  created_at: string;
+  items?: ComparisonItemOut[];
+  evaluation_count?: number;
+  my_evaluation_submitted?: boolean;
+  revealed?: boolean;
+}
+
+export interface DevLoginIn {
+  /**
+     * @minLength 3
+     * @maxLength 200
+     */
+  email: string;
+  display_name?: string | null;
+}
+
+export type DraftAgentInRoleType = typeof DraftAgentInRoleType[keyof typeof DraftAgentInRoleType];
 
 
-export const RunKind = {
-  team: 'team',
-  individual: 'individual',
-  ensemble_merge: 'ensemble_merge',
-} as const;
-
-export type RunStatus = typeof RunStatus[keyof typeof RunStatus];
-
-
-export const RunStatus = {
-  draft: 'draft',
-  queued: 'queued',
-  validating: 'validating',
-  running: 'running',
-  pause_pending: 'pause_pending',
-  paused: 'paused',
-  cancelling: 'cancelling',
-  cancelled: 'cancelled',
-  completed: 'completed',
-  failed: 'failed',
-  budget_exceeded: 'budget_exceeded',
-} as const;
-
-export type RunParticipantRoleType = typeof RunParticipantRoleType[keyof typeof RunParticipantRoleType];
-
-
-export const RunParticipantRoleType = {
+export const DraftAgentInRoleType = {
   lead: 'lead',
   member: 'member',
   expert: 'expert',
@@ -48,329 +128,464 @@ export const RunParticipantRoleType = {
   merger: 'merger',
 } as const;
 
-export interface RunParticipant {
-  agentId: string;
-  roleType: RunParticipantRoleType;
-  title: string;
-  /** @nullable */
-  shortLabel?: string | null;
-  /** @nullable */
-  provider?: string | null;
-  /** @nullable */
-  model?: string | null;
-  /** @nullable */
-  accentColor?: string | null;
+export interface DraftAgentIn {
+  /** @minimum 0 */
+  position: number;
+  role_type: DraftAgentInRoleType;
+  agent_version_id: string;
+  provider_config_id: string;
+  provider_model_id: string;
+  temperature_override?: number | null;
+  tool_definition_ids?: string[];
 }
 
-/**
- * @nullable
- */
-export type RunSummary = { [key: string]: unknown } | null;
-
-export interface Run {
+export interface EvidenceChunkOut {
   id: string;
-  projectId: string;
-  /** @nullable */
-  projectName?: string | null;
-  /** @nullable */
-  templateId?: string | null;
-  title: string;
-  kind: RunKind;
-  status: RunStatus;
-  /** @nullable */
-  agendaObjective?: string | null;
-  requiredQuestions?: string[];
-  rules?: string[];
-  rounds: number;
-  currentRound: number;
-  /** @nullable */
-  currentSpeaker?: string | null;
-  participants: RunParticipant[];
-  isSimulation: boolean;
-  callCount: number;
-  /** @nullable */
-  plannedCallCount?: number | null;
-  tokensUsed: number;
-  /** @nullable */
-  estimatedCost?: number | null;
-  /** @nullable */
-  summary?: RunSummary;
-  /** @nullable */
-  failureReason?: string | null;
-  /** @nullable */
-  startedAt?: string | null;
-  /** @nullable */
-  completedAt?: string | null;
-  createdAt: string;
+  evidence_source_id: string;
+  chunk_index: number;
+  locator: string | null;
+  content_text: string;
+  content_sha256: string;
+  token_count: number | null;
 }
 
-export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus];
-
-
-export const ProjectStatus = {
-  active: 'active',
-  paused: 'paused',
-  completed: 'completed',
-  archived: 'archived',
-} as const;
-
-export interface Project {
-  id: string;
-  name: string;
-  /** @nullable */
-  abstract?: string | null;
-  /** @nullable */
-  domain?: string | null;
-  tags: string[];
-  status: ProjectStatus;
-  /** @nullable */
-  researchQuestion?: string | null;
-  hypotheses: string[];
-  objectives: string[];
-  constraints: string[];
-  /** @nullable */
-  ethicsNotes?: string | null;
-  /** @nullable */
-  disclosureNotes?: string | null;
-  /** @nullable */
-  humanDecision?: string | null;
-  runCount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DashboardSummary {
-  projectCount: number;
-  agentCount: number;
-  templateCount: number;
-  runCounts: DashboardSummaryRunCounts;
-  totalTokens: number;
-  totalCalls: number;
-  /** @nullable */
-  estimatedCost?: number | null;
-  recentRuns: Run[];
-  recentProjects: Project[];
-}
-
-export interface ProjectInput {
-  /** @minLength 1 */
-  name: string;
-  abstract?: string;
-  domain?: string;
-  tags?: string[];
-  researchQuestion?: string;
-  hypotheses?: string[];
-  objectives?: string[];
-  constraints?: string[];
-  ethicsNotes?: string;
-  disclosureNotes?: string;
-  humanDecision?: string;
-}
-
-export type ProjectUpdateStatus = typeof ProjectUpdateStatus[keyof typeof ProjectUpdateStatus];
-
-
-export const ProjectUpdateStatus = {
-  active: 'active',
-  paused: 'paused',
-  completed: 'completed',
-  archived: 'archived',
-} as const;
-
-export interface ProjectUpdate {
-  /** @minLength 1 */
-  name?: string;
-  abstract?: string;
-  domain?: string;
-  tags?: string[];
-  status?: ProjectUpdateStatus;
-  researchQuestion?: string;
-  hypotheses?: string[];
-  objectives?: string[];
-  constraints?: string[];
-  ethicsNotes?: string;
-  disclosureNotes?: string;
-  humanDecision?: string;
-}
-
-export type AgentProfileProvider = typeof AgentProfileProvider[keyof typeof AgentProfileProvider];
-
-
-export const AgentProfileProvider = {
-  demo: 'demo',
-  openai: 'openai',
-  openai_compatible: 'openai_compatible',
-  inherit: 'inherit',
-} as const;
-
-export interface AgentProfile {
-  id: string;
-  /** @nullable */
-  slug?: string | null;
-  title: string;
-  /** @nullable */
-  shortLabel?: string | null;
-  expertise: string;
-  goal: string;
-  role: string;
-  /** @nullable */
-  advancedInstructions?: string | null;
-  /** @nullable */
-  limitations?: string | null;
-  provider: AgentProfileProvider;
-  model: string;
-  /** @nullable */
-  temperature?: number | null;
-  /** @nullable */
-  accentColor?: string | null;
-  version: number;
-  archived: boolean;
-  isSystem?: boolean;
-  createdAt: string;
-}
-
-export type AgentInputProvider = typeof AgentInputProvider[keyof typeof AgentInputProvider];
-
-
-export const AgentInputProvider = {
-  demo: 'demo',
-  openai: 'openai',
-  openai_compatible: 'openai_compatible',
-  inherit: 'inherit',
-} as const;
-
-export interface AgentInput {
-  /** @minLength 1 */
-  title: string;
-  shortLabel?: string;
-  expertise: string;
-  goal: string;
-  role: string;
-  advancedInstructions?: string;
-  limitations?: string;
-  provider?: AgentInputProvider;
-  model?: string;
-  temperature?: number;
-  accentColor?: string;
-}
-
-export type AgentUpdateProvider = typeof AgentUpdateProvider[keyof typeof AgentUpdateProvider];
-
-
-export const AgentUpdateProvider = {
-  demo: 'demo',
-  openai: 'openai',
-  openai_compatible: 'openai_compatible',
-  inherit: 'inherit',
-} as const;
-
-export interface AgentUpdate {
-  /** @minLength 1 */
-  title?: string;
-  shortLabel?: string;
-  expertise?: string;
-  goal?: string;
-  role?: string;
-  advancedInstructions?: string;
-  limitations?: string;
-  provider?: AgentUpdateProvider;
-  model?: string;
-  temperature?: number;
-  accentColor?: string;
-  archived?: boolean;
-}
-
-export type MeetingTemplateKind = typeof MeetingTemplateKind[keyof typeof MeetingTemplateKind];
-
-
-export const MeetingTemplateKind = {
-  team: 'team',
-  individual: 'individual',
-  ensemble_merge: 'ensemble_merge',
-} as const;
-
-export interface MeetingTemplate {
-  id: string;
-  slug: string;
-  name: string;
-  kind: MeetingTemplateKind;
-  category: string;
-  description: string;
-  /** @nullable */
-  objective?: string | null;
-  requiredQuestions: string[];
-  rules: string[];
-  suggestedAgentSlugs?: string[];
-  defaultRounds: number;
-  /** @nullable */
-  intendedOutput?: string | null;
-  version: number;
-}
-
-export type RunLaunchInputKind = typeof RunLaunchInputKind[keyof typeof RunLaunchInputKind];
-
-
-export const RunLaunchInputKind = {
-  team: 'team',
-  individual: 'individual',
-  ensemble_merge: 'ensemble_merge',
-} as const;
-
-export interface RunLaunchInput {
-  projectId: string;
-  templateId?: string;
-  /** @minLength 1 */
-  title: string;
-  kind: RunLaunchInputKind;
-  agendaObjective?: string;
-  requiredQuestions?: string[];
-  rules?: string[];
+export interface EvidenceNoteIn {
   /**
-     * @minimum 0
-     * @maximum 5
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 100000
+     */
+  content: string;
+  citation?: string | null;
+  source_url?: string | null;
+}
+
+export interface EvidenceSearchHit {
+  evidence_source_id: string;
+  evidence_key: string;
+  title: string;
+  chunk_id: string;
+  chunk_index: number;
+  locator: string | null;
+  snippet: string;
+}
+
+export interface EvidenceSearchIn {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  query: string;
+  /**
+     * @minimum 1
+     * @maximum 25
+     */
+  limit?: number;
+}
+
+export interface EvidenceSourceOut {
+  id: string;
+  workspace_id: string;
+  project_id: string | null;
+  evidence_key: string;
+  source_type: string;
+  title: string;
+  citation: string | null;
+  source_url: string | null;
+  external_identifier: string | null;
+  author_text: string | null;
+  content_type: string | null;
+  byte_size: number | null;
+  original_filename: string | null;
+  content_sha256: string | null;
+  processing_status: string;
+  processing_error_code: string | null;
+  processing_error_safe_message: string | null;
+  created_at: string;
+}
+
+export interface ExportJobOut {
+  id: string;
+  run_id: string | null;
+  format: string;
+  status: string;
+  byte_size: number | null;
+  sha256: string | null;
+  error_code: string | null;
+  error_safe_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export type ValidationErrorCtx = { [key: string]: unknown };
+
+export interface ValidationError {
+  loc: (string | number)[];
+  msg: string;
+  type: string;
+  input?: unknown;
+  ctx?: ValidationErrorCtx;
+}
+
+export interface HTTPValidationError {
+  detail?: ValidationError[];
+}
+
+export type InterventionInKind = typeof InterventionInKind[keyof typeof InterventionInKind];
+
+
+export const InterventionInKind = {
+  instruction: 'instruction',
+  evidence_addition: 'evidence_addition',
+} as const;
+
+export interface InterventionIn {
+  kind: InterventionInKind;
+  /**
+     * @minLength 1
+     * @maxLength 8000
+     */
+  content: string;
+  evidence_source_ids?: string[];
+}
+
+export interface InterventionOut {
+  id: string;
+  run_id: string;
+  kind: string;
+  content: string | null;
+  applied_at_checkpoint: string | null;
+  created_at: string;
+}
+
+export interface LaunchOut {
+  run_id: string;
+  meeting_definition_id: string;
+  status: string;
+}
+
+export interface UserOut {
+  id: string;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface MembershipOut {
+  workspace_id: string;
+  user_id: string;
+  role: string;
+}
+
+export interface WorkspaceOut {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+}
+
+export interface MeOut {
+  user: UserOut;
+  memberships: MembershipOut[];
+  workspaces: WorkspaceOut[];
+}
+
+export type MeetingDraftInMeetingType = typeof MeetingDraftInMeetingType[keyof typeof MeetingDraftInMeetingType];
+
+
+export const MeetingDraftInMeetingType = {
+  team: 'team',
+  individual: 'individual',
+} as const;
+
+export type MeetingDraftInBudget = { [key: string]: unknown };
+
+export interface MeetingDraftIn {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  meeting_type: MeetingDraftInMeetingType;
+  /** @minLength 1 */
+  agenda: string;
+  questions?: string[];
+  rules?: string[];
+  contexts?: string[];
+  /**
+     * @minimum 1
+     * @maximum 12
      */
   rounds?: number;
-  participants: RunParticipant[];
-  idempotencyKey?: string;
+  /**
+     * @minimum 0
+     * @maximum 2
+     */
+  default_temperature?: number;
+  budget?: MeetingDraftInBudget;
+  agents?: DraftAgentIn[];
+  template_version_id?: string | null;
+  evidence_source_ids?: string[];
 }
 
-/**
- * @nullable
- */
-export type RunEventPayload = { [key: string]: unknown } | null;
+export type MeetingDraftOutDraftJson = { [key: string]: unknown };
 
-export interface RunEvent {
+export interface MeetingDraftOut {
   id: string;
-  runId: string;
-  seq: number;
-  type: string;
-  /** @nullable */
-  round?: number | null;
-  /** @nullable */
-  agentId?: string | null;
-  /** @nullable */
-  agentTitle?: string | null;
-  /** @nullable */
-  roleType?: string | null;
-  /** @nullable */
-  content?: string | null;
-  /** @nullable */
-  payload?: RunEventPayload;
-  createdAt: string;
+  workspace_id: string;
+  project_id: string;
+  title: string;
+  meeting_type: string;
+  draft_json: MeetingDraftOutDraftJson;
+  created_at: string;
+  updated_at: string;
 }
 
-export type RunControlInputAction = typeof RunControlInputAction[keyof typeof RunControlInputAction];
+export interface PmcImportIn {
+  /**
+     * @minLength 3
+     * @maxLength 20
+     */
+  pmcid: string;
+}
+
+export interface PmcSearchIn {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  query: string;
+  /**
+     * @minimum 1
+     * @maximum 25
+     */
+  limit?: number;
+}
+
+export interface ProjectCreateIn {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  name: string;
+  /** @maxLength 10000 */
+  description?: string;
+  discipline?: string | null;
+  research_question?: string | null;
+  human_decision_supported?: string | null;
+  /** @maxItems 25 */
+  hypotheses?: string[];
+  /** @maxItems 25 */
+  objectives?: string[];
+  /** @maxItems 25 */
+  constraints?: string[];
+  /** @maxItems 25 */
+  tags?: string[];
+}
+
+export interface ProjectOut {
+  id: string;
+  workspace_id: string;
+  slug: string;
+  name: string;
+  description: string;
+  discipline: string | null;
+  status: string;
+  research_question: string | null;
+  human_decision_supported: string | null;
+  tags: unknown[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProviderModelOut {
+  id: string;
+  provider_config_id: string;
+  model_key: string;
+  display_name: string;
+  supports_tools: boolean;
+  supports_structured_output: boolean;
+  supports_streaming: boolean;
+  is_enabled: boolean;
+}
+
+export interface ProviderConfigOut {
+  id: string;
+  workspace_id: string;
+  name: string;
+  provider_type: string;
+  is_enabled: boolean;
+  last_test_status: string | null;
+  last_test_safe_message: string | null;
+  models?: ProviderModelOut[];
+}
+
+export interface RunCitationOut {
+  id: string;
+  run_id: string;
+  evidence_source_id: string;
+  citation_key: string;
+  claim_text: string;
+  support_type: string;
+  source_locator: string | null;
+  validation_status: string;
+  validation_notes: string | null;
+}
+
+export type RunEventOutPayload = { [key: string]: unknown };
+
+export interface RunEventOut {
+  id: number;
+  run_id: string;
+  run_sequence: number;
+  event_type: string;
+  payload: RunEventOutPayload;
+  created_at: string;
+}
+
+export type RunManifestOutManifestJson = { [key: string]: unknown };
+
+export interface RunManifestOut {
+  run_id: string;
+  manifest_version: string;
+  manifest_json: RunManifestOutManifestJson;
+  manifest_payload_sha256: string;
+  transcript_sha256: string;
+  summary_sha256: string;
+  created_at: string;
+}
+
+export interface RunOut {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  meeting_definition_id: string;
+  status: string;
+  review_status: string;
+  demo_mode: boolean;
+  current_round: number;
+  provider_call_count: number;
+  tool_call_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  actual_cost_usd: number;
+  wall_seconds: number;
+  failure_code: string | null;
+  failure_safe_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export type RunReviewInStatus = typeof RunReviewInStatus[keyof typeof RunReviewInStatus];
 
 
-export const RunControlInputAction = {
-  pause: 'pause',
-  resume: 'resume',
-  cancel: 'cancel',
-  intervene: 'intervene',
+export const RunReviewInStatus = {
+  in_review: 'in_review',
+  approved: 'approved',
+  changes_requested: 'changes_requested',
+  rejected: 'rejected',
 } as const;
 
-export interface RunControlInput {
-  action: RunControlInputAction;
-  instruction?: string;
+export type RunReviewInRatings = {[key: string]: number};
+
+export interface RunReviewIn {
+  status: RunReviewInStatus;
+  rubric_version?: string | null;
+  ratings?: RunReviewInRatings;
+  /** @maxLength 20000 */
+  comments_markdown?: string;
+}
+
+export type RunReviewOutRatings = { [key: string]: unknown };
+
+export interface RunReviewOut {
+  id: string;
+  run_id: string;
+  reviewer_id: string;
+  status: string;
+  rubric_version: string | null;
+  ratings: RunReviewOutRatings;
+  comments_markdown: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RunSummaryOutSummaryJson = { [key: string]: unknown };
+
+export interface RunSummaryOut {
+  run_id: string;
+  summary_markdown: string;
+  summary_json: RunSummaryOutSummaryJson;
+  schema_version: string;
+  summary_sha256: string;
+  validation_status: string;
+  validation_errors: unknown[];
+  created_at: string;
+}
+
+export interface RunTurnOut {
+  id: string;
+  run_id: string;
+  sequence: number;
+  round_number: number;
+  position_in_round: number;
+  agent_version_id: string;
+  role_type: string;
+  status: string;
+  response_text: string | null;
+  finish_reason: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  latency_ms: number | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export type TemplateVersionOutDefinitionJson = { [key: string]: unknown };
+
+export interface TemplateVersionOut {
+  id: string;
+  template_profile_id: string;
+  version_number: number;
+  meeting_type: string;
+  definition_json: TemplateVersionOutDefinitionJson;
+  definition_sha256: string;
+  created_at: string;
+}
+
+export interface TemplateProfileOut {
+  id: string;
+  workspace_id: string | null;
+  slug: string;
+  name: string;
+  description: string;
+  category: string | null;
+  visibility: string;
+  latest_version?: TemplateVersionOut | null;
+}
+
+export type ValidationEstimateOutErrorsItem = {[key: string]: string};
+
+export type ValidationEstimateOutWarningsItem = {[key: string]: string};
+
+export type ValidationEstimateOutBudget = { [key: string]: unknown };
+
+export interface ValidationEstimateOut {
+  valid: boolean;
+  errors: ValidationEstimateOutErrorsItem[];
+  warnings: ValidationEstimateOutWarningsItem[];
+  base_calls: number | null;
+  max_calls: number | null;
+  estimated_input_tokens: number | null;
+  estimated_output_tokens: number | null;
+  estimated_cost_usd: number | null;
+  pricing_complete: boolean;
+  budget: ValidationEstimateOutBudget;
 }
 

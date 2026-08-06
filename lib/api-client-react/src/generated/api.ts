@@ -20,19 +20,42 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  AgentInput,
-  AgentProfile,
-  AgentUpdate,
-  DashboardSummary,
-  HealthStatus,
-  MeetingTemplate,
-  Project,
-  ProjectInput,
-  ProjectUpdate,
-  Run,
-  RunControlInput,
-  RunEvent,
-  RunLaunchInput
+  AgentProfileOut,
+  BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost,
+  ComparisonCreateIn,
+  ComparisonEvaluationIn,
+  ComparisonEvaluationOut,
+  ComparisonSetOut,
+  DevLoginIn,
+  EvidenceChunkOut,
+  EvidenceNoteIn,
+  EvidenceSearchHit,
+  EvidenceSearchIn,
+  EvidenceSourceOut,
+  ExportJobOut,
+  HTTPValidationError,
+  InterventionIn,
+  InterventionOut,
+  LaunchOut,
+  MeOut,
+  MeetingDraftIn,
+  MeetingDraftOut,
+  PmcImportIn,
+  PmcSearchIn,
+  ProjectCreateIn,
+  ProjectOut,
+  ProviderConfigOut,
+  RunCitationOut,
+  RunEventOut,
+  RunManifestOut,
+  RunOut,
+  RunReviewIn,
+  RunReviewOut,
+  RunSummaryOut,
+  RunTurnOut,
+  TemplateProfileOut,
+  ValidationEstimateOut,
+  WorkspaceOut
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -62,247 +85,25 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
-export const getHealthCheckUrl = () => {
+export const getDevLoginApiV1AuthDevLoginPostUrl = () => {
 
 
 
 
-  return `/api/healthz`
+  return `/api/v1/auth/dev-login`
 }
 
 /**
- * @summary Health check
+ * @summary Dev Login
  */
-export const healthCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthStatus> => {
+export const devLoginApiV1AuthDevLoginPost = async (devLoginIn: DevLoginIn, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<HealthStatus>(getHealthCheckUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getHealthCheckQueryKey = () => {
-    return [
-    `/api/healthz`
-    ] as const;
-    }
-
-
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({ signal }) => healthCheck({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>
-export type HealthCheckQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Health check
- */
-
-export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getHealthCheckQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getGetDashboardSummaryUrl = () => {
-
-
-
-
-  return `/api/v1/dashboard/summary`
-}
-
-/**
- * @summary Workspace dashboard summary
- */
-export const getDashboardSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<DashboardSummary> => {
-
-  return customFetch<DashboardSummary>(getGetDashboardSummaryUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetDashboardSummaryQueryKey = () => {
-    return [
-    `/api/v1/dashboard/summary`
-    ] as const;
-    }
-
-
-export const getGetDashboardSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getDashboardSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetDashboardSummaryQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboardSummary>>> = ({ signal }) => getDashboardSummary({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetDashboardSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getDashboardSummary>>>
-export type GetDashboardSummaryQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Workspace dashboard summary
- */
-
-export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDashboardSummary>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetDashboardSummaryQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListProjectsUrl = () => {
-
-
-
-
-  return `/api/v1/projects`
-}
-
-export const listProjects = async ( options?: Parameters<typeof customFetch>[1]): Promise<Project[]> => {
-
-  return customFetch<Project[]>(getListProjectsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListProjectsQueryKey = () => {
-    return [
-    `/api/v1/projects`
-    ] as const;
-    }
-
-
-export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListProjectsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjects>>> = ({ signal }) => listProjects({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjects>>>
-export type ListProjectsQueryError = ErrorType<unknown>
-
-
-
-export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListProjectsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getCreateProjectUrl = () => {
-
-
-
-
-  return `/api/v1/projects`
-}
-
-export const createProject = async (projectInput: ProjectInput, options?: Parameters<typeof customFetch>[1]): Promise<Project> => {
-
-  return customFetch<Project>(getCreateProjectUrl(),
+  return customFetch<unknown>(getDevLoginApiV1AuthDevLoginPostUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(projectInput)
+    body: JSON.stringify(devLoginIn)
   }
 );}
 
@@ -310,11 +111,11 @@ export const createProject = async (projectInput: ProjectInput, options?: Parame
 
 
 
-export const getCreateProjectMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProject>>, TError,{data: BodyType<ProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createProject>>, TError,{data: BodyType<ProjectInput>}, TContext> => {
+export const getDevLoginApiV1AuthDevLoginPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof devLoginApiV1AuthDevLoginPost>>, TError,{data: BodyType<DevLoginIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof devLoginApiV1AuthDevLoginPost>>, TError,{data: BodyType<DevLoginIn>}, TContext> => {
 
-const mutationKey = ['createProject'];
+const mutationKey = ['devLoginApiV1AuthDevLoginPost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -324,10 +125,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProject>>, {data: BodyType<ProjectInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof devLoginApiV1AuthDevLoginPost>>, {data: BodyType<DevLoginIn>}> = (props) => {
           const {data} = props ?? {};
 
-          return  createProject(data,requestOptions)
+          return  devLoginApiV1AuthDevLoginPost(data,requestOptions)
         }
 
 
@@ -337,32 +138,109 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type CreateProjectMutationResult = NonNullable<Awaited<ReturnType<typeof createProject>>>
-    export type CreateProjectMutationBody = BodyType<ProjectInput>
-    export type CreateProjectMutationError = ErrorType<unknown>
+    export type DevLoginApiV1AuthDevLoginPostMutationResult = NonNullable<Awaited<ReturnType<typeof devLoginApiV1AuthDevLoginPost>>>
+    export type DevLoginApiV1AuthDevLoginPostMutationBody = BodyType<DevLoginIn>
+    export type DevLoginApiV1AuthDevLoginPostMutationError = ErrorType<HTTPValidationError>
 
-    export const useCreateProject = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProject>>, TError,{data: BodyType<ProjectInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    /**
+ * @summary Dev Login
+ */
+export const useDevLoginApiV1AuthDevLoginPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof devLoginApiV1AuthDevLoginPost>>, TError,{data: BodyType<DevLoginIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof createProject>>,
+        Awaited<ReturnType<typeof devLoginApiV1AuthDevLoginPost>>,
         TError,
-        {data: BodyType<ProjectInput>},
+        {data: BodyType<DevLoginIn>},
         TContext
       > => {
-      return useMutation(getCreateProjectMutationOptions(options));
+      return useMutation(getDevLoginApiV1AuthDevLoginPostMutationOptions(options));
     }
 
-export const getGetProjectUrl = (projectId: string,) => {
+export const getLogoutApiV1AuthLogoutPostUrl = () => {
 
 
 
 
-  return `/api/v1/projects/${projectId}`
+  return `/api/v1/auth/logout`
 }
 
-export const getProject = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<Project> => {
+/**
+ * @summary Logout
+ */
+export const logoutApiV1AuthLogoutPost = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<Project>(getGetProjectUrl(projectId),
+  return customFetch<unknown>(getLogoutApiV1AuthLogoutPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLogoutApiV1AuthLogoutPostMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logoutApiV1AuthLogoutPost>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logoutApiV1AuthLogoutPost>>, TError,void, TContext> => {
+
+const mutationKey = ['logoutApiV1AuthLogoutPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logoutApiV1AuthLogoutPost>>, void> = () => {
+
+
+          return  logoutApiV1AuthLogoutPost(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogoutApiV1AuthLogoutPostMutationResult = NonNullable<Awaited<ReturnType<typeof logoutApiV1AuthLogoutPost>>>
+
+    export type LogoutApiV1AuthLogoutPostMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Logout
+ */
+export const useLogoutApiV1AuthLogoutPost = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logoutApiV1AuthLogoutPost>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logoutApiV1AuthLogoutPost>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLogoutApiV1AuthLogoutPostMutationOptions(options));
+    }
+
+export const getMeApiV1MeGetUrl = () => {
+
+
+
+
+  return `/api/v1/me`
+}
+
+/**
+ * @summary Me
+ */
+export const meApiV1MeGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<MeOut> => {
+
+  return customFetch<MeOut>(getMeApiV1MeGetUrl(),
   {
     ...options,
     method: 'GET'
@@ -375,42 +253,348 @@ export const getProject = async (projectId: string, options?: Parameters<typeof 
 
 
 
-export const getGetProjectQueryKey = (projectId: string,) => {
+export const getMeApiV1MeGetQueryKey = () => {
+    return [
+    `/api/v1/me`
+    ] as const;
+    }
+
+
+export const getMeApiV1MeGetQueryOptions = <TData = Awaited<ReturnType<typeof meApiV1MeGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof meApiV1MeGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getMeApiV1MeGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof meApiV1MeGet>>> = ({ signal }) => meApiV1MeGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof meApiV1MeGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type MeApiV1MeGetQueryResult = NonNullable<Awaited<ReturnType<typeof meApiV1MeGet>>>
+export type MeApiV1MeGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Me
+ */
+
+export function useMeApiV1MeGet<TData = Awaited<ReturnType<typeof meApiV1MeGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof meApiV1MeGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getMeApiV1MeGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListWorkspacesApiV1WorkspacesGetUrl = () => {
+
+
+
+
+  return `/api/v1/workspaces`
+}
+
+/**
+ * @summary List Workspaces
+ */
+export const listWorkspacesApiV1WorkspacesGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceOut[]> => {
+
+  return customFetch<WorkspaceOut[]>(getListWorkspacesApiV1WorkspacesGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkspacesApiV1WorkspacesGetQueryKey = () => {
+    return [
+    `/api/v1/workspaces`
+    ] as const;
+    }
+
+
+export const getListWorkspacesApiV1WorkspacesGetQueryOptions = <TData = Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkspacesApiV1WorkspacesGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>> = ({ signal }) => listWorkspacesApiV1WorkspacesGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkspacesApiV1WorkspacesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>>
+export type ListWorkspacesApiV1WorkspacesGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List Workspaces
+ */
+
+export function useListWorkspacesApiV1WorkspacesGet<TData = Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkspacesApiV1WorkspacesGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkspacesApiV1WorkspacesGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProjectsApiV1WorkspacesWorkspaceIdProjectsGetUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/projects`
+}
+
+/**
+ * @summary List Projects
+ */
+export const listProjectsApiV1WorkspacesWorkspaceIdProjectsGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProjectOut[]> => {
+
+  return customFetch<ProjectOut[]>(getListProjectsApiV1WorkspacesWorkspaceIdProjectsGetUrl(workspaceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectsApiV1WorkspacesWorkspaceIdProjectsGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/projects`
+    ] as const;
+    }
+
+
+export const getListProjectsApiV1WorkspacesWorkspaceIdProjectsGetQueryOptions = <TData = Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectsApiV1WorkspacesWorkspaceIdProjectsGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>> = ({ signal }) => listProjectsApiV1WorkspacesWorkspaceIdProjectsGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>>
+export type ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Projects
+ */
+
+export function useListProjectsApiV1WorkspacesWorkspaceIdProjectsGet<TData = Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectsApiV1WorkspacesWorkspaceIdProjectsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectsApiV1WorkspacesWorkspaceIdProjectsGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProjectApiV1WorkspacesWorkspaceIdProjectsPostUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/projects`
+}
+
+/**
+ * @summary Create Project
+ */
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPost = async (workspaceId: string,
+    projectCreateIn: ProjectCreateIn, options?: Parameters<typeof customFetch>[1]): Promise<ProjectOut> => {
+
+  return customFetch<ProjectOut>(getCreateProjectApiV1WorkspacesWorkspaceIdProjectsPostUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(projectCreateIn)
+  }
+);}
+
+
+
+
+
+export const getCreateProjectApiV1WorkspacesWorkspaceIdProjectsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProjectApiV1WorkspacesWorkspaceIdProjectsPost>>, TError,{workspaceId: string;data: BodyType<ProjectCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProjectApiV1WorkspacesWorkspaceIdProjectsPost>>, TError,{workspaceId: string;data: BodyType<ProjectCreateIn>}, TContext> => {
+
+const mutationKey = ['createProjectApiV1WorkspacesWorkspaceIdProjectsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProjectApiV1WorkspacesWorkspaceIdProjectsPost>>, {workspaceId: string;data: BodyType<ProjectCreateIn>}> = (props) => {
+          const {workspaceId,data} = props ?? {};
+
+          return  createProjectApiV1WorkspacesWorkspaceIdProjectsPost(workspaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createProjectApiV1WorkspacesWorkspaceIdProjectsPost>>>
+    export type CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostMutationBody = BodyType<ProjectCreateIn>
+    export type CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Project
+ */
+export const useCreateProjectApiV1WorkspacesWorkspaceIdProjectsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProjectApiV1WorkspacesWorkspaceIdProjectsPost>>, TError,{workspaceId: string;data: BodyType<ProjectCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProjectApiV1WorkspacesWorkspaceIdProjectsPost>>,
+        TError,
+        {workspaceId: string;data: BodyType<ProjectCreateIn>},
+        TContext
+      > => {
+      return useMutation(getCreateProjectApiV1WorkspacesWorkspaceIdProjectsPostMutationOptions(options));
+    }
+
+export const getGetProjectApiV1ProjectsProjectIdGetUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}`
+}
+
+/**
+ * @summary Get Project
+ */
+export const getProjectApiV1ProjectsProjectIdGet = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProjectOut> => {
+
+  return customFetch<ProjectOut>(getGetProjectApiV1ProjectsProjectIdGetUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectApiV1ProjectsProjectIdGetQueryKey = (projectId: string,) => {
     return [
     `/api/v1/projects/${projectId}`
     ] as const;
     }
 
 
-export const getGetProjectQueryOptions = <TData = Awaited<ReturnType<typeof getProject>>, TError = ErrorType<void>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetProjectApiV1ProjectsProjectIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>, TError = ErrorType<HTTPValidationError>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetProjectQueryKey(projectId);
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectApiV1ProjectsProjectIdGetQueryKey(projectId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProject>>> = ({ signal }) => getProject(projectId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>> = ({ signal }) => getProjectApiV1ProjectsProjectIdGet(projectId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetProjectQueryResult = NonNullable<Awaited<ReturnType<typeof getProject>>>
-export type GetProjectQueryError = ErrorType<void>
+export type GetProjectApiV1ProjectsProjectIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>>
+export type GetProjectApiV1ProjectsProjectIdGetQueryError = ErrorType<HTTPValidationError>
 
 
+/**
+ * @summary Get Project
+ */
 
-export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = ErrorType<void>>(
- projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetProjectApiV1ProjectsProjectIdGet<TData = Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>, TError = ErrorType<HTTPValidationError>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectApiV1ProjectsProjectIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetProjectQueryOptions(projectId,options)
+  const queryOptions = getGetProjectApiV1ProjectsProjectIdGetQueryOptions(projectId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -423,23 +607,25 @@ export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TE
 
 
 
-export const getUpdateProjectUrl = (projectId: string,) => {
+export const getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetUrl = (workspaceId: string,) => {
 
 
 
 
-  return `/api/v1/projects/${projectId}`
+  return `/api/v1/workspaces/${workspaceId}/agents`
 }
 
-export const updateProject = async (projectId: string,
-    projectUpdate: ProjectUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Project> => {
+/**
+ * @summary List Agents
+ */
+export const listAgentsApiV1WorkspacesWorkspaceIdAgentsGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<AgentProfileOut[]> => {
 
-  return customFetch<Project>(getUpdateProjectUrl(projectId),
+  return customFetch<AgentProfileOut[]>(getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetUrl(workspaceId),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(projectUpdate)
+    method: 'GET'
+
+
   }
 );}
 
@@ -447,11 +633,243 @@ export const updateProject = async (projectId: string,
 
 
 
-export const getUpdateProjectMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{projectId: string;data: BodyType<ProjectUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{projectId: string;data: BodyType<ProjectUpdate>}, TContext> => {
+export const getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/agents`
+    ] as const;
+    }
 
-const mutationKey = ['updateProject'];
+
+export const getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryOptions = <TData = Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>> = ({ signal }) => listAgentsApiV1WorkspacesWorkspaceIdAgentsGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>>
+export type ListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Agents
+ */
+
+export function useListAgentsApiV1WorkspacesWorkspaceIdAgentsGet<TData = Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAgentsApiV1WorkspacesWorkspaceIdAgentsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAgentsApiV1WorkspacesWorkspaceIdAgentsGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/templates`
+}
+
+/**
+ * @summary List Templates
+ */
+export const listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<TemplateProfileOut[]> => {
+
+  return customFetch<TemplateProfileOut[]>(getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetUrl(workspaceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/templates`
+    ] as const;
+    }
+
+
+export const getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryOptions = <TData = Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>> = ({ signal }) => listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>>
+export type ListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Templates
+ */
+
+export function useListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet<TData = Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/providers`
+}
+
+/**
+ * @summary List Providers
+ */
+export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProviderConfigOut[]> => {
+
+  return customFetch<ProviderConfigOut[]>(getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetUrl(workspaceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/providers`
+    ] as const;
+    }
+
+
+export const getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryOptions = <TData = Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>> = ({ signal }) => listProvidersApiV1WorkspacesWorkspaceIdProvidersGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryResult = NonNullable<Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>>
+export type ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Providers
+ */
+
+export function useListProvidersApiV1WorkspacesWorkspaceIdProvidersGet<TData = Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProvidersApiV1WorkspacesWorkspaceIdProvidersGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDraftApiV1ProjectsProjectIdMeetingDraftsPostUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/meeting-drafts`
+}
+
+/**
+ * @summary Create Draft
+ */
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPost = async (projectId: string,
+    meetingDraftIn: MeetingDraftIn, options?: Parameters<typeof customFetch>[1]): Promise<MeetingDraftOut> => {
+
+  return customFetch<MeetingDraftOut>(getCreateDraftApiV1ProjectsProjectIdMeetingDraftsPostUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(meetingDraftIn)
+  }
+);}
+
+
+
+
+
+export const getCreateDraftApiV1ProjectsProjectIdMeetingDraftsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDraftApiV1ProjectsProjectIdMeetingDraftsPost>>, TError,{projectId: string;data: BodyType<MeetingDraftIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDraftApiV1ProjectsProjectIdMeetingDraftsPost>>, TError,{projectId: string;data: BodyType<MeetingDraftIn>}, TContext> => {
+
+const mutationKey = ['createDraftApiV1ProjectsProjectIdMeetingDraftsPost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -461,10 +879,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProject>>, {projectId: string;data: BodyType<ProjectUpdate>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDraftApiV1ProjectsProjectIdMeetingDraftsPost>>, {projectId: string;data: BodyType<MeetingDraftIn>}> = (props) => {
           const {projectId,data} = props ?? {};
 
-          return  updateProject(projectId,data,requestOptions)
+          return  createDraftApiV1ProjectsProjectIdMeetingDraftsPost(projectId,data,requestOptions)
         }
 
 
@@ -474,22 +892,167 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpdateProjectMutationResult = NonNullable<Awaited<ReturnType<typeof updateProject>>>
-    export type UpdateProjectMutationBody = BodyType<ProjectUpdate>
-    export type UpdateProjectMutationError = ErrorType<unknown>
+    export type CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createDraftApiV1ProjectsProjectIdMeetingDraftsPost>>>
+    export type CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostMutationBody = BodyType<MeetingDraftIn>
+    export type CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostMutationError = ErrorType<HTTPValidationError>
 
-    export const useUpdateProject = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{projectId: string;data: BodyType<ProjectUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    /**
+ * @summary Create Draft
+ */
+export const useCreateDraftApiV1ProjectsProjectIdMeetingDraftsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDraftApiV1ProjectsProjectIdMeetingDraftsPost>>, TError,{projectId: string;data: BodyType<MeetingDraftIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof updateProject>>,
+        Awaited<ReturnType<typeof createDraftApiV1ProjectsProjectIdMeetingDraftsPost>>,
         TError,
-        {projectId: string;data: BodyType<ProjectUpdate>},
+        {projectId: string;data: BodyType<MeetingDraftIn>},
         TContext
       > => {
-      return useMutation(getUpdateProjectMutationOptions(options));
+      return useMutation(getCreateDraftApiV1ProjectsProjectIdMeetingDraftsPostMutationOptions(options));
     }
 
-export const getListProjectRunsUrl = (projectId: string,) => {
+export const getValidateDraftApiV1MeetingDraftsDraftIdValidatePostUrl = (draftId: string,) => {
+
+
+
+
+  return `/api/v1/meeting-drafts/${draftId}/validate`
+}
+
+/**
+ * @summary Validate Draft
+ */
+export const validateDraftApiV1MeetingDraftsDraftIdValidatePost = async (draftId: string, options?: Parameters<typeof customFetch>[1]): Promise<ValidationEstimateOut> => {
+
+  return customFetch<ValidationEstimateOut>(getValidateDraftApiV1MeetingDraftsDraftIdValidatePostUrl(draftId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getValidateDraftApiV1MeetingDraftsDraftIdValidatePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateDraftApiV1MeetingDraftsDraftIdValidatePost>>, TError,{draftId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateDraftApiV1MeetingDraftsDraftIdValidatePost>>, TError,{draftId: string}, TContext> => {
+
+const mutationKey = ['validateDraftApiV1MeetingDraftsDraftIdValidatePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateDraftApiV1MeetingDraftsDraftIdValidatePost>>, {draftId: string}> = (props) => {
+          const {draftId} = props ?? {};
+
+          return  validateDraftApiV1MeetingDraftsDraftIdValidatePost(draftId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateDraftApiV1MeetingDraftsDraftIdValidatePostMutationResult = NonNullable<Awaited<ReturnType<typeof validateDraftApiV1MeetingDraftsDraftIdValidatePost>>>
+
+    export type ValidateDraftApiV1MeetingDraftsDraftIdValidatePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Validate Draft
+ */
+export const useValidateDraftApiV1MeetingDraftsDraftIdValidatePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateDraftApiV1MeetingDraftsDraftIdValidatePost>>, TError,{draftId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof validateDraftApiV1MeetingDraftsDraftIdValidatePost>>,
+        TError,
+        {draftId: string},
+        TContext
+      > => {
+      return useMutation(getValidateDraftApiV1MeetingDraftsDraftIdValidatePostMutationOptions(options));
+    }
+
+export const getLaunchDraftApiV1MeetingDraftsDraftIdLaunchPostUrl = (draftId: string,) => {
+
+
+
+
+  return `/api/v1/meeting-drafts/${draftId}/launch`
+}
+
+/**
+ * @summary Launch Draft
+ */
+export const launchDraftApiV1MeetingDraftsDraftIdLaunchPost = async (draftId: string, options?: Parameters<typeof customFetch>[1]): Promise<LaunchOut> => {
+
+  return customFetch<LaunchOut>(getLaunchDraftApiV1MeetingDraftsDraftIdLaunchPostUrl(draftId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLaunchDraftApiV1MeetingDraftsDraftIdLaunchPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof launchDraftApiV1MeetingDraftsDraftIdLaunchPost>>, TError,{draftId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof launchDraftApiV1MeetingDraftsDraftIdLaunchPost>>, TError,{draftId: string}, TContext> => {
+
+const mutationKey = ['launchDraftApiV1MeetingDraftsDraftIdLaunchPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof launchDraftApiV1MeetingDraftsDraftIdLaunchPost>>, {draftId: string}> = (props) => {
+          const {draftId} = props ?? {};
+
+          return  launchDraftApiV1MeetingDraftsDraftIdLaunchPost(draftId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LaunchDraftApiV1MeetingDraftsDraftIdLaunchPostMutationResult = NonNullable<Awaited<ReturnType<typeof launchDraftApiV1MeetingDraftsDraftIdLaunchPost>>>
+
+    export type LaunchDraftApiV1MeetingDraftsDraftIdLaunchPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Launch Draft
+ */
+export const useLaunchDraftApiV1MeetingDraftsDraftIdLaunchPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof launchDraftApiV1MeetingDraftsDraftIdLaunchPost>>, TError,{draftId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof launchDraftApiV1MeetingDraftsDraftIdLaunchPost>>,
+        TError,
+        {draftId: string},
+        TContext
+      > => {
+      return useMutation(getLaunchDraftApiV1MeetingDraftsDraftIdLaunchPostMutationOptions(options));
+    }
+
+export const getListRunsApiV1ProjectsProjectIdRunsGetUrl = (projectId: string,) => {
 
 
 
@@ -497,9 +1060,12 @@ export const getListProjectRunsUrl = (projectId: string,) => {
   return `/api/v1/projects/${projectId}/runs`
 }
 
-export const listProjectRuns = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<Run[]> => {
+/**
+ * @summary List Runs
+ */
+export const listRunsApiV1ProjectsProjectIdRunsGet = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunOut[]> => {
 
-  return customFetch<Run[]>(getListProjectRunsUrl(projectId),
+  return customFetch<RunOut[]>(getListRunsApiV1ProjectsProjectIdRunsGetUrl(projectId),
   {
     ...options,
     method: 'GET'
@@ -512,612 +1078,58 @@ export const listProjectRuns = async (projectId: string, options?: Parameters<ty
 
 
 
-export const getListProjectRunsQueryKey = (projectId: string,) => {
+export const getListRunsApiV1ProjectsProjectIdRunsGetQueryKey = (projectId: string,) => {
     return [
     `/api/v1/projects/${projectId}/runs`
     ] as const;
     }
 
 
-export const getListProjectRunsQueryOptions = <TData = Awaited<ReturnType<typeof listProjectRuns>>, TError = ErrorType<unknown>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRunsApiV1ProjectsProjectIdRunsGetQueryOptions = <TData = Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>, TError = ErrorType<HTTPValidationError>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListProjectRunsQueryKey(projectId);
+  const queryKey =  queryOptions?.queryKey ?? getListRunsApiV1ProjectsProjectIdRunsGetQueryKey(projectId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectRuns>>> = ({ signal }) => listProjectRuns(projectId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>> = ({ signal }) => listRunsApiV1ProjectsProjectIdRunsGet(projectId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectRuns>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type ListProjectRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectRuns>>>
-export type ListProjectRunsQueryError = ErrorType<unknown>
+export type ListRunsApiV1ProjectsProjectIdRunsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>>
+export type ListRunsApiV1ProjectsProjectIdRunsGetQueryError = ErrorType<HTTPValidationError>
 
-
-
-export function useListProjectRuns<TData = Awaited<ReturnType<typeof listProjectRuns>>, TError = ErrorType<unknown>>(
- projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListProjectRunsQueryOptions(projectId,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListAgentsUrl = () => {
-
-
-
-
-  return `/api/v1/agents`
-}
-
-export const listAgents = async ( options?: Parameters<typeof customFetch>[1]): Promise<AgentProfile[]> => {
-
-  return customFetch<AgentProfile[]>(getListAgentsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListAgentsQueryKey = () => {
-    return [
-    `/api/v1/agents`
-    ] as const;
-    }
-
-
-export const getListAgentsQueryOptions = <TData = Awaited<ReturnType<typeof listAgents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAgents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListAgentsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAgents>>> = ({ signal }) => listAgents({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAgents>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListAgentsQueryResult = NonNullable<Awaited<ReturnType<typeof listAgents>>>
-export type ListAgentsQueryError = ErrorType<unknown>
-
-
-
-export function useListAgents<TData = Awaited<ReturnType<typeof listAgents>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAgents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListAgentsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getCreateAgentUrl = () => {
-
-
-
-
-  return `/api/v1/agents`
-}
-
-export const createAgent = async (agentInput: AgentInput, options?: Parameters<typeof customFetch>[1]): Promise<AgentProfile> => {
-
-  return customFetch<AgentProfile>(getCreateAgentUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(agentInput)
-  }
-);}
-
-
-
-
-
-export const getCreateAgentMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAgent>>, TError,{data: BodyType<AgentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createAgent>>, TError,{data: BodyType<AgentInput>}, TContext> => {
-
-const mutationKey = ['createAgent'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAgent>>, {data: BodyType<AgentInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createAgent(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateAgentMutationResult = NonNullable<Awaited<ReturnType<typeof createAgent>>>
-    export type CreateAgentMutationBody = BodyType<AgentInput>
-    export type CreateAgentMutationError = ErrorType<unknown>
-
-    export const useCreateAgent = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAgent>>, TError,{data: BodyType<AgentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createAgent>>,
-        TError,
-        {data: BodyType<AgentInput>},
-        TContext
-      > => {
-      return useMutation(getCreateAgentMutationOptions(options));
-    }
-
-export const getGetAgentUrl = (agentId: string,) => {
-
-
-
-
-  return `/api/v1/agents/${agentId}`
-}
-
-export const getAgent = async (agentId: string, options?: Parameters<typeof customFetch>[1]): Promise<AgentProfile> => {
-
-  return customFetch<AgentProfile>(getGetAgentUrl(agentId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetAgentQueryKey = (agentId: string,) => {
-    return [
-    `/api/v1/agents/${agentId}`
-    ] as const;
-    }
-
-
-export const getGetAgentQueryOptions = <TData = Awaited<ReturnType<typeof getAgent>>, TError = ErrorType<void>>(agentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetAgentQueryKey(agentId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgent>>> = ({ signal }) => getAgent(agentId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: agentId !== null && agentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAgent>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetAgentQueryResult = NonNullable<Awaited<ReturnType<typeof getAgent>>>
-export type GetAgentQueryError = ErrorType<void>
-
-
-
-export function useGetAgent<TData = Awaited<ReturnType<typeof getAgent>>, TError = ErrorType<void>>(
- agentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetAgentQueryOptions(agentId,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getUpdateAgentUrl = (agentId: string,) => {
-
-
-
-
-  return `/api/v1/agents/${agentId}`
-}
-
-export const updateAgent = async (agentId: string,
-    agentUpdate: AgentUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AgentProfile> => {
-
-  return customFetch<AgentProfile>(getUpdateAgentUrl(agentId),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(agentUpdate)
-  }
-);}
-
-
-
-
-
-export const getUpdateAgentMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAgent>>, TError,{agentId: string;data: BodyType<AgentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateAgent>>, TError,{agentId: string;data: BodyType<AgentUpdate>}, TContext> => {
-
-const mutationKey = ['updateAgent'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAgent>>, {agentId: string;data: BodyType<AgentUpdate>}> = (props) => {
-          const {agentId,data} = props ?? {};
-
-          return  updateAgent(agentId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateAgentMutationResult = NonNullable<Awaited<ReturnType<typeof updateAgent>>>
-    export type UpdateAgentMutationBody = BodyType<AgentUpdate>
-    export type UpdateAgentMutationError = ErrorType<unknown>
-
-    export const useUpdateAgent = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAgent>>, TError,{agentId: string;data: BodyType<AgentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateAgent>>,
-        TError,
-        {agentId: string;data: BodyType<AgentUpdate>},
-        TContext
-      > => {
-      return useMutation(getUpdateAgentMutationOptions(options));
-    }
-
-export const getListTemplatesUrl = () => {
-
-
-
-
-  return `/api/v1/templates`
-}
-
-export const listTemplates = async ( options?: Parameters<typeof customFetch>[1]): Promise<MeetingTemplate[]> => {
-
-  return customFetch<MeetingTemplate[]>(getListTemplatesUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListTemplatesQueryKey = () => {
-    return [
-    `/api/v1/templates`
-    ] as const;
-    }
-
-
-export const getListTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listTemplates>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListTemplatesQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTemplates>>> = ({ signal }) => listTemplates({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTemplates>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listTemplates>>>
-export type ListTemplatesQueryError = ErrorType<unknown>
-
-
-
-export function useListTemplates<TData = Awaited<ReturnType<typeof listTemplates>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListTemplatesQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getGetTemplateUrl = (templateId: string,) => {
-
-
-
-
-  return `/api/v1/templates/${templateId}`
-}
-
-export const getTemplate = async (templateId: string, options?: Parameters<typeof customFetch>[1]): Promise<MeetingTemplate> => {
-
-  return customFetch<MeetingTemplate>(getGetTemplateUrl(templateId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetTemplateQueryKey = (templateId: string,) => {
-    return [
-    `/api/v1/templates/${templateId}`
-    ] as const;
-    }
-
-
-export const getGetTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getTemplate>>, TError = ErrorType<void>>(templateId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetTemplateQueryKey(templateId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTemplate>>> = ({ signal }) => getTemplate(templateId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: templateId !== null && templateId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTemplate>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getTemplate>>>
-export type GetTemplateQueryError = ErrorType<void>
-
-
-
-export function useGetTemplate<TData = Awaited<ReturnType<typeof getTemplate>>, TError = ErrorType<void>>(
- templateId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetTemplateQueryOptions(templateId,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListRunsUrl = () => {
-
-
-
-
-  return `/api/v1/runs`
-}
-
-export const listRuns = async ( options?: Parameters<typeof customFetch>[1]): Promise<Run[]> => {
-
-  return customFetch<Run[]>(getListRunsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListRunsQueryKey = () => {
-    return [
-    `/api/v1/runs`
-    ] as const;
-    }
-
-
-export const getListRunsQueryOptions = <TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListRunsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRuns>>> = ({ signal }) => listRuns({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listRuns>>>
-export type ListRunsQueryError = ErrorType<unknown>
-
-
-
-export function useListRuns<TData = Awaited<ReturnType<typeof listRuns>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListRunsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getLaunchRunUrl = () => {
-
-
-
-
-  return `/api/v1/runs`
-}
 
 /**
- * @summary Launch a meeting run (frozen definition)
+ * @summary List Runs
  */
-export const launchRun = async (runLaunchInput: RunLaunchInput, options?: Parameters<typeof customFetch>[1]): Promise<Run> => {
 
-  return customFetch<Run>(getLaunchRunUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(runLaunchInput)
-  }
-);}
+export function useListRunsApiV1ProjectsProjectIdRunsGet<TData = Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>, TError = ErrorType<HTTPValidationError>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunsApiV1ProjectsProjectIdRunsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
+  const queryOptions = getListRunsApiV1ProjectsProjectIdRunsGetQueryOptions(projectId,options)
 
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
-
-export const getLaunchRunMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof launchRun>>, TError,{data: BodyType<RunLaunchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof launchRun>>, TError,{data: BodyType<RunLaunchInput>}, TContext> => {
-
-const mutationKey = ['launchRun'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof launchRun>>, {data: BodyType<RunLaunchInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  launchRun(data,requestOptions)
-        }
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 
 
 
 
 
-  return  { mutationFn, ...mutationOptions }}
 
-    export type LaunchRunMutationResult = NonNullable<Awaited<ReturnType<typeof launchRun>>>
-    export type LaunchRunMutationBody = BodyType<RunLaunchInput>
-    export type LaunchRunMutationError = ErrorType<unknown>
-
-    /**
- * @summary Launch a meeting run (frozen definition)
- */
-export const useLaunchRun = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof launchRun>>, TError,{data: BodyType<RunLaunchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof launchRun>>,
-        TError,
-        {data: BodyType<RunLaunchInput>},
-        TContext
-      > => {
-      return useMutation(getLaunchRunMutationOptions(options));
-    }
-
-export const getGetRunUrl = (runId: string,) => {
+export const getGetRunApiV1RunsRunIdGetUrl = (runId: string,) => {
 
 
 
@@ -1125,9 +1137,12 @@ export const getGetRunUrl = (runId: string,) => {
   return `/api/v1/runs/${runId}`
 }
 
-export const getRun = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<Run> => {
+/**
+ * @summary Get Run
+ */
+export const getRunApiV1RunsRunIdGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunOut> => {
 
-  return customFetch<Run>(getGetRunUrl(runId),
+  return customFetch<RunOut>(getGetRunApiV1RunsRunIdGetUrl(runId),
   {
     ...options,
     method: 'GET'
@@ -1140,42 +1155,45 @@ export const getRun = async (runId: string, options?: Parameters<typeof customFe
 
 
 
-export const getGetRunQueryKey = (runId: string,) => {
+export const getGetRunApiV1RunsRunIdGetQueryKey = (runId: string,) => {
     return [
     `/api/v1/runs/${runId}`
     ] as const;
     }
 
 
-export const getGetRunQueryOptions = <TData = Awaited<ReturnType<typeof getRun>>, TError = ErrorType<void>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetRunApiV1RunsRunIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetRunQueryKey(runId);
+  const queryKey =  queryOptions?.queryKey ?? getGetRunApiV1RunsRunIdGetQueryKey(runId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRun>>> = ({ signal }) => getRun(runId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>> = ({ signal }) => getRunApiV1RunsRunIdGet(runId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetRunQueryResult = NonNullable<Awaited<ReturnType<typeof getRun>>>
-export type GetRunQueryError = ErrorType<void>
+export type GetRunApiV1RunsRunIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>>
+export type GetRunApiV1RunsRunIdGetQueryError = ErrorType<HTTPValidationError>
 
 
+/**
+ * @summary Get Run
+ */
 
-export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = ErrorType<void>>(
- runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetRunApiV1RunsRunIdGet<TData = Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunApiV1RunsRunIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetRunQueryOptions(runId,options)
+  const queryOptions = getGetRunApiV1RunsRunIdGetQueryOptions(runId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1188,7 +1206,161 @@ export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = E
 
 
 
-export const getListRunEventsUrl = (runId: string,) => {
+export const getGetRunTurnsApiV1RunsRunIdTurnsGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/turns`
+}
+
+/**
+ * @summary Get Run Turns
+ */
+export const getRunTurnsApiV1RunsRunIdTurnsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunTurnOut[]> => {
+
+  return customFetch<RunTurnOut[]>(getGetRunTurnsApiV1RunsRunIdTurnsGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunTurnsApiV1RunsRunIdTurnsGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/turns`
+    ] as const;
+    }
+
+
+export const getGetRunTurnsApiV1RunsRunIdTurnsGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunTurnsApiV1RunsRunIdTurnsGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>> = ({ signal }) => getRunTurnsApiV1RunsRunIdTurnsGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunTurnsApiV1RunsRunIdTurnsGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>>
+export type GetRunTurnsApiV1RunsRunIdTurnsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Run Turns
+ */
+
+export function useGetRunTurnsApiV1RunsRunIdTurnsGet<TData = Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunTurnsApiV1RunsRunIdTurnsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunTurnsApiV1RunsRunIdTurnsGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRunSummaryApiV1RunsRunIdSummaryGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/summary`
+}
+
+/**
+ * @summary Get Run Summary
+ */
+export const getRunSummaryApiV1RunsRunIdSummaryGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunSummaryOut> => {
+
+  return customFetch<RunSummaryOut>(getGetRunSummaryApiV1RunsRunIdSummaryGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunSummaryApiV1RunsRunIdSummaryGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/summary`
+    ] as const;
+    }
+
+
+export const getGetRunSummaryApiV1RunsRunIdSummaryGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunSummaryApiV1RunsRunIdSummaryGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>> = ({ signal }) => getRunSummaryApiV1RunsRunIdSummaryGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunSummaryApiV1RunsRunIdSummaryGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>>
+export type GetRunSummaryApiV1RunsRunIdSummaryGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Run Summary
+ */
+
+export function useGetRunSummaryApiV1RunsRunIdSummaryGet<TData = Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunSummaryApiV1RunsRunIdSummaryGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunSummaryApiV1RunsRunIdSummaryGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRunEventsApiV1RunsRunIdEventsGetUrl = (runId: string,) => {
 
 
 
@@ -1196,9 +1368,12 @@ export const getListRunEventsUrl = (runId: string,) => {
   return `/api/v1/runs/${runId}/events`
 }
 
-export const listRunEvents = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunEvent[]> => {
+/**
+ * @summary Get Run Events
+ */
+export const getRunEventsApiV1RunsRunIdEventsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunEventOut[]> => {
 
-  return customFetch<RunEvent[]>(getListRunEventsUrl(runId),
+  return customFetch<RunEventOut[]>(getGetRunEventsApiV1RunsRunIdEventsGetUrl(runId),
   {
     ...options,
     method: 'GET'
@@ -1211,42 +1386,45 @@ export const listRunEvents = async (runId: string, options?: Parameters<typeof c
 
 
 
-export const getListRunEventsQueryKey = (runId: string,) => {
+export const getGetRunEventsApiV1RunsRunIdEventsGetQueryKey = (runId: string,) => {
     return [
     `/api/v1/runs/${runId}/events`
     ] as const;
     }
 
 
-export const getListRunEventsQueryOptions = <TData = Awaited<ReturnType<typeof listRunEvents>>, TError = ErrorType<unknown>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetRunEventsApiV1RunsRunIdEventsGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListRunEventsQueryKey(runId);
+  const queryKey =  queryOptions?.queryKey ?? getGetRunEventsApiV1RunsRunIdEventsGetQueryKey(runId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRunEvents>>> = ({ signal }) => listRunEvents(runId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>> = ({ signal }) => getRunEventsApiV1RunsRunIdEventsGet(runId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRunEvents>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type ListRunEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listRunEvents>>>
-export type ListRunEventsQueryError = ErrorType<unknown>
+export type GetRunEventsApiV1RunsRunIdEventsGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>>
+export type GetRunEventsApiV1RunsRunIdEventsGetQueryError = ErrorType<HTTPValidationError>
 
 
+/**
+ * @summary Get Run Events
+ */
 
-export function useListRunEvents<TData = Awaited<ReturnType<typeof listRunEvents>>, TError = ErrorType<unknown>>(
- runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetRunEventsApiV1RunsRunIdEventsGet<TData = Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListRunEventsQueryOptions(runId,options)
+  const queryOptions = getGetRunEventsApiV1RunsRunIdEventsGetQueryOptions(runId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1259,26 +1437,25 @@ export function useListRunEvents<TData = Awaited<ReturnType<typeof listRunEvents
 
 
 
-export const getControlRunUrl = (runId: string,) => {
+export const getStreamRunEventsApiV1RunsRunIdEventsStreamGetUrl = (runId: string,) => {
 
 
 
 
-  return `/api/v1/runs/${runId}/control`
+  return `/api/v1/runs/${runId}/events/stream`
 }
 
 /**
- * @summary Pause, resume, cancel, or add a human intervention
+ * @summary Stream Run Events
  */
-export const controlRun = async (runId: string,
-    runControlInput: RunControlInput, options?: Parameters<typeof customFetch>[1]): Promise<Run> => {
+export const streamRunEventsApiV1RunsRunIdEventsStreamGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<Run>(getControlRunUrl(runId),
+  return customFetch<unknown>(getStreamRunEventsApiV1RunsRunIdEventsStreamGetUrl(runId),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(runControlInput)
+    method: 'GET'
+
+
   }
 );}
 
@@ -1286,11 +1463,88 @@ export const controlRun = async (runId: string,
 
 
 
-export const getControlRunMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof controlRun>>, TError,{runId: string;data: BodyType<RunControlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof controlRun>>, TError,{runId: string;data: BodyType<RunControlInput>}, TContext> => {
+export const getStreamRunEventsApiV1RunsRunIdEventsStreamGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/events/stream`
+    ] as const;
+    }
 
-const mutationKey = ['controlRun'];
+
+export const getStreamRunEventsApiV1RunsRunIdEventsStreamGetQueryOptions = <TData = Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStreamRunEventsApiV1RunsRunIdEventsStreamGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>> = ({ signal }) => streamRunEventsApiV1RunsRunIdEventsStreamGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type StreamRunEventsApiV1RunsRunIdEventsStreamGetQueryResult = NonNullable<Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>>
+export type StreamRunEventsApiV1RunsRunIdEventsStreamGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Stream Run Events
+ */
+
+export function useStreamRunEventsApiV1RunsRunIdEventsStreamGet<TData = Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof streamRunEventsApiV1RunsRunIdEventsStreamGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getStreamRunEventsApiV1RunsRunIdEventsStreamGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPauseRunApiV1RunsRunIdPausePostUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/pause`
+}
+
+/**
+ * @summary Pause Run
+ */
+export const pauseRunApiV1RunsRunIdPausePost = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunOut> => {
+
+  return customFetch<RunOut>(getPauseRunApiV1RunsRunIdPausePostUrl(runId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPauseRunApiV1RunsRunIdPausePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseRunApiV1RunsRunIdPausePost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pauseRunApiV1RunsRunIdPausePost>>, TError,{runId: string}, TContext> => {
+
+const mutationKey = ['pauseRunApiV1RunsRunIdPausePost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -1300,10 +1554,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof controlRun>>, {runId: string;data: BodyType<RunControlInput>}> = (props) => {
-          const {runId,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pauseRunApiV1RunsRunIdPausePost>>, {runId: string}> = (props) => {
+          const {runId} = props ?? {};
 
-          return  controlRun(runId,data,requestOptions)
+          return  pauseRunApiV1RunsRunIdPausePost(runId,requestOptions)
         }
 
 
@@ -1313,21 +1567,2193 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ControlRunMutationResult = NonNullable<Awaited<ReturnType<typeof controlRun>>>
-    export type ControlRunMutationBody = BodyType<RunControlInput>
-    export type ControlRunMutationError = ErrorType<void>
+    export type PauseRunApiV1RunsRunIdPausePostMutationResult = NonNullable<Awaited<ReturnType<typeof pauseRunApiV1RunsRunIdPausePost>>>
+
+    export type PauseRunApiV1RunsRunIdPausePostMutationError = ErrorType<HTTPValidationError>
 
     /**
- * @summary Pause, resume, cancel, or add a human intervention
+ * @summary Pause Run
  */
-export const useControlRun = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof controlRun>>, TError,{runId: string;data: BodyType<RunControlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const usePauseRunApiV1RunsRunIdPausePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseRunApiV1RunsRunIdPausePost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof controlRun>>,
+        Awaited<ReturnType<typeof pauseRunApiV1RunsRunIdPausePost>>,
         TError,
-        {runId: string;data: BodyType<RunControlInput>},
+        {runId: string},
         TContext
       > => {
-      return useMutation(getControlRunMutationOptions(options));
+      return useMutation(getPauseRunApiV1RunsRunIdPausePostMutationOptions(options));
     }
+
+export const getResumeRunApiV1RunsRunIdResumePostUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/resume`
+}
+
+/**
+ * @summary Resume Run
+ */
+export const resumeRunApiV1RunsRunIdResumePost = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunOut> => {
+
+  return customFetch<RunOut>(getResumeRunApiV1RunsRunIdResumePostUrl(runId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeRunApiV1RunsRunIdResumePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeRunApiV1RunsRunIdResumePost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeRunApiV1RunsRunIdResumePost>>, TError,{runId: string}, TContext> => {
+
+const mutationKey = ['resumeRunApiV1RunsRunIdResumePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeRunApiV1RunsRunIdResumePost>>, {runId: string}> = (props) => {
+          const {runId} = props ?? {};
+
+          return  resumeRunApiV1RunsRunIdResumePost(runId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeRunApiV1RunsRunIdResumePostMutationResult = NonNullable<Awaited<ReturnType<typeof resumeRunApiV1RunsRunIdResumePost>>>
+
+    export type ResumeRunApiV1RunsRunIdResumePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Resume Run
+ */
+export const useResumeRunApiV1RunsRunIdResumePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeRunApiV1RunsRunIdResumePost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resumeRunApiV1RunsRunIdResumePost>>,
+        TError,
+        {runId: string},
+        TContext
+      > => {
+      return useMutation(getResumeRunApiV1RunsRunIdResumePostMutationOptions(options));
+    }
+
+export const getCancelRunApiV1RunsRunIdCancelPostUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/cancel`
+}
+
+/**
+ * @summary Cancel Run
+ */
+export const cancelRunApiV1RunsRunIdCancelPost = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunOut> => {
+
+  return customFetch<RunOut>(getCancelRunApiV1RunsRunIdCancelPostUrl(runId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelRunApiV1RunsRunIdCancelPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRunApiV1RunsRunIdCancelPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelRunApiV1RunsRunIdCancelPost>>, TError,{runId: string}, TContext> => {
+
+const mutationKey = ['cancelRunApiV1RunsRunIdCancelPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelRunApiV1RunsRunIdCancelPost>>, {runId: string}> = (props) => {
+          const {runId} = props ?? {};
+
+          return  cancelRunApiV1RunsRunIdCancelPost(runId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelRunApiV1RunsRunIdCancelPostMutationResult = NonNullable<Awaited<ReturnType<typeof cancelRunApiV1RunsRunIdCancelPost>>>
+
+    export type CancelRunApiV1RunsRunIdCancelPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Cancel Run
+ */
+export const useCancelRunApiV1RunsRunIdCancelPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRunApiV1RunsRunIdCancelPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelRunApiV1RunsRunIdCancelPost>>,
+        TError,
+        {runId: string},
+        TContext
+      > => {
+      return useMutation(getCancelRunApiV1RunsRunIdCancelPostMutationOptions(options));
+    }
+
+export const getAddInterventionApiV1RunsRunIdInterventionsPostUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/interventions`
+}
+
+/**
+ * @summary Add Intervention
+ */
+export const addInterventionApiV1RunsRunIdInterventionsPost = async (runId: string,
+    interventionIn: InterventionIn, options?: Parameters<typeof customFetch>[1]): Promise<InterventionOut> => {
+
+  return customFetch<InterventionOut>(getAddInterventionApiV1RunsRunIdInterventionsPostUrl(runId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(interventionIn)
+  }
+);}
+
+
+
+
+
+export const getAddInterventionApiV1RunsRunIdInterventionsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addInterventionApiV1RunsRunIdInterventionsPost>>, TError,{runId: string;data: BodyType<InterventionIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addInterventionApiV1RunsRunIdInterventionsPost>>, TError,{runId: string;data: BodyType<InterventionIn>}, TContext> => {
+
+const mutationKey = ['addInterventionApiV1RunsRunIdInterventionsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addInterventionApiV1RunsRunIdInterventionsPost>>, {runId: string;data: BodyType<InterventionIn>}> = (props) => {
+          const {runId,data} = props ?? {};
+
+          return  addInterventionApiV1RunsRunIdInterventionsPost(runId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddInterventionApiV1RunsRunIdInterventionsPostMutationResult = NonNullable<Awaited<ReturnType<typeof addInterventionApiV1RunsRunIdInterventionsPost>>>
+    export type AddInterventionApiV1RunsRunIdInterventionsPostMutationBody = BodyType<InterventionIn>
+    export type AddInterventionApiV1RunsRunIdInterventionsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Add Intervention
+ */
+export const useAddInterventionApiV1RunsRunIdInterventionsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addInterventionApiV1RunsRunIdInterventionsPost>>, TError,{runId: string;data: BodyType<InterventionIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addInterventionApiV1RunsRunIdInterventionsPost>>,
+        TError,
+        {runId: string;data: BodyType<InterventionIn>},
+        TContext
+      > => {
+      return useMutation(getAddInterventionApiV1RunsRunIdInterventionsPostMutationOptions(options));
+    }
+
+export const getListInterventionsApiV1RunsRunIdInterventionsGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/interventions`
+}
+
+/**
+ * @summary List Interventions
+ */
+export const listInterventionsApiV1RunsRunIdInterventionsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<InterventionOut[]> => {
+
+  return customFetch<InterventionOut[]>(getListInterventionsApiV1RunsRunIdInterventionsGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListInterventionsApiV1RunsRunIdInterventionsGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/interventions`
+    ] as const;
+    }
+
+
+export const getListInterventionsApiV1RunsRunIdInterventionsGetQueryOptions = <TData = Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInterventionsApiV1RunsRunIdInterventionsGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>> = ({ signal }) => listInterventionsApiV1RunsRunIdInterventionsGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInterventionsApiV1RunsRunIdInterventionsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>>
+export type ListInterventionsApiV1RunsRunIdInterventionsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Interventions
+ */
+
+export function useListInterventionsApiV1RunsRunIdInterventionsGet<TData = Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInterventionsApiV1RunsRunIdInterventionsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInterventionsApiV1RunsRunIdInterventionsGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEvidenceApiV1ProjectsProjectIdEvidenceGetUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/evidence`
+}
+
+/**
+ * @summary List Evidence
+ */
+export const listEvidenceApiV1ProjectsProjectIdEvidenceGet = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSourceOut[]> => {
+
+  return customFetch<EvidenceSourceOut[]>(getListEvidenceApiV1ProjectsProjectIdEvidenceGetUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEvidenceApiV1ProjectsProjectIdEvidenceGetQueryKey = (projectId: string,) => {
+    return [
+    `/api/v1/projects/${projectId}/evidence`
+    ] as const;
+    }
+
+
+export const getListEvidenceApiV1ProjectsProjectIdEvidenceGetQueryOptions = <TData = Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>, TError = ErrorType<HTTPValidationError>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEvidenceApiV1ProjectsProjectIdEvidenceGetQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>> = ({ signal }) => listEvidenceApiV1ProjectsProjectIdEvidenceGet(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEvidenceApiV1ProjectsProjectIdEvidenceGetQueryResult = NonNullable<Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>>
+export type ListEvidenceApiV1ProjectsProjectIdEvidenceGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Evidence
+ */
+
+export function useListEvidenceApiV1ProjectsProjectIdEvidenceGet<TData = Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>, TError = ErrorType<HTTPValidationError>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvidenceApiV1ProjectsProjectIdEvidenceGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEvidenceApiV1ProjectsProjectIdEvidenceGetQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/evidence/upload`
+}
+
+/**
+ * @summary Upload Evidence
+ */
+export const uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost = async (projectId: string,
+    bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost: BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSourceOut> => {
+    const formData = new FormData();
+formData.append(`file`, bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.file);
+if(bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.title !== undefined && bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.title !== null) {
+ formData.append(`title`, bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.title);
+ }
+if(bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.citation !== undefined && bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.citation !== null) {
+ formData.append(`citation`, bodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost.citation);
+ }
+
+  return customFetch<EvidenceSourceOut>(getUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostUrl(projectId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>>, TError,{projectId: string;data: BodyType<BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>>, TError,{projectId: string;data: BodyType<BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>}, TContext> => {
+
+const mutationKey = ['uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>>, {projectId: string;data: BodyType<BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostMutationResult = NonNullable<Awaited<ReturnType<typeof uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>>>
+    export type UploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostMutationBody = BodyType<BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>
+    export type UploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Upload Evidence
+ */
+export const useUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>>, TError,{projectId: string;data: BodyType<BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>>,
+        TError,
+        {projectId: string;data: BodyType<BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost>},
+        TContext
+      > => {
+      return useMutation(getUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostMutationOptions(options));
+    }
+
+export const getCreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/evidence/notes`
+}
+
+/**
+ * @summary Create Evidence Note
+ */
+export const createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost = async (projectId: string,
+    evidenceNoteIn: EvidenceNoteIn, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSourceOut> => {
+
+  return customFetch<EvidenceSourceOut>(getCreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(evidenceNoteIn)
+  }
+);}
+
+
+
+
+
+export const getCreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost>>, TError,{projectId: string;data: BodyType<EvidenceNoteIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost>>, TError,{projectId: string;data: BodyType<EvidenceNoteIn>}, TContext> => {
+
+const mutationKey = ['createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost>>, {projectId: string;data: BodyType<EvidenceNoteIn>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostMutationResult = NonNullable<Awaited<ReturnType<typeof createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost>>>
+    export type CreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostMutationBody = BodyType<EvidenceNoteIn>
+    export type CreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Evidence Note
+ */
+export const useCreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost>>, TError,{projectId: string;data: BodyType<EvidenceNoteIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPost>>,
+        TError,
+        {projectId: string;data: BodyType<EvidenceNoteIn>},
+        TContext
+      > => {
+      return useMutation(getCreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostMutationOptions(options));
+    }
+
+export const getGetEvidenceApiV1EvidenceSourceIdGetUrl = (sourceId: string,) => {
+
+
+
+
+  return `/api/v1/evidence/${sourceId}`
+}
+
+/**
+ * @summary Get Evidence
+ */
+export const getEvidenceApiV1EvidenceSourceIdGet = async (sourceId: string, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSourceOut> => {
+
+  return customFetch<EvidenceSourceOut>(getGetEvidenceApiV1EvidenceSourceIdGetUrl(sourceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEvidenceApiV1EvidenceSourceIdGetQueryKey = (sourceId: string,) => {
+    return [
+    `/api/v1/evidence/${sourceId}`
+    ] as const;
+    }
+
+
+export const getGetEvidenceApiV1EvidenceSourceIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>, TError = ErrorType<HTTPValidationError>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEvidenceApiV1EvidenceSourceIdGetQueryKey(sourceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>> = ({ signal }) => getEvidenceApiV1EvidenceSourceIdGet(sourceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sourceId !== null && sourceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEvidenceApiV1EvidenceSourceIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>>
+export type GetEvidenceApiV1EvidenceSourceIdGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Evidence
+ */
+
+export function useGetEvidenceApiV1EvidenceSourceIdGet<TData = Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>, TError = ErrorType<HTTPValidationError>>(
+ sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEvidenceApiV1EvidenceSourceIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEvidenceApiV1EvidenceSourceIdGetQueryOptions(sourceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEvidenceChunksApiV1EvidenceSourceIdChunksGetUrl = (sourceId: string,) => {
+
+
+
+
+  return `/api/v1/evidence/${sourceId}/chunks`
+}
+
+/**
+ * @summary List Evidence Chunks
+ */
+export const listEvidenceChunksApiV1EvidenceSourceIdChunksGet = async (sourceId: string, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceChunkOut[]> => {
+
+  return customFetch<EvidenceChunkOut[]>(getListEvidenceChunksApiV1EvidenceSourceIdChunksGetUrl(sourceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEvidenceChunksApiV1EvidenceSourceIdChunksGetQueryKey = (sourceId: string,) => {
+    return [
+    `/api/v1/evidence/${sourceId}/chunks`
+    ] as const;
+    }
+
+
+export const getListEvidenceChunksApiV1EvidenceSourceIdChunksGetQueryOptions = <TData = Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>, TError = ErrorType<HTTPValidationError>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEvidenceChunksApiV1EvidenceSourceIdChunksGetQueryKey(sourceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>> = ({ signal }) => listEvidenceChunksApiV1EvidenceSourceIdChunksGet(sourceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sourceId !== null && sourceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEvidenceChunksApiV1EvidenceSourceIdChunksGetQueryResult = NonNullable<Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>>
+export type ListEvidenceChunksApiV1EvidenceSourceIdChunksGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Evidence Chunks
+ */
+
+export function useListEvidenceChunksApiV1EvidenceSourceIdChunksGet<TData = Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>, TError = ErrorType<HTTPValidationError>>(
+ sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvidenceChunksApiV1EvidenceSourceIdChunksGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEvidenceChunksApiV1EvidenceSourceIdChunksGetQueryOptions(sourceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getArchiveEvidenceApiV1EvidenceSourceIdArchivePostUrl = (sourceId: string,) => {
+
+
+
+
+  return `/api/v1/evidence/${sourceId}/archive`
+}
+
+/**
+ * @summary Archive Evidence
+ */
+export const archiveEvidenceApiV1EvidenceSourceIdArchivePost = async (sourceId: string, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSourceOut> => {
+
+  return customFetch<EvidenceSourceOut>(getArchiveEvidenceApiV1EvidenceSourceIdArchivePostUrl(sourceId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveEvidenceApiV1EvidenceSourceIdArchivePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveEvidenceApiV1EvidenceSourceIdArchivePost>>, TError,{sourceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveEvidenceApiV1EvidenceSourceIdArchivePost>>, TError,{sourceId: string}, TContext> => {
+
+const mutationKey = ['archiveEvidenceApiV1EvidenceSourceIdArchivePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveEvidenceApiV1EvidenceSourceIdArchivePost>>, {sourceId: string}> = (props) => {
+          const {sourceId} = props ?? {};
+
+          return  archiveEvidenceApiV1EvidenceSourceIdArchivePost(sourceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveEvidenceApiV1EvidenceSourceIdArchivePostMutationResult = NonNullable<Awaited<ReturnType<typeof archiveEvidenceApiV1EvidenceSourceIdArchivePost>>>
+
+    export type ArchiveEvidenceApiV1EvidenceSourceIdArchivePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Archive Evidence
+ */
+export const useArchiveEvidenceApiV1EvidenceSourceIdArchivePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveEvidenceApiV1EvidenceSourceIdArchivePost>>, TError,{sourceId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveEvidenceApiV1EvidenceSourceIdArchivePost>>,
+        TError,
+        {sourceId: string},
+        TContext
+      > => {
+      return useMutation(getArchiveEvidenceApiV1EvidenceSourceIdArchivePostMutationOptions(options));
+    }
+
+export const getSearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/evidence/search`
+}
+
+/**
+ * @summary Search Workspace Evidence
+ */
+export const searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost = async (workspaceId: string,
+    evidenceSearchIn: EvidenceSearchIn, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSearchHit[]> => {
+
+  return customFetch<EvidenceSearchHit[]>(getSearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(evidenceSearchIn)
+  }
+);}
+
+
+
+
+
+export const getSearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost>>, TError,{workspaceId: string;data: BodyType<EvidenceSearchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost>>, TError,{workspaceId: string;data: BodyType<EvidenceSearchIn>}, TContext> => {
+
+const mutationKey = ['searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost>>, {workspaceId: string;data: BodyType<EvidenceSearchIn>}> = (props) => {
+          const {workspaceId,data} = props ?? {};
+
+          return  searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost(workspaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostMutationResult = NonNullable<Awaited<ReturnType<typeof searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost>>>
+    export type SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostMutationBody = BodyType<EvidenceSearchIn>
+    export type SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Search Workspace Evidence
+ */
+export const useSearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost>>, TError,{workspaceId: string;data: BodyType<EvidenceSearchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPost>>,
+        TError,
+        {workspaceId: string;data: BodyType<EvidenceSearchIn>},
+        TContext
+      > => {
+      return useMutation(getSearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostMutationOptions(options));
+    }
+
+export const getPmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/pmc/search`
+}
+
+/**
+ * @summary Pmc Search
+ */
+export const pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost = async (workspaceId: string,
+    pmcSearchIn: PmcSearchIn, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getPmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pmcSearchIn)
+  }
+);}
+
+
+
+
+
+export const getPmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost>>, TError,{workspaceId: string;data: BodyType<PmcSearchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost>>, TError,{workspaceId: string;data: BodyType<PmcSearchIn>}, TContext> => {
+
+const mutationKey = ['pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost>>, {workspaceId: string;data: BodyType<PmcSearchIn>}> = (props) => {
+          const {workspaceId,data} = props ?? {};
+
+          return  pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost(workspaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostMutationResult = NonNullable<Awaited<ReturnType<typeof pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost>>>
+    export type PmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostMutationBody = BodyType<PmcSearchIn>
+    export type PmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Pmc Search
+ */
+export const usePmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost>>, TError,{workspaceId: string;data: BodyType<PmcSearchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPost>>,
+        TError,
+        {workspaceId: string;data: BodyType<PmcSearchIn>},
+        TContext
+      > => {
+      return useMutation(getPmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostMutationOptions(options));
+    }
+
+export const getPmcImportApiV1ProjectsProjectIdEvidencePmcImportPostUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/evidence/pmc-import`
+}
+
+/**
+ * @summary Pmc Import
+ */
+export const pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost = async (projectId: string,
+    pmcImportIn: PmcImportIn, options?: Parameters<typeof customFetch>[1]): Promise<EvidenceSourceOut> => {
+
+  return customFetch<EvidenceSourceOut>(getPmcImportApiV1ProjectsProjectIdEvidencePmcImportPostUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pmcImportIn)
+  }
+);}
+
+
+
+
+
+export const getPmcImportApiV1ProjectsProjectIdEvidencePmcImportPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost>>, TError,{projectId: string;data: BodyType<PmcImportIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost>>, TError,{projectId: string;data: BodyType<PmcImportIn>}, TContext> => {
+
+const mutationKey = ['pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost>>, {projectId: string;data: BodyType<PmcImportIn>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PmcImportApiV1ProjectsProjectIdEvidencePmcImportPostMutationResult = NonNullable<Awaited<ReturnType<typeof pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost>>>
+    export type PmcImportApiV1ProjectsProjectIdEvidencePmcImportPostMutationBody = BodyType<PmcImportIn>
+    export type PmcImportApiV1ProjectsProjectIdEvidencePmcImportPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Pmc Import
+ */
+export const usePmcImportApiV1ProjectsProjectIdEvidencePmcImportPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost>>, TError,{projectId: string;data: BodyType<PmcImportIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pmcImportApiV1ProjectsProjectIdEvidencePmcImportPost>>,
+        TError,
+        {projectId: string;data: BodyType<PmcImportIn>},
+        TContext
+      > => {
+      return useMutation(getPmcImportApiV1ProjectsProjectIdEvidencePmcImportPostMutationOptions(options));
+    }
+
+export const getListRunCitationsApiV1RunsRunIdCitationsGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/citations`
+}
+
+/**
+ * @summary List Run Citations
+ */
+export const listRunCitationsApiV1RunsRunIdCitationsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunCitationOut[]> => {
+
+  return customFetch<RunCitationOut[]>(getListRunCitationsApiV1RunsRunIdCitationsGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRunCitationsApiV1RunsRunIdCitationsGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/citations`
+    ] as const;
+    }
+
+
+export const getListRunCitationsApiV1RunsRunIdCitationsGetQueryOptions = <TData = Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRunCitationsApiV1RunsRunIdCitationsGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>> = ({ signal }) => listRunCitationsApiV1RunsRunIdCitationsGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRunCitationsApiV1RunsRunIdCitationsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>>
+export type ListRunCitationsApiV1RunsRunIdCitationsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Run Citations
+ */
+
+export function useListRunCitationsApiV1RunsRunIdCitationsGet<TData = Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunCitationsApiV1RunsRunIdCitationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRunCitationsApiV1RunsRunIdCitationsGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRunManifestApiV1RunsRunIdManifestGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/manifest`
+}
+
+/**
+ * @summary Get Run Manifest
+ */
+export const getRunManifestApiV1RunsRunIdManifestGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunManifestOut> => {
+
+  return customFetch<RunManifestOut>(getGetRunManifestApiV1RunsRunIdManifestGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunManifestApiV1RunsRunIdManifestGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/manifest`
+    ] as const;
+    }
+
+
+export const getGetRunManifestApiV1RunsRunIdManifestGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunManifestApiV1RunsRunIdManifestGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>> = ({ signal }) => getRunManifestApiV1RunsRunIdManifestGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunManifestApiV1RunsRunIdManifestGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>>
+export type GetRunManifestApiV1RunsRunIdManifestGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Run Manifest
+ */
+
+export function useGetRunManifestApiV1RunsRunIdManifestGet<TData = Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunManifestApiV1RunsRunIdManifestGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunManifestApiV1RunsRunIdManifestGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListRunReviewsApiV1RunsRunIdReviewsGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/reviews`
+}
+
+/**
+ * @summary List Run Reviews
+ */
+export const listRunReviewsApiV1RunsRunIdReviewsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunReviewOut[]> => {
+
+  return customFetch<RunReviewOut[]>(getListRunReviewsApiV1RunsRunIdReviewsGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRunReviewsApiV1RunsRunIdReviewsGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/reviews`
+    ] as const;
+    }
+
+
+export const getListRunReviewsApiV1RunsRunIdReviewsGetQueryOptions = <TData = Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRunReviewsApiV1RunsRunIdReviewsGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>> = ({ signal }) => listRunReviewsApiV1RunsRunIdReviewsGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRunReviewsApiV1RunsRunIdReviewsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>>
+export type ListRunReviewsApiV1RunsRunIdReviewsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Run Reviews
+ */
+
+export function useListRunReviewsApiV1RunsRunIdReviewsGet<TData = Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunReviewsApiV1RunsRunIdReviewsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRunReviewsApiV1RunsRunIdReviewsGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpsertMyReviewApiV1RunsRunIdReviewsMinePutUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/reviews/mine`
+}
+
+/**
+ * @summary Upsert My Review
+ */
+export const upsertMyReviewApiV1RunsRunIdReviewsMinePut = async (runId: string,
+    runReviewIn: RunReviewIn, options?: Parameters<typeof customFetch>[1]): Promise<RunReviewOut> => {
+
+  return customFetch<RunReviewOut>(getUpsertMyReviewApiV1RunsRunIdReviewsMinePutUrl(runId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(runReviewIn)
+  }
+);}
+
+
+
+
+
+export const getUpsertMyReviewApiV1RunsRunIdReviewsMinePutMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertMyReviewApiV1RunsRunIdReviewsMinePut>>, TError,{runId: string;data: BodyType<RunReviewIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertMyReviewApiV1RunsRunIdReviewsMinePut>>, TError,{runId: string;data: BodyType<RunReviewIn>}, TContext> => {
+
+const mutationKey = ['upsertMyReviewApiV1RunsRunIdReviewsMinePut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertMyReviewApiV1RunsRunIdReviewsMinePut>>, {runId: string;data: BodyType<RunReviewIn>}> = (props) => {
+          const {runId,data} = props ?? {};
+
+          return  upsertMyReviewApiV1RunsRunIdReviewsMinePut(runId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertMyReviewApiV1RunsRunIdReviewsMinePutMutationResult = NonNullable<Awaited<ReturnType<typeof upsertMyReviewApiV1RunsRunIdReviewsMinePut>>>
+    export type UpsertMyReviewApiV1RunsRunIdReviewsMinePutMutationBody = BodyType<RunReviewIn>
+    export type UpsertMyReviewApiV1RunsRunIdReviewsMinePutMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Upsert My Review
+ */
+export const useUpsertMyReviewApiV1RunsRunIdReviewsMinePut = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertMyReviewApiV1RunsRunIdReviewsMinePut>>, TError,{runId: string;data: BodyType<RunReviewIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertMyReviewApiV1RunsRunIdReviewsMinePut>>,
+        TError,
+        {runId: string;data: BodyType<RunReviewIn>},
+        TContext
+      > => {
+      return useMutation(getUpsertMyReviewApiV1RunsRunIdReviewsMinePutMutationOptions(options));
+    }
+
+export const getCreateExportApiV1RunsRunIdExportsPostUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/exports`
+}
+
+/**
+ * @summary Create Export
+ */
+export const createExportApiV1RunsRunIdExportsPost = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<ExportJobOut> => {
+
+  return customFetch<ExportJobOut>(getCreateExportApiV1RunsRunIdExportsPostUrl(runId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateExportApiV1RunsRunIdExportsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string}, TContext> => {
+
+const mutationKey = ['createExportApiV1RunsRunIdExportsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, {runId: string}> = (props) => {
+          const {runId} = props ?? {};
+
+          return  createExportApiV1RunsRunIdExportsPost(runId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateExportApiV1RunsRunIdExportsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>>
+
+    export type CreateExportApiV1RunsRunIdExportsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Export
+ */
+export const useCreateExportApiV1RunsRunIdExportsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>,
+        TError,
+        {runId: string},
+        TContext
+      > => {
+      return useMutation(getCreateExportApiV1RunsRunIdExportsPostMutationOptions(options));
+    }
+
+export const getListExportsApiV1RunsRunIdExportsGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/exports`
+}
+
+/**
+ * @summary List Exports
+ */
+export const listExportsApiV1RunsRunIdExportsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<ExportJobOut[]> => {
+
+  return customFetch<ExportJobOut[]>(getListExportsApiV1RunsRunIdExportsGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExportsApiV1RunsRunIdExportsGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/exports`
+    ] as const;
+    }
+
+
+export const getListExportsApiV1RunsRunIdExportsGetQueryOptions = <TData = Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExportsApiV1RunsRunIdExportsGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>> = ({ signal }) => listExportsApiV1RunsRunIdExportsGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListExportsApiV1RunsRunIdExportsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>>
+export type ListExportsApiV1RunsRunIdExportsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Exports
+ */
+
+export function useListExportsApiV1RunsRunIdExportsGet<TData = Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExportsApiV1RunsRunIdExportsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListExportsApiV1RunsRunIdExportsGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadExportApiV1ExportsJobIdDownloadGetUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/exports/${jobId}/download`
+}
+
+/**
+ * @summary Download Export
+ */
+export const downloadExportApiV1ExportsJobIdDownloadGet = async (jobId: string, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getDownloadExportApiV1ExportsJobIdDownloadGetUrl(jobId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadExportApiV1ExportsJobIdDownloadGetQueryKey = (jobId: string,) => {
+    return [
+    `/api/v1/exports/${jobId}/download`
+    ] as const;
+    }
+
+
+export const getDownloadExportApiV1ExportsJobIdDownloadGetQueryOptions = <TData = Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>, TError = ErrorType<HTTPValidationError>>(jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadExportApiV1ExportsJobIdDownloadGetQueryKey(jobId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>> = ({ signal }) => downloadExportApiV1ExportsJobIdDownloadGet(jobId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadExportApiV1ExportsJobIdDownloadGetQueryResult = NonNullable<Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>>
+export type DownloadExportApiV1ExportsJobIdDownloadGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Download Export
+ */
+
+export function useDownloadExportApiV1ExportsJobIdDownloadGet<TData = Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>, TError = ErrorType<HTTPValidationError>>(
+ jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadExportApiV1ExportsJobIdDownloadGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadExportApiV1ExportsJobIdDownloadGetQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListComparisonsApiV1ProjectsProjectIdComparisonsGetUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/comparisons`
+}
+
+/**
+ * @summary List Comparisons
+ */
+export const listComparisonsApiV1ProjectsProjectIdComparisonsGet = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<ComparisonSetOut[]> => {
+
+  return customFetch<ComparisonSetOut[]>(getListComparisonsApiV1ProjectsProjectIdComparisonsGetUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListComparisonsApiV1ProjectsProjectIdComparisonsGetQueryKey = (projectId: string,) => {
+    return [
+    `/api/v1/projects/${projectId}/comparisons`
+    ] as const;
+    }
+
+
+export const getListComparisonsApiV1ProjectsProjectIdComparisonsGetQueryOptions = <TData = Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>, TError = ErrorType<HTTPValidationError>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListComparisonsApiV1ProjectsProjectIdComparisonsGetQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>> = ({ signal }) => listComparisonsApiV1ProjectsProjectIdComparisonsGet(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListComparisonsApiV1ProjectsProjectIdComparisonsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>>
+export type ListComparisonsApiV1ProjectsProjectIdComparisonsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Comparisons
+ */
+
+export function useListComparisonsApiV1ProjectsProjectIdComparisonsGet<TData = Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>, TError = ErrorType<HTTPValidationError>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listComparisonsApiV1ProjectsProjectIdComparisonsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListComparisonsApiV1ProjectsProjectIdComparisonsGetQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateComparisonApiV1ProjectsProjectIdComparisonsPostUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/comparisons`
+}
+
+/**
+ * @summary Create Comparison
+ */
+export const createComparisonApiV1ProjectsProjectIdComparisonsPost = async (projectId: string,
+    comparisonCreateIn: ComparisonCreateIn, options?: Parameters<typeof customFetch>[1]): Promise<ComparisonSetOut> => {
+
+  return customFetch<ComparisonSetOut>(getCreateComparisonApiV1ProjectsProjectIdComparisonsPostUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(comparisonCreateIn)
+  }
+);}
+
+
+
+
+
+export const getCreateComparisonApiV1ProjectsProjectIdComparisonsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createComparisonApiV1ProjectsProjectIdComparisonsPost>>, TError,{projectId: string;data: BodyType<ComparisonCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createComparisonApiV1ProjectsProjectIdComparisonsPost>>, TError,{projectId: string;data: BodyType<ComparisonCreateIn>}, TContext> => {
+
+const mutationKey = ['createComparisonApiV1ProjectsProjectIdComparisonsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createComparisonApiV1ProjectsProjectIdComparisonsPost>>, {projectId: string;data: BodyType<ComparisonCreateIn>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createComparisonApiV1ProjectsProjectIdComparisonsPost(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateComparisonApiV1ProjectsProjectIdComparisonsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createComparisonApiV1ProjectsProjectIdComparisonsPost>>>
+    export type CreateComparisonApiV1ProjectsProjectIdComparisonsPostMutationBody = BodyType<ComparisonCreateIn>
+    export type CreateComparisonApiV1ProjectsProjectIdComparisonsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Comparison
+ */
+export const useCreateComparisonApiV1ProjectsProjectIdComparisonsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createComparisonApiV1ProjectsProjectIdComparisonsPost>>, TError,{projectId: string;data: BodyType<ComparisonCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createComparisonApiV1ProjectsProjectIdComparisonsPost>>,
+        TError,
+        {projectId: string;data: BodyType<ComparisonCreateIn>},
+        TContext
+      > => {
+      return useMutation(getCreateComparisonApiV1ProjectsProjectIdComparisonsPostMutationOptions(options));
+    }
+
+export const getGetComparisonApiV1ComparisonsComparisonIdGetUrl = (comparisonId: string,) => {
+
+
+
+
+  return `/api/v1/comparisons/${comparisonId}`
+}
+
+/**
+ * @summary Get Comparison
+ */
+export const getComparisonApiV1ComparisonsComparisonIdGet = async (comparisonId: string, options?: Parameters<typeof customFetch>[1]): Promise<ComparisonSetOut> => {
+
+  return customFetch<ComparisonSetOut>(getGetComparisonApiV1ComparisonsComparisonIdGetUrl(comparisonId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetComparisonApiV1ComparisonsComparisonIdGetQueryKey = (comparisonId: string,) => {
+    return [
+    `/api/v1/comparisons/${comparisonId}`
+    ] as const;
+    }
+
+
+export const getGetComparisonApiV1ComparisonsComparisonIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>, TError = ErrorType<HTTPValidationError>>(comparisonId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetComparisonApiV1ComparisonsComparisonIdGetQueryKey(comparisonId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>> = ({ signal }) => getComparisonApiV1ComparisonsComparisonIdGet(comparisonId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: comparisonId !== null && comparisonId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetComparisonApiV1ComparisonsComparisonIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>>
+export type GetComparisonApiV1ComparisonsComparisonIdGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Comparison
+ */
+
+export function useGetComparisonApiV1ComparisonsComparisonIdGet<TData = Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>, TError = ErrorType<HTTPValidationError>>(
+ comparisonId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getComparisonApiV1ComparisonsComparisonIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetComparisonApiV1ComparisonsComparisonIdGetQueryOptions(comparisonId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostUrl = (comparisonId: string,) => {
+
+
+
+
+  return `/api/v1/comparisons/${comparisonId}/evaluations`
+}
+
+/**
+ * @summary Submit Evaluation
+ */
+export const submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost = async (comparisonId: string,
+    comparisonEvaluationIn: ComparisonEvaluationIn, options?: Parameters<typeof customFetch>[1]): Promise<ComparisonEvaluationOut> => {
+
+  return customFetch<ComparisonEvaluationOut>(getSubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostUrl(comparisonId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(comparisonEvaluationIn)
+  }
+);}
+
+
+
+
+
+export const getSubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost>>, TError,{comparisonId: string;data: BodyType<ComparisonEvaluationIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost>>, TError,{comparisonId: string;data: BodyType<ComparisonEvaluationIn>}, TContext> => {
+
+const mutationKey = ['submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost>>, {comparisonId: string;data: BodyType<ComparisonEvaluationIn>}> = (props) => {
+          const {comparisonId,data} = props ?? {};
+
+          return  submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost(comparisonId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostMutationResult = NonNullable<Awaited<ReturnType<typeof submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost>>>
+    export type SubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostMutationBody = BodyType<ComparisonEvaluationIn>
+    export type SubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Submit Evaluation
+ */
+export const useSubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost>>, TError,{comparisonId: string;data: BodyType<ComparisonEvaluationIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost>>,
+        TError,
+        {comparisonId: string;data: BodyType<ComparisonEvaluationIn>},
+        TContext
+      > => {
+      return useMutation(getSubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostMutationOptions(options));
+    }
+
+export const getListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetUrl = (comparisonId: string,) => {
+
+
+
+
+  return `/api/v1/comparisons/${comparisonId}/evaluations`
+}
+
+/**
+ * @summary List Evaluations
+ */
+export const listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet = async (comparisonId: string, options?: Parameters<typeof customFetch>[1]): Promise<ComparisonEvaluationOut[]> => {
+
+  return customFetch<ComparisonEvaluationOut[]>(getListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetUrl(comparisonId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetQueryKey = (comparisonId: string,) => {
+    return [
+    `/api/v1/comparisons/${comparisonId}/evaluations`
+    ] as const;
+    }
+
+
+export const getListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetQueryOptions = <TData = Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>, TError = ErrorType<HTTPValidationError>>(comparisonId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetQueryKey(comparisonId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>> = ({ signal }) => listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet(comparisonId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: comparisonId !== null && comparisonId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>>
+export type ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Evaluations
+ */
+
+export function useListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet<TData = Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>, TError = ErrorType<HTTPValidationError>>(
+ comparisonId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetQueryOptions(comparisonId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHealthLiveApiHealthLiveGetUrl = () => {
+
+
+
+
+  return `/api/health/live`
+}
+
+/**
+ * @summary Health Live
+ */
+export const healthLiveApiHealthLiveGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getHealthLiveApiHealthLiveGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthLiveApiHealthLiveGetQueryKey = () => {
+    return [
+    `/api/health/live`
+    ] as const;
+    }
+
+
+export const getHealthLiveApiHealthLiveGetQueryOptions = <TData = Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthLiveApiHealthLiveGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>> = ({ signal }) => healthLiveApiHealthLiveGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HealthLiveApiHealthLiveGetQueryResult = NonNullable<Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>>
+export type HealthLiveApiHealthLiveGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Health Live
+ */
+
+export function useHealthLiveApiHealthLiveGet<TData = Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthLiveApiHealthLiveGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHealthLiveApiHealthLiveGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHealthLiveApiHealthGetUrl = () => {
+
+
+
+
+  return `/api/health`
+}
+
+/**
+ * @summary Health Live
+ */
+export const healthLiveApiHealthGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getHealthLiveApiHealthGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthLiveApiHealthGetQueryKey = () => {
+    return [
+    `/api/health`
+    ] as const;
+    }
+
+
+export const getHealthLiveApiHealthGetQueryOptions = <TData = Awaited<ReturnType<typeof healthLiveApiHealthGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthLiveApiHealthGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthLiveApiHealthGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthLiveApiHealthGet>>> = ({ signal }) => healthLiveApiHealthGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthLiveApiHealthGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HealthLiveApiHealthGetQueryResult = NonNullable<Awaited<ReturnType<typeof healthLiveApiHealthGet>>>
+export type HealthLiveApiHealthGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Health Live
+ */
+
+export function useHealthLiveApiHealthGet<TData = Awaited<ReturnType<typeof healthLiveApiHealthGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthLiveApiHealthGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHealthLiveApiHealthGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHealthReadyApiHealthReadyGetUrl = () => {
+
+
+
+
+  return `/api/health/ready`
+}
+
+/**
+ * @summary Health Ready
+ */
+export const healthReadyApiHealthReadyGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getHealthReadyApiHealthReadyGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthReadyApiHealthReadyGetQueryKey = () => {
+    return [
+    `/api/health/ready`
+    ] as const;
+    }
+
+
+export const getHealthReadyApiHealthReadyGetQueryOptions = <TData = Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthReadyApiHealthReadyGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>> = ({ signal }) => healthReadyApiHealthReadyGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HealthReadyApiHealthReadyGetQueryResult = NonNullable<Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>>
+export type HealthReadyApiHealthReadyGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Health Ready
+ */
+
+export function useHealthReadyApiHealthReadyGet<TData = Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthReadyApiHealthReadyGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHealthReadyApiHealthReadyGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHealthWorkerApiHealthWorkerGetUrl = () => {
+
+
+
+
+  return `/api/health/worker`
+}
+
+/**
+ * @summary Health Worker
+ */
+export const healthWorkerApiHealthWorkerGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getHealthWorkerApiHealthWorkerGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthWorkerApiHealthWorkerGetQueryKey = () => {
+    return [
+    `/api/health/worker`
+    ] as const;
+    }
+
+
+export const getHealthWorkerApiHealthWorkerGetQueryOptions = <TData = Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthWorkerApiHealthWorkerGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>> = ({ signal }) => healthWorkerApiHealthWorkerGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HealthWorkerApiHealthWorkerGetQueryResult = NonNullable<Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>>
+export type HealthWorkerApiHealthWorkerGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Health Worker
+ */
+
+export function useHealthWorkerApiHealthWorkerGet<TData = Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthWorkerApiHealthWorkerGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHealthWorkerApiHealthWorkerGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

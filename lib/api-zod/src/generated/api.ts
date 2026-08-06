@@ -9,619 +9,1246 @@ import * as zod from 'zod';
 
 
 /**
- * @summary Health check
+ * @summary Dev Login
  */
-export const HealthCheckResponse = zod.object({
+export const devLoginApiV1AuthDevLoginPostBodyEmailMin = 3;
+export const devLoginApiV1AuthDevLoginPostBodyEmailMax = 200;
+
+export const devLoginApiV1AuthDevLoginPostBodyDisplayNameOneMax = 200;
+
+
+
+export const DevLoginApiV1AuthDevLoginPostBody = zod.object({
+  "email": zod.string().min(devLoginApiV1AuthDevLoginPostBodyEmailMin).max(devLoginApiV1AuthDevLoginPostBodyEmailMax),
+  "display_name": zod.union([zod.string().max(devLoginApiV1AuthDevLoginPostBodyDisplayNameOneMax),zod.null()]).optional()
+})
+
+export const DevLoginApiV1AuthDevLoginPostResponse = zod.unknown()
+
+
+/**
+ * @summary Logout
+ */
+export const LogoutApiV1AuthLogoutPostResponse = zod.unknown()
+
+
+/**
+ * @summary Me
+ */
+export const MeApiV1MeGetResponse = zod.object({
+  "user": zod.object({
+  "id": zod.uuid(),
+  "email": zod.string(),
+  "display_name": zod.union([zod.string(),zod.null()]),
+  "avatar_url": zod.union([zod.string(),zod.null()])
+}),
+  "memberships": zod.array(zod.object({
+  "workspace_id": zod.uuid(),
+  "user_id": zod.uuid(),
+  "role": zod.string()
+})),
+  "workspaces": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "created_at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List Workspaces
+ */
+export const ListWorkspacesApiV1WorkspacesGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "created_at": zod.coerce.date()
+})
+export const ListWorkspacesApiV1WorkspacesGetResponse = zod.array(ListWorkspacesApiV1WorkspacesGetResponseItem)
+
+
+/**
+ * @summary List Projects
+ */
+export const ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "discipline": zod.union([zod.string(),zod.null()]),
+  "status": zod.string(),
+  "research_question": zod.union([zod.string(),zod.null()]),
+  "human_decision_supported": zod.union([zod.string(),zod.null()]),
+  "tags": zod.array(zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponse = zod.array(ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponseItem)
+
+
+/**
+ * @summary Create Project
+ */
+export const CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyNameMax = 300;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyDescriptionDefault = ``;
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyDescriptionMax = 10000;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyDisciplineOneMax = 200;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyResearchQuestionOneMax = 2000;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyHumanDecisionSupportedOneMax = 2000;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyHypothesesMax = 25;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyObjectivesMax = 25;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyConstraintsMax = 25;
+
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyTagsMax = 25;
+
+
+
+export const CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostBody = zod.object({
+  "name": zod.string().min(1).max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyNameMax),
+  "description": zod.string().max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyDescriptionMax).default(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyDescriptionDefault),
+  "discipline": zod.union([zod.string().max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyDisciplineOneMax),zod.null()]).optional(),
+  "research_question": zod.union([zod.string().max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyResearchQuestionOneMax),zod.null()]).optional(),
+  "human_decision_supported": zod.union([zod.string().max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyHumanDecisionSupportedOneMax),zod.null()]).optional(),
+  "hypotheses": zod.array(zod.string()).max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyHypothesesMax).optional(),
+  "objectives": zod.array(zod.string()).max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyObjectivesMax).optional(),
+  "constraints": zod.array(zod.string()).max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyConstraintsMax).optional(),
+  "tags": zod.array(zod.string()).max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyTagsMax).optional()
+})
+
+export const CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "discipline": zod.union([zod.string(),zod.null()]),
+  "status": zod.string(),
+  "research_question": zod.union([zod.string(),zod.null()]),
+  "human_decision_supported": zod.union([zod.string(),zod.null()]),
+  "tags": zod.array(zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get Project
+ */
+export const GetProjectApiV1ProjectsProjectIdGetParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const GetProjectApiV1ProjectsProjectIdGetResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "discipline": zod.union([zod.string(),zod.null()]),
+  "status": zod.string(),
+  "research_question": zod.union([zod.string(),zod.null()]),
+  "human_decision_supported": zod.union([zod.string(),zod.null()]),
+  "tags": zod.array(zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Agents
+ */
+export const ListAgentsApiV1WorkspacesWorkspaceIdAgentsGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const ListAgentsApiV1WorkspacesWorkspaceIdAgentsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.union([zod.uuid(),zod.null()]),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.union([zod.string(),zod.null()]),
+  "icon": zod.union([zod.string(),zod.null()]),
+  "accent": zod.union([zod.string(),zod.null()]),
+  "visibility": zod.string(),
+  "latest_version": zod.union([zod.object({
+  "id": zod.uuid(),
+  "agent_profile_id": zod.uuid(),
+  "version_number": zod.int(),
+  "expertise": zod.string(),
+  "goal": zod.string(),
+  "role": zod.string(),
+  "behavioral_rules": zod.array(zod.unknown()),
+  "system_prompt": zod.string(),
+  "system_prompt_sha256": zod.string(),
+  "default_role_type": zod.string(),
+  "default_tool_ids": zod.array(zod.unknown()),
+  "recommended_temperature": zod.union([zod.number(),zod.null()]),
+  "created_at": zod.coerce.date()
+}),zod.null()]).optional()
+})
+export const ListAgentsApiV1WorkspacesWorkspaceIdAgentsGetResponse = zod.array(ListAgentsApiV1WorkspacesWorkspaceIdAgentsGetResponseItem)
+
+
+/**
+ * @summary List Templates
+ */
+export const ListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const ListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.union([zod.uuid(),zod.null()]),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "category": zod.union([zod.string(),zod.null()]),
+  "visibility": zod.string(),
+  "latest_version": zod.union([zod.object({
+  "id": zod.uuid(),
+  "template_profile_id": zod.uuid(),
+  "version_number": zod.int(),
+  "meeting_type": zod.string(),
+  "definition_json": zod.record(zod.string(), zod.unknown()),
+  "definition_sha256": zod.string(),
+  "created_at": zod.coerce.date()
+}),zod.null()]).optional()
+})
+export const ListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetResponse = zod.array(ListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGetResponseItem)
+
+
+/**
+ * @summary List Providers
+ */
+export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseModelsDefault = [];
+
+export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "name": zod.string(),
+  "provider_type": zod.string(),
+  "is_enabled": zod.boolean(),
+  "last_test_status": zod.union([zod.string(),zod.null()]),
+  "last_test_safe_message": zod.union([zod.string(),zod.null()]),
+  "models": zod.array(zod.object({
+  "id": zod.uuid(),
+  "provider_config_id": zod.uuid(),
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "supports_tools": zod.boolean(),
+  "supports_structured_output": zod.boolean(),
+  "supports_streaming": zod.boolean(),
+  "is_enabled": zod.boolean()
+})).default(listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseModelsDefault)
+})
+export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponse = zod.array(ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem)
+
+
+/**
+ * @summary Create Draft
+ */
+export const CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyTitleMax = 300;
+
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyQuestionsDefault = [];
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyRulesDefault = [];
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyContextsDefault = [];
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyRoundsDefault = 2;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyRoundsMax = 12;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemperatureDefault = 0.2;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemperatureMin = 0;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemperatureMax = 2;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemPositionMin = 0;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMin = 0;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMax = 2;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemToolDefinitionIdsDefault = [];
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsDefault = [];
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyEvidenceSourceIdsDefault = [];
+
+export const CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostBody = zod.object({
+  "title": zod.string().min(1).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyTitleMax),
+  "meeting_type": zod.enum(['team', 'individual']),
+  "agenda": zod.string().min(1),
+  "questions": zod.array(zod.string()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyQuestionsDefault),
+  "rules": zod.array(zod.string()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyRulesDefault),
+  "contexts": zod.array(zod.string()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyContextsDefault),
+  "rounds": zod.int().min(1).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyRoundsMax).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyRoundsDefault),
+  "default_temperature": zod.number().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemperatureMin).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemperatureMax).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemperatureDefault),
+  "budget": zod.record(zod.string(), zod.unknown()).optional(),
+  "agents": zod.array(zod.object({
+  "position": zod.int().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemPositionMin),
+  "role_type": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
+  "agent_version_id": zod.uuid(),
+  "provider_config_id": zod.uuid(),
+  "provider_model_id": zod.uuid(),
+  "temperature_override": zod.union([zod.number().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMin).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMax),zod.null()]).optional(),
+  "tool_definition_ids": zod.array(zod.uuid()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemToolDefinitionIdsDefault)
+})).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsDefault),
+  "template_version_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "evidence_source_ids": zod.array(zod.uuid()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyEvidenceSourceIdsDefault)
+})
+
+export const CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "title": zod.string(),
+  "meeting_type": zod.string(),
+  "draft_json": zod.record(zod.string(), zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Validate Draft
+ */
+export const ValidateDraftApiV1MeetingDraftsDraftIdValidatePostParams = zod.object({
+  "draft_id": zod.uuid()
+})
+
+export const ValidateDraftApiV1MeetingDraftsDraftIdValidatePostResponse = zod.object({
+  "valid": zod.boolean(),
+  "errors": zod.array(zod.record(zod.string(), zod.string())),
+  "warnings": zod.array(zod.record(zod.string(), zod.string())),
+  "base_calls": zod.union([zod.int(),zod.null()]),
+  "max_calls": zod.union([zod.int(),zod.null()]),
+  "estimated_input_tokens": zod.union([zod.int(),zod.null()]),
+  "estimated_output_tokens": zod.union([zod.int(),zod.null()]),
+  "estimated_cost_usd": zod.union([zod.number(),zod.null()]),
+  "pricing_complete": zod.boolean(),
+  "budget": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Launch Draft
+ */
+export const LaunchDraftApiV1MeetingDraftsDraftIdLaunchPostParams = zod.object({
+  "draft_id": zod.uuid()
+})
+
+export const LaunchDraftApiV1MeetingDraftsDraftIdLaunchPostResponse = zod.object({
+  "run_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
   "status": zod.string()
 })
 
 
 /**
- * @summary Workspace dashboard summary
+ * @summary List Runs
  */
-export const GetDashboardSummaryResponse = zod.object({
-  "projectCount": zod.int(),
-  "agentCount": zod.int(),
-  "templateCount": zod.int(),
-  "runCounts": zod.record(zod.string(), zod.int()),
-  "totalTokens": zod.int(),
-  "totalCalls": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "recentRuns": zod.array(zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "projectName": zod.string().nullish(),
-  "templateId": zod.string().nullish(),
-  "title": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "status": zod.enum(['draft', 'queued', 'validating', 'running', 'pause_pending', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'budget_exceeded']),
-  "agendaObjective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int(),
-  "currentRound": zod.int(),
-  "currentSpeaker": zod.string().nullish(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "isSimulation": zod.boolean(),
-  "callCount": zod.int(),
-  "plannedCallCount": zod.int().nullish(),
-  "tokensUsed": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "summary": zod.record(zod.string(), zod.unknown()).nullish(),
-  "failureReason": zod.string().nullish(),
-  "startedAt": zod.string().nullish(),
-  "completedAt": zod.string().nullish(),
-  "createdAt": zod.string()
-})),
-  "recentProjects": zod.array(zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "abstract": zod.string().nullish(),
-  "domain": zod.string().nullish(),
-  "tags": zod.array(zod.string()),
-  "status": zod.enum(['active', 'paused', 'completed', 'archived']),
-  "researchQuestion": zod.string().nullish(),
-  "hypotheses": zod.array(zod.string()),
-  "objectives": zod.array(zod.string()),
-  "constraints": zod.array(zod.string()),
-  "ethicsNotes": zod.string().nullish(),
-  "disclosureNotes": zod.string().nullish(),
-  "humanDecision": zod.string().nullish(),
-  "runCount": zod.int().optional(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-}))
+export const ListRunsApiV1ProjectsProjectIdRunsGetParams = zod.object({
+  "project_id": zod.uuid()
 })
 
-
-export const ListProjectsResponseItem = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "abstract": zod.string().nullish(),
-  "domain": zod.string().nullish(),
-  "tags": zod.array(zod.string()),
-  "status": zod.enum(['active', 'paused', 'completed', 'archived']),
-  "researchQuestion": zod.string().nullish(),
-  "hypotheses": zod.array(zod.string()),
-  "objectives": zod.array(zod.string()),
-  "constraints": zod.array(zod.string()),
-  "ethicsNotes": zod.string().nullish(),
-  "disclosureNotes": zod.string().nullish(),
-  "humanDecision": zod.string().nullish(),
-  "runCount": zod.int().optional(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
+export const ListRunsApiV1ProjectsProjectIdRunsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
+  "status": zod.string(),
+  "review_status": zod.string(),
+  "demo_mode": zod.boolean(),
+  "current_round": zod.int(),
+  "provider_call_count": zod.int(),
+  "tool_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "actual_cost_usd": zod.number(),
+  "wall_seconds": zod.number(),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
 })
-export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
-
-
-
-
-
-export const CreateProjectBody = zod.object({
-  "name": zod.string().min(1),
-  "abstract": zod.string().optional(),
-  "domain": zod.string().optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "researchQuestion": zod.string().optional(),
-  "hypotheses": zod.array(zod.string()).optional(),
-  "objectives": zod.array(zod.string()).optional(),
-  "constraints": zod.array(zod.string()).optional(),
-  "ethicsNotes": zod.string().optional(),
-  "disclosureNotes": zod.string().optional(),
-  "humanDecision": zod.string().optional()
-})
-
-export const CreateProjectResponse = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "abstract": zod.string().nullish(),
-  "domain": zod.string().nullish(),
-  "tags": zod.array(zod.string()),
-  "status": zod.enum(['active', 'paused', 'completed', 'archived']),
-  "researchQuestion": zod.string().nullish(),
-  "hypotheses": zod.array(zod.string()),
-  "objectives": zod.array(zod.string()),
-  "constraints": zod.array(zod.string()),
-  "ethicsNotes": zod.string().nullish(),
-  "disclosureNotes": zod.string().nullish(),
-  "humanDecision": zod.string().nullish(),
-  "runCount": zod.int().optional(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-
-
-export const GetProjectParams = zod.object({
-  "projectId": zod.coerce.string()
-})
-
-export const GetProjectResponse = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "abstract": zod.string().nullish(),
-  "domain": zod.string().nullish(),
-  "tags": zod.array(zod.string()),
-  "status": zod.enum(['active', 'paused', 'completed', 'archived']),
-  "researchQuestion": zod.string().nullish(),
-  "hypotheses": zod.array(zod.string()),
-  "objectives": zod.array(zod.string()),
-  "constraints": zod.array(zod.string()),
-  "ethicsNotes": zod.string().nullish(),
-  "disclosureNotes": zod.string().nullish(),
-  "humanDecision": zod.string().nullish(),
-  "runCount": zod.int().optional(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-
-
-export const UpdateProjectParams = zod.object({
-  "projectId": zod.coerce.string()
-})
-
-
-
-
-export const UpdateProjectBody = zod.object({
-  "name": zod.string().min(1).optional(),
-  "abstract": zod.string().optional(),
-  "domain": zod.string().optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "status": zod.enum(['active', 'paused', 'completed', 'archived']).optional(),
-  "researchQuestion": zod.string().optional(),
-  "hypotheses": zod.array(zod.string()).optional(),
-  "objectives": zod.array(zod.string()).optional(),
-  "constraints": zod.array(zod.string()).optional(),
-  "ethicsNotes": zod.string().optional(),
-  "disclosureNotes": zod.string().optional(),
-  "humanDecision": zod.string().optional()
-})
-
-export const UpdateProjectResponse = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "abstract": zod.string().nullish(),
-  "domain": zod.string().nullish(),
-  "tags": zod.array(zod.string()),
-  "status": zod.enum(['active', 'paused', 'completed', 'archived']),
-  "researchQuestion": zod.string().nullish(),
-  "hypotheses": zod.array(zod.string()),
-  "objectives": zod.array(zod.string()),
-  "constraints": zod.array(zod.string()),
-  "ethicsNotes": zod.string().nullish(),
-  "disclosureNotes": zod.string().nullish(),
-  "humanDecision": zod.string().nullish(),
-  "runCount": zod.int().optional(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-
-
-export const ListProjectRunsParams = zod.object({
-  "projectId": zod.coerce.string()
-})
-
-export const ListProjectRunsResponseItem = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "projectName": zod.string().nullish(),
-  "templateId": zod.string().nullish(),
-  "title": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "status": zod.enum(['draft', 'queued', 'validating', 'running', 'pause_pending', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'budget_exceeded']),
-  "agendaObjective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int(),
-  "currentRound": zod.int(),
-  "currentSpeaker": zod.string().nullish(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "isSimulation": zod.boolean(),
-  "callCount": zod.int(),
-  "plannedCallCount": zod.int().nullish(),
-  "tokensUsed": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "summary": zod.record(zod.string(), zod.unknown()).nullish(),
-  "failureReason": zod.string().nullish(),
-  "startedAt": zod.string().nullish(),
-  "completedAt": zod.string().nullish(),
-  "createdAt": zod.string()
-})
-export const ListProjectRunsResponse = zod.array(ListProjectRunsResponseItem)
-
-
-export const ListAgentsResponseItem = zod.object({
-  "id": zod.string(),
-  "slug": zod.string().nullish(),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "expertise": zod.string(),
-  "goal": zod.string(),
-  "role": zod.string(),
-  "advancedInstructions": zod.string().nullish(),
-  "limitations": zod.string().nullish(),
-  "provider": zod.enum(['demo', 'openai', 'openai_compatible', 'inherit']),
-  "model": zod.string(),
-  "temperature": zod.number().nullish(),
-  "accentColor": zod.string().nullish(),
-  "version": zod.int(),
-  "archived": zod.boolean(),
-  "isSystem": zod.boolean().optional(),
-  "createdAt": zod.string()
-})
-export const ListAgentsResponse = zod.array(ListAgentsResponseItem)
-
-
-
-
-
-export const CreateAgentBody = zod.object({
-  "title": zod.string().min(1),
-  "shortLabel": zod.string().optional(),
-  "expertise": zod.string(),
-  "goal": zod.string(),
-  "role": zod.string(),
-  "advancedInstructions": zod.string().optional(),
-  "limitations": zod.string().optional(),
-  "provider": zod.enum(['demo', 'openai', 'openai_compatible', 'inherit']).optional(),
-  "model": zod.string().optional(),
-  "temperature": zod.number().optional(),
-  "accentColor": zod.string().optional()
-})
-
-export const CreateAgentResponse = zod.object({
-  "id": zod.string(),
-  "slug": zod.string().nullish(),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "expertise": zod.string(),
-  "goal": zod.string(),
-  "role": zod.string(),
-  "advancedInstructions": zod.string().nullish(),
-  "limitations": zod.string().nullish(),
-  "provider": zod.enum(['demo', 'openai', 'openai_compatible', 'inherit']),
-  "model": zod.string(),
-  "temperature": zod.number().nullish(),
-  "accentColor": zod.string().nullish(),
-  "version": zod.int(),
-  "archived": zod.boolean(),
-  "isSystem": zod.boolean().optional(),
-  "createdAt": zod.string()
-})
-
-
-export const GetAgentParams = zod.object({
-  "agentId": zod.coerce.string()
-})
-
-export const GetAgentResponse = zod.object({
-  "id": zod.string(),
-  "slug": zod.string().nullish(),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "expertise": zod.string(),
-  "goal": zod.string(),
-  "role": zod.string(),
-  "advancedInstructions": zod.string().nullish(),
-  "limitations": zod.string().nullish(),
-  "provider": zod.enum(['demo', 'openai', 'openai_compatible', 'inherit']),
-  "model": zod.string(),
-  "temperature": zod.number().nullish(),
-  "accentColor": zod.string().nullish(),
-  "version": zod.int(),
-  "archived": zod.boolean(),
-  "isSystem": zod.boolean().optional(),
-  "createdAt": zod.string()
-})
-
-
-export const UpdateAgentParams = zod.object({
-  "agentId": zod.coerce.string()
-})
-
-
-
-
-export const UpdateAgentBody = zod.object({
-  "title": zod.string().min(1).optional(),
-  "shortLabel": zod.string().optional(),
-  "expertise": zod.string().optional(),
-  "goal": zod.string().optional(),
-  "role": zod.string().optional(),
-  "advancedInstructions": zod.string().optional(),
-  "limitations": zod.string().optional(),
-  "provider": zod.enum(['demo', 'openai', 'openai_compatible', 'inherit']).optional(),
-  "model": zod.string().optional(),
-  "temperature": zod.number().optional(),
-  "accentColor": zod.string().optional(),
-  "archived": zod.boolean().optional()
-})
-
-export const UpdateAgentResponse = zod.object({
-  "id": zod.string(),
-  "slug": zod.string().nullish(),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "expertise": zod.string(),
-  "goal": zod.string(),
-  "role": zod.string(),
-  "advancedInstructions": zod.string().nullish(),
-  "limitations": zod.string().nullish(),
-  "provider": zod.enum(['demo', 'openai', 'openai_compatible', 'inherit']),
-  "model": zod.string(),
-  "temperature": zod.number().nullish(),
-  "accentColor": zod.string().nullish(),
-  "version": zod.int(),
-  "archived": zod.boolean(),
-  "isSystem": zod.boolean().optional(),
-  "createdAt": zod.string()
-})
-
-
-export const ListTemplatesResponseItem = zod.object({
-  "id": zod.string(),
-  "slug": zod.string(),
-  "name": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "category": zod.string(),
-  "description": zod.string(),
-  "objective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()),
-  "rules": zod.array(zod.string()),
-  "suggestedAgentSlugs": zod.array(zod.string()).optional(),
-  "defaultRounds": zod.int(),
-  "intendedOutput": zod.string().nullish(),
-  "version": zod.int()
-})
-export const ListTemplatesResponse = zod.array(ListTemplatesResponseItem)
-
-
-export const GetTemplateParams = zod.object({
-  "templateId": zod.coerce.string()
-})
-
-export const GetTemplateResponse = zod.object({
-  "id": zod.string(),
-  "slug": zod.string(),
-  "name": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "category": zod.string(),
-  "description": zod.string(),
-  "objective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()),
-  "rules": zod.array(zod.string()),
-  "suggestedAgentSlugs": zod.array(zod.string()).optional(),
-  "defaultRounds": zod.int(),
-  "intendedOutput": zod.string().nullish(),
-  "version": zod.int()
-})
-
-
-export const ListRunsResponseItem = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "projectName": zod.string().nullish(),
-  "templateId": zod.string().nullish(),
-  "title": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "status": zod.enum(['draft', 'queued', 'validating', 'running', 'pause_pending', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'budget_exceeded']),
-  "agendaObjective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int(),
-  "currentRound": zod.int(),
-  "currentSpeaker": zod.string().nullish(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "isSimulation": zod.boolean(),
-  "callCount": zod.int(),
-  "plannedCallCount": zod.int().nullish(),
-  "tokensUsed": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "summary": zod.record(zod.string(), zod.unknown()).nullish(),
-  "failureReason": zod.string().nullish(),
-  "startedAt": zod.string().nullish(),
-  "completedAt": zod.string().nullish(),
-  "createdAt": zod.string()
-})
-export const ListRunsResponse = zod.array(ListRunsResponseItem)
+export const ListRunsApiV1ProjectsProjectIdRunsGetResponse = zod.array(ListRunsApiV1ProjectsProjectIdRunsGetResponseItem)
 
 
 /**
- * @summary Launch a meeting run (frozen definition)
+ * @summary Get Run
  */
-
-export const launchRunBodyRoundsMin = 0;
-export const launchRunBodyRoundsMax = 5;
-
-
-
-export const LaunchRunBody = zod.object({
-  "projectId": zod.string(),
-  "templateId": zod.string().optional(),
-  "title": zod.string().min(1),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "agendaObjective": zod.string().optional(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int().min(launchRunBodyRoundsMin).max(launchRunBodyRoundsMax).optional(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "idempotencyKey": zod.string().optional()
+export const GetRunApiV1RunsRunIdGetParams = zod.object({
+  "run_id": zod.uuid()
 })
 
-export const LaunchRunResponse = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "projectName": zod.string().nullish(),
-  "templateId": zod.string().nullish(),
-  "title": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "status": zod.enum(['draft', 'queued', 'validating', 'running', 'pause_pending', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'budget_exceeded']),
-  "agendaObjective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int(),
-  "currentRound": zod.int(),
-  "currentSpeaker": zod.string().nullish(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "isSimulation": zod.boolean(),
-  "callCount": zod.int(),
-  "plannedCallCount": zod.int().nullish(),
-  "tokensUsed": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "summary": zod.record(zod.string(), zod.unknown()).nullish(),
-  "failureReason": zod.string().nullish(),
-  "startedAt": zod.string().nullish(),
-  "completedAt": zod.string().nullish(),
-  "createdAt": zod.string()
+export const GetRunApiV1RunsRunIdGetResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
+  "status": zod.string(),
+  "review_status": zod.string(),
+  "demo_mode": zod.boolean(),
+  "current_round": zod.int(),
+  "provider_call_count": zod.int(),
+  "tool_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "actual_cost_usd": zod.number(),
+  "wall_seconds": zod.number(),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
 })
-
-
-export const GetRunParams = zod.object({
-  "runId": zod.coerce.string()
-})
-
-export const GetRunResponse = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "projectName": zod.string().nullish(),
-  "templateId": zod.string().nullish(),
-  "title": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "status": zod.enum(['draft', 'queued', 'validating', 'running', 'pause_pending', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'budget_exceeded']),
-  "agendaObjective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int(),
-  "currentRound": zod.int(),
-  "currentSpeaker": zod.string().nullish(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "isSimulation": zod.boolean(),
-  "callCount": zod.int(),
-  "plannedCallCount": zod.int().nullish(),
-  "tokensUsed": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "summary": zod.record(zod.string(), zod.unknown()).nullish(),
-  "failureReason": zod.string().nullish(),
-  "startedAt": zod.string().nullish(),
-  "completedAt": zod.string().nullish(),
-  "createdAt": zod.string()
-})
-
-
-export const ListRunEventsParams = zod.object({
-  "runId": zod.coerce.string()
-})
-
-export const ListRunEventsResponseItem = zod.object({
-  "id": zod.string(),
-  "runId": zod.string(),
-  "seq": zod.int(),
-  "type": zod.string(),
-  "round": zod.int().nullish(),
-  "agentId": zod.string().nullish(),
-  "agentTitle": zod.string().nullish(),
-  "roleType": zod.string().nullish(),
-  "content": zod.string().nullish(),
-  "payload": zod.record(zod.string(), zod.unknown()).nullish(),
-  "createdAt": zod.string()
-})
-export const ListRunEventsResponse = zod.array(ListRunEventsResponseItem)
 
 
 /**
- * @summary Pause, resume, cancel, or add a human intervention
+ * @summary Get Run Turns
  */
-export const ControlRunParams = zod.object({
-  "runId": zod.coerce.string()
+export const GetRunTurnsApiV1RunsRunIdTurnsGetParams = zod.object({
+  "run_id": zod.uuid()
 })
 
-export const ControlRunBody = zod.object({
-  "action": zod.enum(['pause', 'resume', 'cancel', 'intervene']),
-  "instruction": zod.string().optional()
+export const GetRunTurnsApiV1RunsRunIdTurnsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "sequence": zod.int(),
+  "round_number": zod.int(),
+  "position_in_round": zod.int(),
+  "agent_version_id": zod.uuid(),
+  "role_type": zod.string(),
+  "status": zod.string(),
+  "response_text": zod.union([zod.string(),zod.null()]),
+  "finish_reason": zod.union([zod.string(),zod.null()]),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "cost_usd": zod.number(),
+  "latency_ms": zod.union([zod.int(),zod.null()]),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+export const GetRunTurnsApiV1RunsRunIdTurnsGetResponse = zod.array(GetRunTurnsApiV1RunsRunIdTurnsGetResponseItem)
+
+
+/**
+ * @summary Get Run Summary
+ */
+export const GetRunSummaryApiV1RunsRunIdSummaryGetParams = zod.object({
+  "run_id": zod.uuid()
 })
 
-export const ControlRunResponse = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "projectName": zod.string().nullish(),
-  "templateId": zod.string().nullish(),
-  "title": zod.string(),
-  "kind": zod.enum(['team', 'individual', 'ensemble_merge']),
-  "status": zod.enum(['draft', 'queued', 'validating', 'running', 'pause_pending', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'budget_exceeded']),
-  "agendaObjective": zod.string().nullish(),
-  "requiredQuestions": zod.array(zod.string()).optional(),
-  "rules": zod.array(zod.string()).optional(),
-  "rounds": zod.int(),
-  "currentRound": zod.int(),
-  "currentSpeaker": zod.string().nullish(),
-  "participants": zod.array(zod.object({
-  "agentId": zod.string(),
-  "roleType": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
-  "title": zod.string(),
-  "shortLabel": zod.string().nullish(),
-  "provider": zod.string().nullish(),
-  "model": zod.string().nullish(),
-  "accentColor": zod.string().nullish()
-})),
-  "isSimulation": zod.boolean(),
-  "callCount": zod.int(),
-  "plannedCallCount": zod.int().nullish(),
-  "tokensUsed": zod.int(),
-  "estimatedCost": zod.number().nullish(),
-  "summary": zod.record(zod.string(), zod.unknown()).nullish(),
-  "failureReason": zod.string().nullish(),
-  "startedAt": zod.string().nullish(),
-  "completedAt": zod.string().nullish(),
-  "createdAt": zod.string()
+export const GetRunSummaryApiV1RunsRunIdSummaryGetResponse = zod.object({
+  "run_id": zod.uuid(),
+  "summary_markdown": zod.string(),
+  "summary_json": zod.record(zod.string(), zod.unknown()),
+  "schema_version": zod.string(),
+  "summary_sha256": zod.string(),
+  "validation_status": zod.string(),
+  "validation_errors": zod.array(zod.unknown()),
+  "created_at": zod.coerce.date()
 })
+
+
+/**
+ * @summary Get Run Events
+ */
+export const GetRunEventsApiV1RunsRunIdEventsGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const GetRunEventsApiV1RunsRunIdEventsGetResponseItem = zod.object({
+  "id": zod.int(),
+  "run_id": zod.uuid(),
+  "run_sequence": zod.int(),
+  "event_type": zod.string(),
+  "payload": zod.record(zod.string(), zod.unknown()),
+  "created_at": zod.coerce.date()
+})
+export const GetRunEventsApiV1RunsRunIdEventsGetResponse = zod.array(GetRunEventsApiV1RunsRunIdEventsGetResponseItem)
+
+
+/**
+ * @summary Stream Run Events
+ */
+export const StreamRunEventsApiV1RunsRunIdEventsStreamGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const StreamRunEventsApiV1RunsRunIdEventsStreamGetResponse = zod.unknown()
+
+
+/**
+ * @summary Pause Run
+ */
+export const PauseRunApiV1RunsRunIdPausePostParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const PauseRunApiV1RunsRunIdPausePostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
+  "status": zod.string(),
+  "review_status": zod.string(),
+  "demo_mode": zod.boolean(),
+  "current_round": zod.int(),
+  "provider_call_count": zod.int(),
+  "tool_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "actual_cost_usd": zod.number(),
+  "wall_seconds": zod.number(),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+
+
+/**
+ * @summary Resume Run
+ */
+export const ResumeRunApiV1RunsRunIdResumePostParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const ResumeRunApiV1RunsRunIdResumePostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
+  "status": zod.string(),
+  "review_status": zod.string(),
+  "demo_mode": zod.boolean(),
+  "current_round": zod.int(),
+  "provider_call_count": zod.int(),
+  "tool_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "actual_cost_usd": zod.number(),
+  "wall_seconds": zod.number(),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+
+
+/**
+ * @summary Cancel Run
+ */
+export const CancelRunApiV1RunsRunIdCancelPostParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const CancelRunApiV1RunsRunIdCancelPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
+  "status": zod.string(),
+  "review_status": zod.string(),
+  "demo_mode": zod.boolean(),
+  "current_round": zod.int(),
+  "provider_call_count": zod.int(),
+  "tool_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "actual_cost_usd": zod.number(),
+  "wall_seconds": zod.number(),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+
+
+/**
+ * @summary Add Intervention
+ */
+export const AddInterventionApiV1RunsRunIdInterventionsPostParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const addInterventionApiV1RunsRunIdInterventionsPostBodyContentMax = 8000;
+
+export const addInterventionApiV1RunsRunIdInterventionsPostBodyEvidenceSourceIdsDefault = [];
+
+export const AddInterventionApiV1RunsRunIdInterventionsPostBody = zod.object({
+  "kind": zod.enum(['instruction', 'evidence_addition']),
+  "content": zod.string().min(1).max(addInterventionApiV1RunsRunIdInterventionsPostBodyContentMax),
+  "evidence_source_ids": zod.array(zod.uuid()).default(addInterventionApiV1RunsRunIdInterventionsPostBodyEvidenceSourceIdsDefault)
+})
+
+export const AddInterventionApiV1RunsRunIdInterventionsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "kind": zod.string(),
+  "content": zod.union([zod.string(),zod.null()]),
+  "applied_at_checkpoint": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Interventions
+ */
+export const ListInterventionsApiV1RunsRunIdInterventionsGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const ListInterventionsApiV1RunsRunIdInterventionsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "kind": zod.string(),
+  "content": zod.union([zod.string(),zod.null()]),
+  "applied_at_checkpoint": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+export const ListInterventionsApiV1RunsRunIdInterventionsGetResponse = zod.array(ListInterventionsApiV1RunsRunIdInterventionsGetResponseItem)
+
+
+/**
+ * @summary List Evidence
+ */
+export const ListEvidenceApiV1ProjectsProjectIdEvidenceGetParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const ListEvidenceApiV1ProjectsProjectIdEvidenceGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.union([zod.uuid(),zod.null()]),
+  "evidence_key": zod.string(),
+  "source_type": zod.string(),
+  "title": zod.string(),
+  "citation": zod.union([zod.string(),zod.null()]),
+  "source_url": zod.union([zod.string(),zod.null()]),
+  "external_identifier": zod.union([zod.string(),zod.null()]),
+  "author_text": zod.union([zod.string(),zod.null()]),
+  "content_type": zod.union([zod.string(),zod.null()]),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "original_filename": zod.union([zod.string(),zod.null()]),
+  "content_sha256": zod.union([zod.string(),zod.null()]),
+  "processing_status": zod.string(),
+  "processing_error_code": zod.union([zod.string(),zod.null()]),
+  "processing_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+export const ListEvidenceApiV1ProjectsProjectIdEvidenceGetResponse = zod.array(ListEvidenceApiV1ProjectsProjectIdEvidenceGetResponseItem)
+
+
+/**
+ * @summary Upload Evidence
+ */
+export const UploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const UploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostBody = zod.object({
+  "file": zod.instanceof(File),
+  "title": zod.union([zod.string(),zod.null()]).optional(),
+  "citation": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const UploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.union([zod.uuid(),zod.null()]),
+  "evidence_key": zod.string(),
+  "source_type": zod.string(),
+  "title": zod.string(),
+  "citation": zod.union([zod.string(),zod.null()]),
+  "source_url": zod.union([zod.string(),zod.null()]),
+  "external_identifier": zod.union([zod.string(),zod.null()]),
+  "author_text": zod.union([zod.string(),zod.null()]),
+  "content_type": zod.union([zod.string(),zod.null()]),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "original_filename": zod.union([zod.string(),zod.null()]),
+  "content_sha256": zod.union([zod.string(),zod.null()]),
+  "processing_status": zod.string(),
+  "processing_error_code": zod.union([zod.string(),zod.null()]),
+  "processing_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create Evidence Note
+ */
+export const CreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostBodyTitleMax = 300;
+
+export const createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostBodyContentMax = 100000;
+
+
+
+export const CreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostBody = zod.object({
+  "title": zod.string().min(1).max(createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostBodyTitleMax),
+  "content": zod.string().min(1).max(createEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostBodyContentMax),
+  "citation": zod.union([zod.string(),zod.null()]).optional(),
+  "source_url": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const CreateEvidenceNoteApiV1ProjectsProjectIdEvidenceNotesPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.union([zod.uuid(),zod.null()]),
+  "evidence_key": zod.string(),
+  "source_type": zod.string(),
+  "title": zod.string(),
+  "citation": zod.union([zod.string(),zod.null()]),
+  "source_url": zod.union([zod.string(),zod.null()]),
+  "external_identifier": zod.union([zod.string(),zod.null()]),
+  "author_text": zod.union([zod.string(),zod.null()]),
+  "content_type": zod.union([zod.string(),zod.null()]),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "original_filename": zod.union([zod.string(),zod.null()]),
+  "content_sha256": zod.union([zod.string(),zod.null()]),
+  "processing_status": zod.string(),
+  "processing_error_code": zod.union([zod.string(),zod.null()]),
+  "processing_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get Evidence
+ */
+export const GetEvidenceApiV1EvidenceSourceIdGetParams = zod.object({
+  "source_id": zod.uuid()
+})
+
+export const GetEvidenceApiV1EvidenceSourceIdGetResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.union([zod.uuid(),zod.null()]),
+  "evidence_key": zod.string(),
+  "source_type": zod.string(),
+  "title": zod.string(),
+  "citation": zod.union([zod.string(),zod.null()]),
+  "source_url": zod.union([zod.string(),zod.null()]),
+  "external_identifier": zod.union([zod.string(),zod.null()]),
+  "author_text": zod.union([zod.string(),zod.null()]),
+  "content_type": zod.union([zod.string(),zod.null()]),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "original_filename": zod.union([zod.string(),zod.null()]),
+  "content_sha256": zod.union([zod.string(),zod.null()]),
+  "processing_status": zod.string(),
+  "processing_error_code": zod.union([zod.string(),zod.null()]),
+  "processing_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Evidence Chunks
+ */
+export const ListEvidenceChunksApiV1EvidenceSourceIdChunksGetParams = zod.object({
+  "source_id": zod.uuid()
+})
+
+export const ListEvidenceChunksApiV1EvidenceSourceIdChunksGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "evidence_source_id": zod.uuid(),
+  "chunk_index": zod.int(),
+  "locator": zod.union([zod.string(),zod.null()]),
+  "content_text": zod.string(),
+  "content_sha256": zod.string(),
+  "token_count": zod.union([zod.int(),zod.null()])
+})
+export const ListEvidenceChunksApiV1EvidenceSourceIdChunksGetResponse = zod.array(ListEvidenceChunksApiV1EvidenceSourceIdChunksGetResponseItem)
+
+
+/**
+ * @summary Archive Evidence
+ */
+export const ArchiveEvidenceApiV1EvidenceSourceIdArchivePostParams = zod.object({
+  "source_id": zod.uuid()
+})
+
+export const ArchiveEvidenceApiV1EvidenceSourceIdArchivePostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.union([zod.uuid(),zod.null()]),
+  "evidence_key": zod.string(),
+  "source_type": zod.string(),
+  "title": zod.string(),
+  "citation": zod.union([zod.string(),zod.null()]),
+  "source_url": zod.union([zod.string(),zod.null()]),
+  "external_identifier": zod.union([zod.string(),zod.null()]),
+  "author_text": zod.union([zod.string(),zod.null()]),
+  "content_type": zod.union([zod.string(),zod.null()]),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "original_filename": zod.union([zod.string(),zod.null()]),
+  "content_sha256": zod.union([zod.string(),zod.null()]),
+  "processing_status": zod.string(),
+  "processing_error_code": zod.union([zod.string(),zod.null()]),
+  "processing_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Search Workspace Evidence
+ */
+export const SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBodyQueryMax = 500;
+
+export const searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBodyLimitDefault = 10;
+export const searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBodyLimitMax = 25;
+
+
+
+export const SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBody = zod.object({
+  "query": zod.string().min(1).max(searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBodyQueryMax),
+  "limit": zod.int().min(1).max(searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBodyLimitMax).default(searchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostBodyLimitDefault)
+})
+
+export const SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostResponseItem = zod.object({
+  "evidence_source_id": zod.uuid(),
+  "evidence_key": zod.string(),
+  "title": zod.string(),
+  "chunk_id": zod.uuid(),
+  "chunk_index": zod.int(),
+  "locator": zod.union([zod.string(),zod.null()]),
+  "snippet": zod.string()
+})
+export const SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostResponse = zod.array(SearchWorkspaceEvidenceApiV1WorkspacesWorkspaceIdEvidenceSearchPostResponseItem)
+
+
+/**
+ * @summary Pmc Search
+ */
+export const PmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBodyQueryMax = 500;
+
+export const pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBodyLimitDefault = 10;
+export const pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBodyLimitMax = 25;
+
+
+
+export const PmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBody = zod.object({
+  "query": zod.string().min(1).max(pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBodyQueryMax),
+  "limit": zod.int().min(1).max(pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBodyLimitMax).default(pmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostBodyLimitDefault)
+})
+
+export const PmcSearchApiV1WorkspacesWorkspaceIdPmcSearchPostResponse = zod.unknown()
+
+
+/**
+ * @summary Pmc Import
+ */
+export const PmcImportApiV1ProjectsProjectIdEvidencePmcImportPostParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const pmcImportApiV1ProjectsProjectIdEvidencePmcImportPostBodyPmcidMin = 3;
+export const pmcImportApiV1ProjectsProjectIdEvidencePmcImportPostBodyPmcidMax = 20;
+
+
+
+export const PmcImportApiV1ProjectsProjectIdEvidencePmcImportPostBody = zod.object({
+  "pmcid": zod.string().min(pmcImportApiV1ProjectsProjectIdEvidencePmcImportPostBodyPmcidMin).max(pmcImportApiV1ProjectsProjectIdEvidencePmcImportPostBodyPmcidMax)
+})
+
+export const PmcImportApiV1ProjectsProjectIdEvidencePmcImportPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.union([zod.uuid(),zod.null()]),
+  "evidence_key": zod.string(),
+  "source_type": zod.string(),
+  "title": zod.string(),
+  "citation": zod.union([zod.string(),zod.null()]),
+  "source_url": zod.union([zod.string(),zod.null()]),
+  "external_identifier": zod.union([zod.string(),zod.null()]),
+  "author_text": zod.union([zod.string(),zod.null()]),
+  "content_type": zod.union([zod.string(),zod.null()]),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "original_filename": zod.union([zod.string(),zod.null()]),
+  "content_sha256": zod.union([zod.string(),zod.null()]),
+  "processing_status": zod.string(),
+  "processing_error_code": zod.union([zod.string(),zod.null()]),
+  "processing_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Run Citations
+ */
+export const ListRunCitationsApiV1RunsRunIdCitationsGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const ListRunCitationsApiV1RunsRunIdCitationsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "evidence_source_id": zod.uuid(),
+  "citation_key": zod.string(),
+  "claim_text": zod.string(),
+  "support_type": zod.string(),
+  "source_locator": zod.union([zod.string(),zod.null()]),
+  "validation_status": zod.string(),
+  "validation_notes": zod.union([zod.string(),zod.null()])
+})
+export const ListRunCitationsApiV1RunsRunIdCitationsGetResponse = zod.array(ListRunCitationsApiV1RunsRunIdCitationsGetResponseItem)
+
+
+/**
+ * @summary Get Run Manifest
+ */
+export const GetRunManifestApiV1RunsRunIdManifestGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const GetRunManifestApiV1RunsRunIdManifestGetResponse = zod.object({
+  "run_id": zod.uuid(),
+  "manifest_version": zod.string(),
+  "manifest_json": zod.record(zod.string(), zod.unknown()),
+  "manifest_payload_sha256": zod.string(),
+  "transcript_sha256": zod.string(),
+  "summary_sha256": zod.string(),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Run Reviews
+ */
+export const ListRunReviewsApiV1RunsRunIdReviewsGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const ListRunReviewsApiV1RunsRunIdReviewsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "reviewer_id": zod.uuid(),
+  "status": zod.string(),
+  "rubric_version": zod.union([zod.string(),zod.null()]),
+  "ratings": zod.record(zod.string(), zod.unknown()),
+  "comments_markdown": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListRunReviewsApiV1RunsRunIdReviewsGetResponse = zod.array(ListRunReviewsApiV1RunsRunIdReviewsGetResponseItem)
+
+
+/**
+ * @summary Upsert My Review
+ */
+export const UpsertMyReviewApiV1RunsRunIdReviewsMinePutParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const upsertMyReviewApiV1RunsRunIdReviewsMinePutBodyRatingsDefault = {};
+export const upsertMyReviewApiV1RunsRunIdReviewsMinePutBodyCommentsMarkdownDefault = ``;
+export const upsertMyReviewApiV1RunsRunIdReviewsMinePutBodyCommentsMarkdownMax = 20000;
+
+
+
+export const UpsertMyReviewApiV1RunsRunIdReviewsMinePutBody = zod.object({
+  "status": zod.enum(['in_review', 'approved', 'changes_requested', 'rejected']),
+  "rubric_version": zod.union([zod.string(),zod.null()]).optional(),
+  "ratings": zod.record(zod.string(), zod.int()).default(upsertMyReviewApiV1RunsRunIdReviewsMinePutBodyRatingsDefault),
+  "comments_markdown": zod.string().max(upsertMyReviewApiV1RunsRunIdReviewsMinePutBodyCommentsMarkdownMax).default(upsertMyReviewApiV1RunsRunIdReviewsMinePutBodyCommentsMarkdownDefault)
+})
+
+export const UpsertMyReviewApiV1RunsRunIdReviewsMinePutResponse = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "reviewer_id": zod.uuid(),
+  "status": zod.string(),
+  "rubric_version": zod.union([zod.string(),zod.null()]),
+  "ratings": zod.record(zod.string(), zod.unknown()),
+  "comments_markdown": zod.string(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create Export
+ */
+export const CreateExportApiV1RunsRunIdExportsPostParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const CreateExportApiV1RunsRunIdExportsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.union([zod.uuid(),zod.null()]),
+  "format": zod.string(),
+  "status": zod.string(),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "sha256": zod.union([zod.string(),zod.null()]),
+  "error_code": zod.union([zod.string(),zod.null()]),
+  "error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+
+
+/**
+ * @summary List Exports
+ */
+export const ListExportsApiV1RunsRunIdExportsGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const ListExportsApiV1RunsRunIdExportsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.union([zod.uuid(),zod.null()]),
+  "format": zod.string(),
+  "status": zod.string(),
+  "byte_size": zod.union([zod.int(),zod.null()]),
+  "sha256": zod.union([zod.string(),zod.null()]),
+  "error_code": zod.union([zod.string(),zod.null()]),
+  "error_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+export const ListExportsApiV1RunsRunIdExportsGetResponse = zod.array(ListExportsApiV1RunsRunIdExportsGetResponseItem)
+
+
+/**
+ * @summary Download Export
+ */
+export const DownloadExportApiV1ExportsJobIdDownloadGetParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const DownloadExportApiV1ExportsJobIdDownloadGetResponse = zod.unknown()
+
+
+/**
+ * @summary List Comparisons
+ */
+export const ListComparisonsApiV1ProjectsProjectIdComparisonsGetParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItemsDefault = [];
+export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseEvaluationCountDefault = 0;
+export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseMyEvaluationSubmittedDefault = false;
+export const listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseRevealedDefault = false;
+
+export const ListComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "visibility": zod.string(),
+  "rubric": zod.record(zod.string(), zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "blind_label": zod.string(),
+  "display_order": zod.int(),
+  "run_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "run_title": zod.union([zod.string(),zod.null()]).optional(),
+  "summary_json": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
+  "summary_markdown": zod.union([zod.string(),zod.null()]).optional()
+})).default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItemsDefault),
+  "evaluation_count": zod.int().default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseEvaluationCountDefault),
+  "my_evaluation_submitted": zod.boolean().default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseMyEvaluationSubmittedDefault),
+  "revealed": zod.boolean().default(listComparisonsApiV1ProjectsProjectIdComparisonsGetResponseRevealedDefault)
+})
+export const ListComparisonsApiV1ProjectsProjectIdComparisonsGetResponse = zod.array(ListComparisonsApiV1ProjectsProjectIdComparisonsGetResponseItem)
+
+
+/**
+ * @summary Create Comparison
+ */
+export const CreateComparisonApiV1ProjectsProjectIdComparisonsPostParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostBodyNameMax = 200;
+
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostBodyDescriptionDefault = ``;
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostBodyDescriptionMax = 4000;
+
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRunIdsMin = 2;
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRunIdsMax = 4;
+
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRubricCriteriaMax = 10;
+
+
+
+export const CreateComparisonApiV1ProjectsProjectIdComparisonsPostBody = zod.object({
+  "name": zod.string().min(1).max(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyNameMax),
+  "description": zod.string().max(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyDescriptionMax).default(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyDescriptionDefault),
+  "run_ids": zod.array(zod.uuid()).min(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRunIdsMin).max(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRunIdsMax),
+  "rubric_criteria": zod.array(zod.string()).min(1).max(createComparisonApiV1ProjectsProjectIdComparisonsPostBodyRubricCriteriaMax).optional()
+})
+
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseItemsDefault = [];
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseEvaluationCountDefault = 0;
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseMyEvaluationSubmittedDefault = false;
+export const createComparisonApiV1ProjectsProjectIdComparisonsPostResponseRevealedDefault = false;
+
+export const CreateComparisonApiV1ProjectsProjectIdComparisonsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "visibility": zod.string(),
+  "rubric": zod.record(zod.string(), zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "blind_label": zod.string(),
+  "display_order": zod.int(),
+  "run_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "run_title": zod.union([zod.string(),zod.null()]).optional(),
+  "summary_json": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
+  "summary_markdown": zod.union([zod.string(),zod.null()]).optional()
+})).default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseItemsDefault),
+  "evaluation_count": zod.int().default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseEvaluationCountDefault),
+  "my_evaluation_submitted": zod.boolean().default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseMyEvaluationSubmittedDefault),
+  "revealed": zod.boolean().default(createComparisonApiV1ProjectsProjectIdComparisonsPostResponseRevealedDefault)
+})
+
+
+/**
+ * @summary Get Comparison
+ */
+export const GetComparisonApiV1ComparisonsComparisonIdGetParams = zod.object({
+  "comparison_id": zod.uuid()
+})
+
+export const getComparisonApiV1ComparisonsComparisonIdGetResponseItemsDefault = [];
+export const getComparisonApiV1ComparisonsComparisonIdGetResponseEvaluationCountDefault = 0;
+export const getComparisonApiV1ComparisonsComparisonIdGetResponseMyEvaluationSubmittedDefault = false;
+export const getComparisonApiV1ComparisonsComparisonIdGetResponseRevealedDefault = false;
+
+export const GetComparisonApiV1ComparisonsComparisonIdGetResponse = zod.object({
+  "id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "visibility": zod.string(),
+  "rubric": zod.record(zod.string(), zod.unknown()),
+  "created_at": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "blind_label": zod.string(),
+  "display_order": zod.int(),
+  "run_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "run_title": zod.union([zod.string(),zod.null()]).optional(),
+  "summary_json": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
+  "summary_markdown": zod.union([zod.string(),zod.null()]).optional()
+})).default(getComparisonApiV1ComparisonsComparisonIdGetResponseItemsDefault),
+  "evaluation_count": zod.int().default(getComparisonApiV1ComparisonsComparisonIdGetResponseEvaluationCountDefault),
+  "my_evaluation_submitted": zod.boolean().default(getComparisonApiV1ComparisonsComparisonIdGetResponseMyEvaluationSubmittedDefault),
+  "revealed": zod.boolean().default(getComparisonApiV1ComparisonsComparisonIdGetResponseRevealedDefault)
+})
+
+
+/**
+ * @summary Submit Evaluation
+ */
+export const SubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostParams = zod.object({
+  "comparison_id": zod.uuid()
+})
+
+export const submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBodyRankingDefault = [];
+export const submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBodyCommentsMarkdownDefault = ``;
+export const submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBodyCommentsMarkdownMax = 20000;
+
+
+
+export const SubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBody = zod.object({
+  "item_scores": zod.record(zod.string(), zod.record(zod.string(), zod.int())),
+  "ranking": zod.array(zod.string()).default(submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBodyRankingDefault),
+  "comments_markdown": zod.string().max(submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBodyCommentsMarkdownMax).default(submitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostBodyCommentsMarkdownDefault)
+})
+
+export const SubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "comparison_set_id": zod.uuid(),
+  "evaluator_id": zod.uuid(),
+  "item_scores": zod.record(zod.string(), zod.unknown()),
+  "ranking": zod.array(zod.unknown()),
+  "comments_markdown": zod.string(),
+  "submitted_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Evaluations
+ */
+export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetParams = zod.object({
+  "comparison_id": zod.uuid()
+})
+
+export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "comparison_set_id": zod.uuid(),
+  "evaluator_id": zod.uuid(),
+  "item_scores": zod.record(zod.string(), zod.unknown()),
+  "ranking": zod.array(zod.unknown()),
+  "comments_markdown": zod.string(),
+  "submitted_at": zod.coerce.date()
+})
+export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponse = zod.array(ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponseItem)
+
+
+/**
+ * @summary Health Live
+ */
+export const HealthLiveApiHealthLiveGetResponse = zod.unknown()
+
+
+/**
+ * @summary Health Live
+ */
+export const HealthLiveApiHealthGetResponse = zod.unknown()
+
+
+/**
+ * @summary Health Ready
+ */
+export const HealthReadyApiHealthReadyGetResponse = zod.unknown()
+
+
+/**
+ * @summary Health Worker
+ */
+export const HealthWorkerApiHealthWorkerGetResponse = zod.unknown()
 
 

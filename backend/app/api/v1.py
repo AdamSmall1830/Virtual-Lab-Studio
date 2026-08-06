@@ -53,6 +53,7 @@ from ..schemas import (
     MeetingDraftOut,
     MembershipOut,
     MeOut,
+    ProjectCreateIn,
     ProjectOut,
     ProviderConfigOut,
     ProviderModelOut,
@@ -184,6 +185,53 @@ async def list_projects(
         )
     ).scalars()
     return [ProjectOut.model_validate(p) for p in rows]
+
+
+@router.post("/workspaces/{workspace_id}/projects", response_model=ProjectOut, status_code=201)
+async def create_project(
+    workspace_id: uuid.UUID,
+    payload: ProjectCreateIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_workspace_role(db, workspace_id, user, "researcher")
+
+    base_slug = "-".join(
+        "".join(ch if ch.isalnum() else " " for ch in payload.name.lower()).split()
+    )[:80] or "project"
+    slug = base_slug
+    suffix = 1
+    while (
+        await db.execute(
+            select(Project.id).where(Project.workspace_id == workspace_id, Project.slug == slug)
+        )
+    ).scalar_one_or_none() is not None:
+        suffix += 1
+        slug = f"{base_slug}-{suffix}"
+
+    project = Project(
+        workspace_id=workspace_id,
+        slug=slug,
+        name=payload.name,
+        description=payload.description,
+        discipline=payload.discipline,
+        research_question=payload.research_question,
+        human_decision_supported=payload.human_decision_supported,
+        hypotheses=payload.hypotheses,
+        objectives=payload.objectives,
+        constraints=payload.constraints,
+        tags=payload.tags,
+        created_by=user.id,
+    )
+    db.add(project)
+    await db.flush()
+    await audit(
+        db, workspace_id, user, "project.created", "project", str(project.id),
+        {"name": payload.name, "slug": slug},
+    )
+    await db.commit()
+    await db.refresh(project)
+    return ProjectOut.model_validate(project)
 
 
 async def _get_project(db: AsyncSession, project_id: uuid.UUID, user: User, minimum_role: str) -> Project:
@@ -716,7 +764,13 @@ async def cancel_run(run_id: uuid.UUID, user: User = Depends(get_current_user), 
             db, workspace_id=run.workspace_id, run_id=run.id,
             event_type="run.cancelled", payload={}, actor_user_id=user.id,
         )
-        manifest, mf_err = await ensure_manifest_safe(db, run)
+        # Generate the terminal summary + manifest in a dedicated session with a
+        # freshly loaded run, so a manifest failure/rollback can never disturb
+        # the committed cancellation or this request's session state.
+        maker = get_sessionmaker()
+        async with maker() as mdb:
+            mrun = await mdb.get(Run, run.id)
+            _, mf_err = await ensure_manifest_safe(mdb, mrun)
         await append_event(
             db, workspace_id=run.workspace_id, run_id=run.id,
             event_type="manifest.created" if mf_err is None else "manifest.failed",

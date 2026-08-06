@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useWorkspace } from '@/demo/useWorkspace';
-import { mutate } from '@/demo/store';
+import { useSession } from '@/api/session';
+import { useTheme } from '@/components/theme-provider';
 import {
   LayoutDashboard,
   FolderOpen,
@@ -21,14 +21,9 @@ import {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const workspace = useWorkspace();
+  const { workspace } = useSession();
+  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const toggleTheme = () => {
-    mutate((state) => {
-      state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    });
-  };
 
   const navItems = [
     { href: '/app', label: 'Dashboard', icon: LayoutDashboard },
@@ -57,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="px-4 mb-4">
         <div className="vls-glass rounded-lg p-3">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Workspace</div>
-          <div className="font-medium text-sm truncate">{workspace.workspaceName}</div>
+          <div className="font-medium text-sm truncate">{workspace?.name ?? 'Workspace'}</div>
         </div>
       </div>
 
@@ -105,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClick={toggleTheme}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
         >
-          {workspace.theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           Toggle Theme
         </button>
         <Link

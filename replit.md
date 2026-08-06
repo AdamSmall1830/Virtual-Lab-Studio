@@ -112,11 +112,18 @@ The sections above describe the **target contract** from the build pack. The cur
 actually-running implementation is documented in `docs/CURRENT_IMPLEMENTATION.md` — read
 it first when working in this repo. Summary:
 
-- **Done (task #2):** full React frontend (`artifacts/studio`, landing, methodology,
-  dashboard, projects, Agent Studio, templates, 6-step composer, live meeting room, run
-  detail) with OpenAPI-first codegen (`lib/api-spec` → generated React Query hooks and
-  Zod schemas). The frontend currently still uses its localStorage demo layer; wiring it
-  to the real backend is a follow-up.
+- **Done (tasks #2/#5):** single canonical React frontend at `artifacts/web` (root
+  preview path) — landing, methodology, sign-in (dev-login), dashboard, projects,
+  agents, templates, evidence library, 6-step composer, live meeting room (SSE with
+  replay + polling fallback), run detail (summary/transcript/citations/manifest/
+  reviews/exports), comparisons, settings. It is fully API-backed: the localStorage
+  demo layer was removed and the older duplicate `artifacts/studio` frontend was
+  deleted. `lib/api-spec/openapi.yaml` is now **generated from the FastAPI app**
+  (`app.openapi()`, `/api` prefix stripped into the server url, query params stripped
+  for orval-zod compatibility); regenerate it from the backend then run
+  `pnpm --filter @workspace/api-spec codegen`. The frontend consumes generated hooks
+  via aliases in `artifacts/web/src/api/index.ts`, session/workspace context in
+  `src/api/session.tsx`, and a fetch-based SSE client in `src/api/sse.ts`.
 - **Done (task #1):** the authoritative Python/FastAPI backend in `backend/` wrapping
   upstream `src/virtual_lab`. The `artifacts/api-server` workflow now launches uvicorn
   (`backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend`); the former
@@ -134,8 +141,8 @@ it first when working in this repo. Summary:
   cancel/budget, clean-database boot end-to-end).
 - **Pending (task #3):** evidence library, exports, reproducibility packets. The
   composer's evidence step is present and labeled "coming soon".
-- Live updates are currently React Query polling (~1.5 s during active runs); the
-  event log is `seq`-ordered so SSE replay can drop in without contract changes.
+- Live updates use SSE (`/api/v1/runs/{id}/events/stream`, replay via
+  `last_event_id`) with a ~5 s React Query polling fallback while a run is active.
 
 ## Completion standard
 
