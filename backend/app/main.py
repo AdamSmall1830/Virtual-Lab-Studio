@@ -6,7 +6,8 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -55,6 +56,53 @@ app = FastAPI(
 
 app.include_router(v1_router, prefix="/api/v1")
 app.include_router(library_router, prefix="/api/v1")
+
+
+# ---------------------------------------------------------------------------
+# Clerk Frontend API proxy (production only). Serves /api/__clerk/* so the
+# Clerk browser SDK works on the deployed domain without DNS setup. In
+# development the SDK talks to Clerk's dev instance directly.
+# ---------------------------------------------------------------------------
+CLERK_FAPI = "https://frontend-api.clerk.dev"
+CLERK_PROXY_PATH = "/api/__clerk"
+_HOP_BY_HOP = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "content-length", "host",
+}
+
+
+@app.api_route(CLERK_PROXY_PATH + "/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"], include_in_schema=False)
+async def clerk_proxy(path: str, request: Request):
+    settings = get_settings()
+    if settings.is_development or not settings.clerk_secret_key:
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+
+    forwarded_host = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+    host = forwarded_host or request.headers.get("host", "")
+    proto = request.headers.get("x-forwarded-proto", "https")
+    headers = {
+        k: v for k, v in request.headers.items() if k.lower() not in _HOP_BY_HOP
+    }
+    headers["Clerk-Proxy-Url"] = f"{proto}://{host}{CLERK_PROXY_PATH}"
+    headers["Clerk-Secret-Key"] = settings.clerk_secret_key
+    xff = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    if xff:
+        headers["X-Forwarded-For"] = xff
+
+    url = f"{CLERK_FAPI}/{path}"
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+        upstream = await client.request(
+            request.method, url, params=request.query_params, content=body, headers=headers
+        )
+    response_headers = {
+        k: v for k, v in upstream.headers.items() if k.lower() not in _HOP_BY_HOP
+    }
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        headers=response_headers,
+    )
 
 
 @app.get("/api/health")

@@ -274,6 +274,20 @@ async def seed(db: AsyncSession) -> dict[str, int]:
         db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=user.id, role="owner"))
         counts["core"] += 1
 
+    counts["core"] += await ensure_workspace_baseline(db, workspace, user)
+
+    await db.commit()
+    logger.info("Seed complete: %s", counts)
+    return counts
+
+
+async def ensure_workspace_baseline(db: AsyncSession, workspace: Workspace, user: User) -> int:
+    """Idempotently create the baseline content every workspace starts with:
+    a demonstration project, two evidence notes, and the free deterministic
+    Demo Provider + model. Reused by the global seed and by per-user
+    workspace provisioning on first sign-in. Does not commit."""
+    created = 0
+
     project = (
         await db.execute(
             select(Project).where(
@@ -300,7 +314,7 @@ async def seed(db: AsyncSession) -> dict[str, int]:
         )
         db.add(project)
         await db.flush()
-        counts["core"] += 1
+        created += 1
 
     for ev in DEMO_EVIDENCE:
         existing = (
@@ -322,7 +336,7 @@ async def seed(db: AsyncSession) -> dict[str, int]:
                 metadata_json={"content": ev["content"], "seeded": True},
                 created_by=user.id,
             ))
-            counts["core"] += 1
+            created += 1
         await db.flush()
         source = existing or (
             await db.execute(
@@ -358,7 +372,7 @@ async def seed(db: AsyncSession) -> dict[str, int]:
         )
         db.add(provider)
         await db.flush()
-        counts["core"] += 1
+        created += 1
 
     model = (
         await db.execute(
@@ -376,11 +390,44 @@ async def seed(db: AsyncSession) -> dict[str, int]:
             supports_structured_output=True, supports_streaming=True,
             capabilities={"simulation": True}, is_enabled=True,
         ))
-        counts["core"] += 1
+        created += 1
 
-    await db.commit()
-    logger.info("Seed complete: %s", counts)
-    return counts
+    return created
+
+
+async def ensure_personal_workspace(db: AsyncSession, user: User) -> Workspace:
+    """Idempotently provision the user's own private workspace on first
+    sign-in: workspace + owner membership + baseline content (demo project,
+    evidence notes, Demo Provider). Deterministic slug keeps this safe to
+    call on every sign-in. Does not commit."""
+    slug = f"lab-{user.id.hex[:12]}"
+    workspace = (
+        await db.execute(select(Workspace).where(Workspace.slug == slug))
+    ).scalar_one_or_none()
+    if workspace is None:
+        name_base = (user.display_name or (user.email or "").split("@")[0] or "My").strip()
+        workspace = Workspace(
+            name=f"{name_base}'s Lab", slug=slug, created_by=user.id,
+            settings={"default_provider": "demo", "personal": True},
+            governance_policy={"human_oversight_required": True},
+        )
+        db.add(workspace)
+        await db.flush()
+
+    membership = (
+        await db.execute(
+            select(WorkspaceMembership).where(
+                WorkspaceMembership.workspace_id == workspace.id,
+                WorkspaceMembership.user_id == user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None:
+        db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=user.id, role="owner"))
+        await db.flush()
+
+    await ensure_workspace_baseline(db, workspace, user)
+    return workspace
 
 
 async def seed_main() -> None:

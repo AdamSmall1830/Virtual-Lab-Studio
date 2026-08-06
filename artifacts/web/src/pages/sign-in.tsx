@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { FlaskConical, ArrowRight, Loader2 } from 'lucide-react';
+import { SignIn } from '@clerk/react';
+import { Loader2 } from 'lucide-react';
 import { useSession } from '@/api/session';
+import { basePath } from '@/lib/clerk';
 
-export default function SignIn() {
+/** Development-only fallback: the backend's dev-login (APP_ENV=development). */
+function DevSignIn() {
+  const { signIn } = useSession();
   const [, setLocation] = useLocation();
-  const { signIn, isAuthenticated } = useSession();
   const [email, setEmail] = useState('researcher@virtual-lab.dev');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (isAuthenticated) {
-    setLocation('/app');
-    return null;
-  }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,70 +22,63 @@ export default function SignIn() {
       await signIn(email.trim());
       setLocation('/app');
     } catch {
-      setError('Sign-in failed. The development sign-in is only available in development mode.');
+      setError('Development sign-in failed (only available when APP_ENV=development).');
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)/0.15),_transparent_50%)]" />
-
-      <div className="vls-glass max-w-md w-full p-8 md:p-10 rounded-2xl relative z-10 shadow-2xl border-white/10 dark:border-white/5">
-        <div className="flex justify-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/20">
-            <FlaskConical className="w-8 h-8" />
-          </div>
-        </div>
-
-        <h1 className="text-2xl font-display font-bold text-center mb-2">Welcome to the Studio</h1>
-        <p className="text-center text-muted-foreground text-sm mb-8">
-          Sign in to your research workspace. Meetings run on the deterministic Demo Provider unless
-          a real provider is configured.
+    <form onSubmit={handleSignIn} className="mt-6 vls-glass rounded-xl p-4 w-[440px] max-w-full">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+        Development sign-in
+      </p>
+      <div className="flex gap-2">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          aria-label="Development email"
+          className="flex-1 h-10 px-3 rounded-lg bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+          placeholder="you@lab.dev"
+        />
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="h-10 px-4 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 disabled:opacity-60"
+        >
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enter'}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {error}
         </p>
+      )}
+    </form>
+  );
+}
 
-        <form onSubmit={handleSignIn} className="space-y-4">
-          <div>
-            <label htmlFor="signin-email" className="block text-sm font-medium mb-1.5">
-              Email
-            </label>
-            <input
-              id="signin-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-11 px-3 rounded-lg bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-              placeholder="you@lab.org"
-            />
-          </div>
+export default function SignInPage() {
+  const { isAuthenticated } = useSession();
+  const [, setLocation] = useLocation();
 
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+  if (isAuthenticated) {
+    setLocation('/app');
+    return null;
+  }
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-12 bg-primary text-primary-foreground rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none shadow-lg shadow-primary/20"
-          >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                Enter Workspace
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-8 text-center text-xs text-muted-foreground">
+  return (
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)/0.15),_transparent_50%)]" />
+      <div className="relative z-10 flex flex-col items-center">
+        {/* path must be the full browser path — Clerk reads window.location.pathname directly */}
+        <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+        {import.meta.env.DEV && <DevSignIn />}
+        <p className="mt-6 max-w-md text-center text-xs text-muted-foreground">
           AI meeting participants are model personas, not human experts. Outputs are decision
           support, not validated conclusions.
-        </div>
+        </p>
       </div>
     </div>
   );

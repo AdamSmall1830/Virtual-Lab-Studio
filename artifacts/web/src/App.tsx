@@ -1,6 +1,15 @@
-import React from 'react';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useEffect, useRef } from 'react';
+import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { ClerkProvider, useClerk } from '@clerk/react';
+import {
+  clerkPubKey,
+  clerkProxyUrl,
+  clerkAppearance,
+  clerkLocalization,
+  basePath,
+  stripBase,
+} from '@/lib/clerk';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -14,6 +23,7 @@ import Landing from '@/pages/landing';
 import Methodology from '@/pages/methodology';
 import Guide from '@/pages/guide';
 import SignIn from '@/pages/sign-in';
+import SignUp from '@/pages/sign-up';
 import Dashboard from '@/pages/dashboard';
 import Projects from '@/pages/projects';
 import ProjectDetail from '@/pages/project-detail';
@@ -80,7 +90,10 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/methodology" component={Methodology} />
       <Route path="/guide" component={Guide} />
-      <Route path="/sign-in" component={SignIn} />
+      {/* REQUIRED — the /*? optional wildcard matches both the bare URL and
+          Clerk's OAuth sub-paths (/sign-in/sso-callback, /sign-in/factor-one). */}
+      <Route path="/sign-in/*?" component={SignIn} />
+      <Route path="/sign-up/*?" component={SignUp} />
       <Route path="/app/*" component={AppRoutes} />
       <Route path="/app" component={AppRoutes} />
       <Route component={NotFound} />
@@ -88,20 +101,61 @@ function Router() {
   );
 }
 
+// Keeps the webview up-to-date when the signed-in Clerk user changes by
+// invalidating the QueryClient cache.
+function ClerkQueryClientCacheInvalidator() {
+  const { addListener } = useClerk();
+  const qc = useQueryClient();
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = addListener(({ user }) => {
+      const userId = user?.id ?? null;
+      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
+        qc.clear();
+      }
+      prevUserIdRef.current = userId;
+    });
+    return unsubscribe;
+  }, [addListener, qc]);
+
+  return null;
+}
+
+function ClerkProviderWithRoutes() {
+  const [, setLocation] = useLocation();
+
+  return (
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      localization={clerkLocalization}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <QueryClientProvider client={queryClient}>
+        <ClerkQueryClientCacheInvalidator />
+        <SessionProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <Router />
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </SessionProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
+  );
+}
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        <ThemeProvider>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-          </TooltipProvider>
-        </ThemeProvider>
-      </SessionProvider>
-    </QueryClientProvider>
+    <WouterRouter base={basePath}>
+      <ClerkProviderWithRoutes />
+    </WouterRouter>
   );
 }
 

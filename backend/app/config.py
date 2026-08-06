@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     session_secret: str = ""
     session_cookie_name: str = "vls_session"
     session_max_age_seconds: int = 60 * 60 * 24 * 14
+    # Managed identity provider (Clerk). Empty = Clerk sign-in disabled.
+    clerk_secret_key: str = ""
     run_worker_enabled: bool = True
     worker_id: str = "worker-1"
     worker_poll_seconds: float = 1.0

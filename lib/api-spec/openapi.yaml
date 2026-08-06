@@ -2,8 +2,27 @@ openapi: 3.1.0
 info:
   title: Api
   version: 0.1.0
-  description: "Virtual Lab Studio API \u2014 human-guided multi-agent research workspace"
 paths:
+  /v1/auth/clerk-login:
+    post:
+      summary: Clerk Login
+      description: 'Bridge a verified Clerk identity into the app session cookie.
+
+
+        The browser sends its short-lived Clerk session JWT as a Bearer token;
+
+        we verify it server-side (JWKS signature + Clerk Backend API profile),
+
+        upsert the user, provision their private workspace on first sign-in,
+
+        and set the same signed session cookie the rest of the API relies on.'
+      operationId: clerk_login_api_v1_auth_clerk_login_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /v1/auth/dev-login:
     post:
       summary: Dev Login
@@ -82,7 +101,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProjectOut'
-                title: Response List Projects Api V1 Workspaces  Workspace Id  Projects Get
+                title: Response List Projects Api V1 Workspaces  Workspace Id  Projects
+                  Get
         '422':
           description: Validation Error
           content:
@@ -165,7 +185,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AgentProfileOut'
-                title: Response List Agents Api V1 Workspaces  Workspace Id  Agents Get
+                title: Response List Agents Api V1 Workspaces  Workspace Id  Agents
+                  Get
         '422':
           description: Validation Error
           content:
@@ -193,7 +214,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TemplateProfileOut'
-                title: Response List Templates Api V1 Workspaces  Workspace Id  Templates Get
+                title: Response List Templates Api V1 Workspaces  Workspace Id  Templates
+                  Get
         '422':
           description: Validation Error
           content:
@@ -221,7 +243,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProviderConfigOut'
-                title: Response List Providers Api V1 Workspaces  Workspace Id  Providers Get
+                title: Response List Providers Api V1 Workspaces  Workspace Id  Providers
+                  Get
         '422':
           description: Validation Error
           content:
@@ -593,7 +616,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/InterventionOut'
-                title: Response List Interventions Api V1 Runs  Run Id  Interventions Get
+                title: Response List Interventions Api V1 Runs  Run Id  Interventions
+                  Get
         '422':
           description: Validation Error
           content:
@@ -621,7 +645,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EvidenceSourceOut'
-                title: Response List Evidence Api V1 Projects  Project Id  Evidence Get
+                title: Response List Evidence Api V1 Projects  Project Id  Evidence
+                  Get
         '422':
           description: Validation Error
           content:
@@ -736,7 +761,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EvidenceChunkOut'
-                title: Response List Evidence Chunks Api V1 Evidence  Source Id  Chunks Get
+                title: Response List Evidence Chunks Api V1 Evidence  Source Id  Chunks
+                  Get
         '422':
           description: Validation Error
           content:
@@ -795,8 +821,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EvidenceSearchHit'
-                title: Response Search Workspace Evidence Api V1 Workspaces  Workspace Id  Evidence Search
-                  Post
+                title: Response Search Workspace Evidence Api V1 Workspaces  Workspace
+                  Id  Evidence Search Post
         '422':
           description: Validation Error
           content:
@@ -885,7 +911,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RunCitationOut'
-                title: Response List Run Citations Api V1 Runs  Run Id  Citations Get
+                title: Response List Run Citations Api V1 Runs  Run Id  Citations
+                  Get
         '422':
           description: Validation Error
           content:
@@ -1073,7 +1100,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ComparisonSetOut'
-                title: Response List Comparisons Api V1 Projects  Project Id  Comparisons Get
+                title: Response List Comparisons Api V1 Projects  Project Id  Comparisons
+                  Get
         '422':
           description: Validation Error
           content:
@@ -1186,7 +1214,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ComparisonEvaluationOut'
-                title: Response List Evaluations Api V1 Comparisons  Comparison Id  Evaluations Get
+                title: Response List Evaluations Api V1 Comparisons  Comparison Id  Evaluations
+                  Get
         '422':
           description: Validation Error
           content:
@@ -3025,6 +3054,3 @@ components:
       - slug
       - created_at
       title: WorkspaceOut
-servers:
-- url: /api
-  description: Base API path

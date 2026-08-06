@@ -2,4 +2,5 @@
 - [Orval zod codegen quirks](orval-zod-codegen.md) — lib/api-zod needs zod v4 (not catalog v3); avoid query params in openapi.yaml (Params name collision).
 - [Frontend data layer](frontend-demo-data-layer.md) — artifacts/web is fully API-backed (demo store removed, studio deleted); openapi.yaml is generated from FastAPI, not hand-written.
 - [Backend Python runtime](backend-python-runtime.md) — FastAPI in backend/ with backend/.venv; api-server workflow shells out to uvicorn; ENUM values must be listed even with create_type=False.
+- [Clerk auth bridge](clerk-auth-bridge.md) — Clerk JWT verified server-side then bridged into the app's own session cookie; per-user workspace provisioning is idempotent by deterministic slug.
 - [Evidence, provenance & exports](evidence-provenance.md) — evidence frozen into definition at launch; object-storage Client needs explicit bucket_id; blinded comparison identity is server-side, revealed only after the caller submits.

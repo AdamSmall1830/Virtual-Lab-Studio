@@ -1,16 +1,20 @@
 // Session + workspace context backed by the real API.
 //
-// On mount we query `/api/v1/me`; a 401 means "not signed in".
-// After sign-in (development dev-login) the session cookie is set by the
-// backend and all subsequent requests are authenticated.
+// Identity comes from Clerk (managed sign-in). After Clerk sign-in, the
+// short-lived Clerk session token is exchanged once at
+// POST /api/v1/auth/clerk-login, which verifies it server-side and sets the
+// app's own signed session cookie. All subsequent requests use that cookie.
+// In development the backend's dev-login remains available as a fallback.
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@clerk/react';
 import {
   useMe,
   getMeQueryKey,
   useDevLogin,
   useLogout,
+  apiBase,
   type MeOut,
   type UserOut,
   type WorkspaceOut,
@@ -33,6 +37,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const clerk = useAuth();
   const meQuery = useMe({
     query: {
       queryKey: getMeQueryKey(),
@@ -47,6 +52,39 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const me = meQuery.isError ? null : meQuery.data;
 
+  // Bridge: Clerk says signed in but the backend session is missing/expired —
+  // exchange the Clerk token for the app session cookie exactly once per gap.
+  const [isBridging, setIsBridging] = useState(false);
+  const bridgeAttempted = useRef(false);
+  const needsBridge = Boolean(clerk.isLoaded && clerk.isSignedIn && meQuery.isError);
+
+  useEffect(() => {
+    if (!needsBridge || bridgeAttempted.current) return;
+    bridgeAttempted.current = true;
+    setIsBridging(true);
+    (async () => {
+      try {
+        const token = await clerk.getToken();
+        if (!token) return;
+        const res = await fetch(`${apiBase()}/v1/auth/clerk-login`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+        if (res.ok) {
+          await queryClient.invalidateQueries({ queryKey: getMeQueryKey() });
+        }
+      } finally {
+        setIsBridging(false);
+      }
+    })();
+  }, [needsBridge, clerk, queryClient]);
+
+  // Allow a fresh bridge attempt after the Clerk user changes.
+  useEffect(() => {
+    if (!clerk.isSignedIn) bridgeAttempted.current = false;
+  }, [clerk.isSignedIn]);
+
   const value = useMemo<SessionContextValue>(() => {
     const workspace = me?.workspaces?.[0] ?? null;
     return {
@@ -54,7 +92,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       user: me?.user ?? null,
       workspace,
       workspaceId: workspace?.id ?? null,
-      isLoading: meQuery.isLoading,
+      isLoading:
+        meQuery.isLoading || !clerk.isLoaded || isBridging || (needsBridge && !bridgeAttempted.current),
       isAuthenticated: Boolean(me?.user),
       signIn: async (email: string, displayName?: string) => {
         await devLogin.mutateAsync({ data: { email, display_name: displayName ?? null } });
@@ -62,10 +101,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       signOut: async () => {
         await logout.mutateAsync();
+        if (clerk.isSignedIn) {
+          await clerk.signOut();
+        }
         queryClient.clear();
       },
     };
-  }, [me, meQuery.isLoading, devLogin, logout, queryClient]);
+  }, [me, meQuery.isLoading, clerk, isBridging, needsBridge, devLogin, logout, queryClient]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

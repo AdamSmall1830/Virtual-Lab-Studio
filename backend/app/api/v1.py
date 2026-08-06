@@ -12,7 +12,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..clerk import ClerkAuthError, resolve_clerk_identity
 from ..config import get_settings
+from ..seed import ensure_personal_workspace
 from ..db import get_db, get_sessionmaker
 from ..engine import canonical_json, expected_call_count, sha256_text
 from ..events import append_event, broadcaster, fetch_events_after
@@ -96,6 +98,57 @@ async def audit(
 # auth / me
 # --------------------------------------------------------------------------
 
+@router.post("/auth/clerk-login")
+async def clerk_login(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    """Bridge a verified Clerk identity into the app session cookie.
+
+    The browser sends its short-lived Clerk session JWT as a Bearer token;
+    we verify it server-side (JWKS signature + Clerk Backend API profile),
+    upsert the user, provision their private workspace on first sign-in,
+    and set the same signed session cookie the rest of the API relies on.
+    """
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        raise problem(401, "missing_token", "Missing bearer token.")
+    token = auth_header[7:].strip()
+    try:
+        identity = await resolve_clerk_identity(token)
+    except ClerkAuthError as exc:
+        raise problem(401, exc.code, exc.message)
+
+    user = (
+        await db.execute(
+            select(User).where(User.auth_provider == "clerk", User.auth_subject == identity.subject)
+        )
+    ).scalar_one_or_none()
+    is_new = user is None
+    if user is None:
+        user = User(
+            auth_provider="clerk",
+            auth_subject=identity.subject,
+            email=identity.email or f"{identity.subject}@clerk.local",
+            display_name=identity.display_name or (identity.email or "Researcher").split("@")[0],
+            avatar_url=identity.avatar_url,
+        )
+        db.add(user)
+        await db.flush()
+    else:
+        # Keep profile fields in sync with the identity provider.
+        if identity.email:
+            user.email = identity.email
+        if identity.display_name:
+            user.display_name = identity.display_name
+        user.avatar_url = identity.avatar_url
+
+    workspace = await ensure_personal_workspace(db, user)
+    if is_new:
+        await audit(db, workspace.id, user, "user.signed_up", "user", str(user.id),
+                    {"auth_provider": "clerk"})
+    await db.commit()
+    set_session_cookie(response, user.id)
+    return {"user": UserOut.model_validate(user)}
+
+
 @router.post("/auth/dev-login")
 async def dev_login(body: DevLoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     settings = get_settings()
@@ -127,6 +180,8 @@ async def dev_login(body: DevLoginIn, response: Response, db: AsyncSession = Dep
         ).scalar_one_or_none()
         if membership is None:
             db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=user.id, role="researcher"))
+    # Dev users get the same private-workspace provisioning as real sign-ins.
+    await ensure_personal_workspace(db, user)
     await db.commit()
     set_session_cookie(response, user.id)
     return {"user": UserOut.model_validate(user)}

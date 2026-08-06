@@ -130,7 +130,11 @@ it first when working in this repo. Summary:
   Express/Drizzle stand-in has been deleted. On startup the app applies Alembic
   migrations (schema = `specs/database_schema.sql`) and runs the idempotent seed
   (system agents/templates/tools, demo workspace/project/provider), so a fresh empty
-  database boots working. Endpoints under `/api/v1`: dev-login auth (development only)
+  database boots working. Endpoints under `/api/v1`: Clerk sign-in bridge
+  (`/auth/clerk-login`: browser posts the Clerk session JWT, server verifies via JWKS +
+  Clerk Backend API in `backend/app/clerk.py`, upserts the user, provisions a private
+  per-user workspace via `seed.ensure_personal_workspace`, sets the signed session
+  cookie) plus dev-login auth (development only)
   + signed session cookie, workspaces/projects/agents/templates/providers,
   meeting-drafts (create → validate/estimate → launch, frozen sha256 definitions),
   runs (turns, summary, events with `?after=` replay, SSE `events/stream` with
