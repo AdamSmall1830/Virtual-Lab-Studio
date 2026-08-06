@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useRoute, Link } from 'wouter';
+import { useRoute, useLocation, Link } from 'wouter';
 import {
   ArrowLeft, CheckCircle2, FileText, Database, ShieldCheck, Download, Code,
   FileTerminal, AlertTriangle, ChevronRight, ChevronDown, Loader2, XCircle,
@@ -22,6 +22,7 @@ import {
   useRunReviews,
   getRunReviewsQueryKey,
   useUpsertMyReview,
+  useRetryRun,
   useCreateExport,
   useRunExports,
   getRunExportsQueryKey,
@@ -34,6 +35,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'budget_stopped']);
+// Stopped before finishing: the transcript so far is intact, so the run can be
+// picked up again from its last completed turn instead of paying for it twice.
+// budget_stopped is excluded — its spend still counts against the frozen
+// budget, so it would stop again at the very next checkpoint.
+const RESUMABLE = new Set(['failed', 'cancelled']);
 const EXPORT_PENDING = new Set(['queued', 'running']);
 
 function runTitle(run: RunOut): string {
@@ -104,6 +110,15 @@ export default function RunDetail() {
 
   const runQuery = useRun(runId, { query: { enabled: Boolean(runId), queryKey: getRunQueryKey(runId) } });
   const run = runQuery.data;
+  const retryRun = useRetryRun();
+  const detailQueryClient = useQueryClient();
+  const [, navigate] = useLocation();
+
+  const handleResume = async () => {
+    await retryRun.mutateAsync({ runId });
+    await detailQueryClient.invalidateQueries({ queryKey: getRunQueryKey(runId) });
+    navigate(`/app/runs/${runId}/live`);
+  };
 
   if (!runId) return <div className="p-8 text-center text-muted-foreground">Run not found</div>;
 
@@ -159,14 +174,66 @@ export default function RunDetail() {
         </div>
       </header>
 
-      {run.failure_safe_message && (
-        <div className="mb-6 p-6 rounded-xl border-2 border-destructive/30 bg-destructive/5 flex items-start gap-4">
-          <AlertTriangle className="w-8 h-8 text-destructive shrink-0" />
-          <div>
-            <h3 className="text-lg font-display font-bold text-destructive mb-1">Run {statusLabel(run.status)}</h3>
-            <p className="text-foreground font-medium mb-1">{run.failure_safe_message}</p>
+      {(run.failure_safe_message || RESUMABLE.has(run.status)) && (
+        <div
+          className={`mb-6 p-6 rounded-xl border-2 flex items-start gap-4 ${
+            run.failure_safe_message
+              ? 'border-destructive/30 bg-destructive/5'
+              : 'border-border bg-muted/30'
+          }`}
+        >
+          <AlertTriangle
+            className={`w-8 h-8 shrink-0 ${
+              run.failure_safe_message ? 'text-destructive' : 'text-muted-foreground'
+            }`}
+          />
+          <div className="flex-1 min-w-0">
+            <h3
+              className={`text-lg font-display font-bold mb-1 ${
+                run.failure_safe_message ? 'text-destructive' : 'text-foreground'
+              }`}
+            >
+              Run {statusLabel(run.status)}
+            </h3>
+            {run.failure_safe_message && (
+              <p className="text-foreground font-medium mb-1">{run.failure_safe_message}</p>
+            )}
             {run.failure_code && (
               <p className="text-xs text-muted-foreground font-mono">Code: {run.failure_code}</p>
+            )}
+
+            {RESUMABLE.has(run.status) && (
+              <div className="mt-4">
+                <button
+                  onClick={handleResume}
+                  disabled={retryRun.isPending}
+                  data-testid="button-resume-run"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-opacity"
+                >
+                  {retryRun.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Resume from turn {run.provider_call_count + 1}
+                </button>
+                <p className="text-xs text-muted-foreground mt-2 max-w-prose" data-testid="text-resume-explainer">
+                  {run.provider_call_count > 0 ? (
+                    <>
+                      The {run.provider_call_count} turn{run.provider_call_count === 1 ? '' : 's'} already
+                      completed are replayed from this run&rsquo;s saved transcript — your provider is only
+                      charged for the turns that are still missing.
+                    </>
+                  ) : (
+                    <>This run stopped before any turn completed, so it starts again from the beginning.</>
+                  )}
+                </p>
+                {retryRun.isError && (
+                  <p className="text-xs text-destructive mt-2" data-testid="text-resume-error">
+                    Could not resume this run. Please try again.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>

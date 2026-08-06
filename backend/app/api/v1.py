@@ -34,6 +34,7 @@ from ..models import (
     Run,
     RunEvent,
     RunIntervention,
+    RunManifest,
     RunSummary,
     RunTurn,
     TemplateProfile,
@@ -1098,6 +1099,95 @@ async def resume_run(run_id: uuid.UUID, user: User = Depends(get_current_user), 
         db, run, user, "resume", "run.resumed" if False else "run.resume_requested",
         {"paused", "pausing"}, None,
     )
+
+
+# A run that stopped before finishing can be picked back up. budget_stopped is
+# deliberately excluded: the budget check runs before the next call and the
+# spend already counted against it is preserved, so such a run would stop again
+# immediately -- resuming it would need a way to amend the frozen budget first.
+RESUMABLE_RUN_STATUSES = frozenset({"failed", "cancelled"})
+
+
+@router.post("/runs/{run_id}/retry", response_model=RunOut)
+async def retry_run(run_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Requeue a stopped run so it continues from its last completed turn.
+
+    Turns already persisted are replayed from the database when the run is
+    picked back up — the engine rebuilds the transcript from them and skips the
+    provider call entirely — so a run that died late (a rate limit, a crash) is
+    only charged for the turns it still has left.
+    """
+    # Lock the run row for the whole transition. The worker writes a stopped
+    # run's summary and manifest in a *separate* transaction after committing
+    # the terminal status, and takes the same lock before doing so. Without
+    # this, a retry landing in that window would leave the abandoned attempt's
+    # summary attached to the run — and the completion path reuses whatever
+    # summary it finds, so the resumed run would finish carrying a summary of
+    # its own truncated prefix. The lock also serializes concurrent retries and
+    # keeps us from clearing a lease a worker has just claimed.
+    run = (
+        await db.execute(select(Run).where(Run.id == run_id).with_for_update())
+    ).scalar_one_or_none()
+    if run is None:
+        raise problem(404, "not_found", "Run not found")
+    await require_workspace_role(db, run.workspace_id, user, "researcher")
+    if run.status not in RESUMABLE_RUN_STATUSES:
+        raise problem(
+            409, "invalid_state",
+            "Only a run that stopped before finishing can be resumed",
+        )
+
+    completed_turns = (
+        await db.execute(
+            select(func.count())
+            .select_from(RunTurn)
+            .where(RunTurn.run_id == run.id, RunTurn.status == "completed")
+        )
+    ).scalar_one()
+
+    # The summary and manifest written when the run stopped describe a partial
+    # transcript. Drop them so finalization rebuilds both over the finished
+    # record; the superseded manifest's hashes are recorded as an event first so
+    # the provenance chain still accounts for the attempt they covered.
+    superseded: dict[str, Any] | None = None
+    existing_summary = await db.get(RunSummary, run.id)
+    if existing_summary is not None:
+        await db.delete(existing_summary)
+    existing_manifest = await db.get(RunManifest, run.id)
+    if existing_manifest is not None:
+        superseded = {
+            "manifest_payload_sha256": existing_manifest.manifest_payload_sha256,
+            "transcript_sha256": existing_manifest.transcript_sha256,
+            "summary_sha256": existing_manifest.summary_sha256,
+            "reused_turns": int(completed_turns),
+        }
+        await db.delete(existing_manifest)
+
+    run.status = "queued"
+    run.failure_code = None
+    run.failure_safe_message = None
+    run.completed_at = None
+    run.control_requested = None
+    run.control_requested_by = None
+    run.control_requested_at = None
+    run.lease_owner = None
+    run.lease_expires_at = None
+    await audit(db, run.workspace_id, user, "run.retried", "run", str(run.id))
+    await db.commit()
+
+    if superseded is not None:
+        await append_event(
+            db, workspace_id=run.workspace_id, run_id=run.id,
+            event_type="manifest.superseded", payload=superseded,
+            actor_user_id=user.id,
+        )
+    await append_event(
+        db, workspace_id=run.workspace_id, run_id=run.id,
+        event_type="run.queued",
+        payload={"resumed": True, "reused_turns": int(completed_turns)},
+        actor_user_id=user.id,
+    )
+    return RunOut.model_validate(run)
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunOut)

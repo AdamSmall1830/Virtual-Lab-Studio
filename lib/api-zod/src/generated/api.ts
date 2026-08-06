@@ -767,6 +767,42 @@ export const ResumeRunApiV1RunsRunIdResumePostResponse = zod.object({
 
 
 /**
+ * Requeue a stopped run so it continues from its last completed turn.
+ *
+ * Turns already persisted are replayed from the database when the run is
+ * picked back up — the engine rebuilds the transcript from them and skips the
+ * provider call entirely — so a run that died late (a rate limit, a crash) is
+ * only charged for the turns it still has left.
+ * @summary Retry Run
+ */
+export const RetryRunApiV1RunsRunIdRetryPostParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const RetryRunApiV1RunsRunIdRetryPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "meeting_definition_id": zod.uuid(),
+  "status": zod.string(),
+  "review_status": zod.string(),
+  "demo_mode": zod.boolean(),
+  "current_round": zod.int(),
+  "provider_call_count": zod.int(),
+  "tool_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "actual_cost_usd": zod.number(),
+  "wall_seconds": zod.number(),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()])
+})
+
+
+/**
  * @summary Cancel Run
  */
 export const CancelRunApiV1RunsRunIdCancelPostParams = zod.object({

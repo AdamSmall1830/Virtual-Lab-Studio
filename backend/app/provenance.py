@@ -367,6 +367,9 @@ _TERMINAL_STATUS_TEXT = {
     "budget_stopped": "was stopped because it reached its budget limit",
 }
 
+# Derived so the two cannot drift: every terminal status needs outcome text.
+TERMINAL_RUN_STATUSES = frozenset(_TERMINAL_STATUS_TEXT)
+
 
 async def ensure_terminal_summary(db: AsyncSession, run: Run) -> RunSummary:
     """Ensure a schema-valid structured summary exists for a terminal run.
@@ -460,11 +463,28 @@ async def ensure_manifest_safe(db: AsyncSession, run: Run) -> tuple[RunManifest 
     manifest, without letting unexpected errors abort the caller.
     Returns (manifest, error_message).
 
+    ``(None, None)`` means the write was deliberately skipped: the run is no
+    longer terminal because a user requeued it (see the retry endpoint) between
+    the terminal commit and this call. Writing then would stamp the abandoned
+    attempt's summary onto a run that is about to continue, and the completion
+    path reuses whatever summary it finds — so the resumed run would finish
+    carrying a summary describing only its truncated prefix.
+
     The transaction is committed on success and rolled back on failure so a
     partial write never corrupts the surrounding unit of work. The summary is
     ensured first so the manifest's summary hash covers it.
     """
     try:
+        # Serialize against a concurrent retry: both sides take the run's row
+        # lock, so whichever commits first wins cleanly. If the requeue landed
+        # first this attempt is stale and must write nothing; if it lands after,
+        # it deletes the artifacts written here.
+        status = (
+            await db.execute(select(Run.status).where(Run.id == run.id).with_for_update())
+        ).scalar_one_or_none()
+        if status not in TERMINAL_RUN_STATUSES:
+            await db.rollback()
+            return None, None
         await ensure_terminal_summary(db, run)
         manifest = await ensure_manifest(db, run)
         await db.commit()

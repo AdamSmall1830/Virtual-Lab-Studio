@@ -45,6 +45,7 @@ export {
   usePauseRunApiV1RunsRunIdPausePost as usePauseRun,
   useResumeRunApiV1RunsRunIdResumePost as useResumeRun,
   useCancelRunApiV1RunsRunIdCancelPost as useCancelRun,
+  useRetryRunApiV1RunsRunIdRetryPost as useRetryRun,
   useAddInterventionApiV1RunsRunIdInterventionsPost as useAddIntervention,
   useListInterventionsApiV1RunsRunIdInterventionsGet as useInterventions,
   getListInterventionsApiV1RunsRunIdInterventionsGetQueryKey as getInterventionsQueryKey,

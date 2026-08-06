@@ -648,6 +648,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /v1/runs/{run_id}/retry:
+    post:
+      summary: Retry Run
+      description: 'Requeue a stopped run so it continues from its last completed
+        turn.
+
+
+        Turns already persisted are replayed from the database when the run is
+
+        picked back up — the engine rebuilds the transcript from them and skips the
+
+        provider call entirely — so a run that died late (a rate limit, a crash) is
+
+        only charged for the turns it still has left.'
+      operationId: retry_run_api_v1_runs__run_id__retry_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/runs/{run_id}/cancel:
     post:
       summary: Cancel Run

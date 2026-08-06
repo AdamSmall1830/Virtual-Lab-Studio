@@ -1035,12 +1035,12 @@ async def execute_run(
 
             # Provenance manifest (idempotent; validated against the schema).
             _manifest, _mf_err = await ensure_manifest_safe(db, run)
-            if _mf_err is None:
+            if _manifest is not None:
                 await append_event(
                     db, workspace_id=run.workspace_id, run_id=run.id,
                     event_type="manifest.created", payload={"manifest_version": "1.0"},
                 )
-            else:
+            elif _mf_err is not None:
                 await append_event(
                     db, workspace_id=run.workspace_id, run_id=run.id,
                     event_type="manifest.failed", payload={"message": _mf_err},
@@ -1075,11 +1075,14 @@ async def execute_run(
                 event_type="run.cancelled", payload={},
             )
             _m, _e = await ensure_manifest_safe(db, run)
-            await append_event(
-                db, workspace_id=run.workspace_id, run_id=run.id,
-                event_type="manifest.created" if _e is None else "manifest.failed",
-                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
-            )
+            if (_m, _e) != (None, None):
+                # (None, None) means the write was skipped because a retry
+                # requeued this run; the attempt's artifacts are not its own.
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.created" if _e is None else "manifest.failed",
+                    payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+                )
         except BudgetExceeded as exc:
             await db.rollback()
             run = await db.get(Run, run_id)
@@ -1101,11 +1104,14 @@ async def execute_run(
                 payload={"failure_code": "budget_exceeded", "message": run.failure_safe_message},
             )
             _m, _e = await ensure_manifest_safe(db, run)
-            await append_event(
-                db, workspace_id=run.workspace_id, run_id=run.id,
-                event_type="manifest.created" if _e is None else "manifest.failed",
-                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
-            )
+            if (_m, _e) != (None, None):
+                # (None, None) means the write was skipped because a retry
+                # requeued this run; the attempt's artifacts are not its own.
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.created" if _e is None else "manifest.failed",
+                    payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+                )
         except (ProviderCallError, ProviderConfigurationError) as exc:
             await db.rollback()
             run = await db.get(Run, run_id)
@@ -1122,11 +1128,14 @@ async def execute_run(
                 payload={"failure_code": run.failure_code, "message": run.failure_safe_message},
             )
             _m, _e = await ensure_manifest_safe(db, run)
-            await append_event(
-                db, workspace_id=run.workspace_id, run_id=run.id,
-                event_type="manifest.created" if _e is None else "manifest.failed",
-                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
-            )
+            if (_m, _e) != (None, None):
+                # (None, None) means the write was skipped because a retry
+                # requeued this run; the attempt's artifacts are not its own.
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.created" if _e is None else "manifest.failed",
+                    payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+                )
         except Exception as exc:  # noqa: BLE001
             await db.rollback()
             run = await db.get(Run, run_id)
@@ -1143,9 +1152,12 @@ async def execute_run(
                 payload={"failure_code": run.failure_code, "message": run.failure_safe_message},
             )
             _m, _e = await ensure_manifest_safe(db, run)
-            await append_event(
-                db, workspace_id=run.workspace_id, run_id=run.id,
-                event_type="manifest.created" if _e is None else "manifest.failed",
-                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
-            )
+            if (_m, _e) != (None, None):
+                # (None, None) means the write was skipped because a retry
+                # requeued this run; the attempt's artifacts are not its own.
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.created" if _e is None else "manifest.failed",
+                    payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+                )
             raise

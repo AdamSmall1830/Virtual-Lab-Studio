@@ -2035,6 +2035,83 @@ export const useResumeRunApiV1RunsRunIdResumePost = <TError = ErrorType<HTTPVali
       return useMutation(getResumeRunApiV1RunsRunIdResumePostMutationOptions(options));
     }
 
+export const getRetryRunApiV1RunsRunIdRetryPostUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/retry`
+}
+
+/**
+ * Requeue a stopped run so it continues from its last completed turn.
+ *
+ * Turns already persisted are replayed from the database when the run is
+ * picked back up — the engine rebuilds the transcript from them and skips the
+ * provider call entirely — so a run that died late (a rate limit, a crash) is
+ * only charged for the turns it still has left.
+ * @summary Retry Run
+ */
+export const retryRunApiV1RunsRunIdRetryPost = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunOut> => {
+
+  return customFetch<RunOut>(getRetryRunApiV1RunsRunIdRetryPostUrl(runId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryRunApiV1RunsRunIdRetryPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryRunApiV1RunsRunIdRetryPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryRunApiV1RunsRunIdRetryPost>>, TError,{runId: string}, TContext> => {
+
+const mutationKey = ['retryRunApiV1RunsRunIdRetryPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryRunApiV1RunsRunIdRetryPost>>, {runId: string}> = (props) => {
+          const {runId} = props ?? {};
+
+          return  retryRunApiV1RunsRunIdRetryPost(runId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryRunApiV1RunsRunIdRetryPostMutationResult = NonNullable<Awaited<ReturnType<typeof retryRunApiV1RunsRunIdRetryPost>>>
+
+    export type RetryRunApiV1RunsRunIdRetryPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Retry Run
+ */
+export const useRetryRunApiV1RunsRunIdRetryPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryRunApiV1RunsRunIdRetryPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryRunApiV1RunsRunIdRetryPost>>,
+        TError,
+        {runId: string},
+        TContext
+      > => {
+      return useMutation(getRetryRunApiV1RunsRunIdRetryPostMutationOptions(options));
+    }
+
 export const getCancelRunApiV1RunsRunIdCancelPostUrl = (runId: string,) => {
 
 
