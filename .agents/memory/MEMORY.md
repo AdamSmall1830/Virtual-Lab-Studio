@@ -3,4 +3,5 @@
 - [Frontend data layer](frontend-demo-data-layer.md) — artifacts/web is fully API-backed (demo store removed, studio deleted); openapi.yaml is generated from FastAPI, not hand-written.
 - [Backend Python runtime](backend-python-runtime.md) — FastAPI in backend/ with backend/.venv; api-server workflow shells out to uvicorn; ENUM values must be listed even with create_type=False.
 - [Clerk auth bridge](clerk-auth-bridge.md) — Clerk JWT verified server-side then bridged into the app's own session cookie; per-user workspace provisioning is idempotent by deterministic slug.
+- [Real model providers](real-providers.md) — OpenAI-compatible adapters built per config; AES-GCM secrets from SESSION_SECRET; pricing in ProviderModel.capabilities; demo_mode drives truthful labeling.
 - [Evidence, provenance & exports](evidence-provenance.md) — evidence frozen into definition at launch; object-storage Client needs explicit bucket_id; blinded comparison identity is server-side, revealed only after the caller submits.

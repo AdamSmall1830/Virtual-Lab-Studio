@@ -46,7 +46,7 @@ async def test_interrupted_run_resumes_without_duplicates(sessionmaker, monkeypa
 
     # Attempt 1: crash after 2 provider calls (mid-round).
     crashing = CrashAfter(get_demo_provider(), crash_after=2)
-    monkeypatch.setattr(engine_module, "get_provider", lambda ptype: crashing)
+    monkeypatch.setattr(engine_module, "build_provider", lambda pc, key, pricing=None: crashing)
     with pytest.raises(RuntimeError, match="simulated worker crash"):
         await execute_run(sessionmaker, run_id, "worker-a")
 
@@ -75,7 +75,7 @@ async def test_interrupted_run_resumes_without_duplicates(sessionmaker, monkeypa
         await db.commit()
 
     # Attempt 2: healthy provider resumes and finishes.
-    monkeypatch.setattr(engine_module, "get_provider", lambda ptype: get_demo_provider())
+    monkeypatch.setattr(engine_module, "build_provider", lambda pc, key, pricing=None: get_demo_provider())
     await execute_run(sessionmaker, run_id, "worker-b")
 
     async with sessionmaker() as db:
@@ -111,7 +111,7 @@ async def test_inflight_streaming_turn_is_reused_not_duplicated(sessionmaker, mo
     # Crash after 1 call but *during* turn 1: crash_after=1 raises before the
     # provider call, after the turn row was already inserted as 'streaming'.
     crashing = CrashAfter(get_demo_provider(), crash_after=1)
-    monkeypatch.setattr(engine_module, "get_provider", lambda ptype: crashing)
+    monkeypatch.setattr(engine_module, "build_provider", lambda pc, key, pricing=None: crashing)
     with pytest.raises(RuntimeError):
         await execute_run(sessionmaker, run_id, "worker-a")
 
@@ -130,7 +130,7 @@ async def test_inflight_streaming_turn_is_reused_not_duplicated(sessionmaker, mo
         )
         await db.commit()
 
-    monkeypatch.setattr(engine_module, "get_provider", lambda ptype: get_demo_provider())
+    monkeypatch.setattr(engine_module, "build_provider", lambda pc, key, pricing=None: get_demo_provider())
     await execute_run(sessionmaker, run_id, "worker-b")
 
     async with sessionmaker() as db:

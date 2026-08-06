@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = 1.0
     worker_lease_seconds: int = 90
     demo_latency_enabled: bool = True
+    # Replit AI Integrations proxy (zero-key OpenAI-compatible option).
+    # Provisioned automatically when the integration is set up; empty = unavailable.
+    ai_integrations_openai_base_url: str = ""
+    ai_integrations_openai_api_key: str = ""
 
     @property
     def is_development(self) -> bool:

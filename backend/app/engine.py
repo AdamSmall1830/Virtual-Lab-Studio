@@ -58,7 +58,17 @@ from .models import (
     ToolCall,
     ToolDefinition,
 )
-from .providers import CompletionRequest, get_demo_provider, get_provider
+from .providers import (
+    CompletionRequest,
+    DemoProvider,
+    ModelProvider,
+    ProviderCallError,
+    ProviderConfigurationError,
+    build_provider,
+    get_demo_provider,
+    pricing_from_capabilities,
+)
+from .secretbox import decrypt_secret
 from .provenance import (
     create_citations_from_summary,
     ensure_manifest_safe,
@@ -413,6 +423,69 @@ def _fallback_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict
     }
 
 
+def _real_summary(ctx: RunContext, transcript: list[dict[str, str]]) -> dict[str, Any]:
+    """Schema-valid structured summary for real (non-simulation) provider runs.
+
+    Derived from the recorded final synthesis turn. Truthfully labeled as
+    model-generated decision support requiring human review — never as a
+    simulation, and never as validated science.
+    """
+    d = ctx.definition
+    final_text = ""
+    for msg in reversed(transcript):
+        if msg.get("role") == "assistant" and msg.get("content"):
+            final_text = msg["content"]
+            break
+    exec_summary = final_text.strip()[:1500] or "The meeting completed without a final synthesis."
+    return {
+        "agenda": d.agenda or "(no agenda)",
+        "executive_summary": exec_summary,
+        "role_contributions": [],
+        "recommendation": {
+            "decision": "See the final synthesis in the transcript.",
+            "rationale": (
+                "Model-generated synthesis of the recorded discussion. "
+                "Requires human scientific review before use."
+            ),
+            "conditions": [],
+        },
+        "question_answers": [
+            {
+                "question": q,
+                "answer": "Addressed in the final synthesis; see transcript.",
+                "evidence_ids": [],
+                "confidence": 0.5,
+            }
+            for q in (d.questions or [])
+        ],
+        "evidence": [],
+        "assumptions": [],
+        "disagreements": [],
+        "risks_and_limitations": [
+            {
+                "risk": "Model-generated conclusions are not experimentally validated.",
+                "severity": "medium",
+                "likelihood": "possible",
+                "mitigation": "Human review of the full transcript and cited evidence.",
+            }
+        ],
+        "next_steps": [],
+        "confidence": {
+            "overall": 0.5,
+            "basis": "Model reasoning over the meeting transcript and attached evidence.",
+            "uncertainty": "Unvalidated model output; confidence is indicative only.",
+        },
+        "disclosure": {
+            "model_generated": True,
+            "human_review_required": True,
+            "limitations": [
+                "AI-generated decision support from a real model provider; "
+                "not experimentally, clinically, ethically, or legally validated."
+            ],
+        },
+    }
+
+
 async def execute_run(
     sessionmaker: async_sessionmaker[AsyncSession], run_id: uuid.UUID, worker_id: str
 ) -> None:
@@ -435,11 +508,22 @@ async def execute_run(
             rounds = d.rounds
             plan = build_turn_plan(d.meeting_type, rounds, ctx.def_agents)
 
-            provider_types = {
-                ctx.provider_configs[a.provider_config_id].provider_type for a in ctx.def_agents
-            }
-            for ptype in provider_types:
-                get_provider(ptype)  # raises if unavailable
+            # Build one provider instance per referenced configuration.
+            # Secrets are decrypted server-side only; raises before the run
+            # starts if any provider is unavailable or misconfigured.
+            providers_by_config: dict[uuid.UUID, ModelProvider] = {}
+            for pc_id, pc_row in ctx.provider_configs.items():
+                decrypted = None
+                if pc_row.secret_ciphertext and pc_row.secret_nonce and pc_row.secret_key_version:
+                    decrypted = decrypt_secret(
+                        pc_row.secret_ciphertext, pc_row.secret_nonce, pc_row.secret_key_version
+                    )
+                pricing = {
+                    pm_row.model_key: pricing_from_capabilities(pm_row.capabilities)
+                    for pm_row in ctx.provider_models.values()
+                    if pm_row.provider_config_id == pc_id
+                }
+                providers_by_config[pc_id] = build_provider(pc_row, decrypted, pricing)
 
             run.status = "running"
             run.started_at = started_at
@@ -605,8 +689,11 @@ async def execute_run(
                     },
                 )
 
-                provider = get_provider(pc.provider_type)
-                result = await provider.complete(request, scripted=scripted)
+                provider = providers_by_config[da.provider_config_id]
+                if isinstance(provider, DemoProvider):
+                    result = await provider.complete(request, scripted=scripted)
+                else:
+                    result = await provider.complete(request)
 
                 if settings.demo_latency_enabled and run.demo_mode:
                     import asyncio
@@ -725,14 +812,22 @@ async def execute_run(
             existing_summary = await db.get(RunSummary, run.id)
             validation_errors: list[dict[str, str]] = []
             if existing_summary is None:
-                summary_json = (
-                    demo.structured_summary() if scripted else _fallback_summary(ctx, messages)
-                )
+                if run.demo_mode:
+                    summary_json = (
+                        demo.structured_summary() if scripted else _fallback_summary(ctx, messages)
+                    )
+                    disclosure_line = get_demo_provider().disclosure
+                else:
+                    summary_json = _real_summary(ctx, messages)
+                    disclosure_line = (
+                        "AI-generated decision support produced by a configured model "
+                        "provider. Requires human scientific review; not a validated result."
+                    )
                 validation_errors = validate_summary(summary_json)
                 validation_status = "valid" if not validation_errors else "invalid"
                 final_text = messages[-1]["content"] if messages else ""
                 summary_markdown = (
-                    f"# {d.title}\n\n> {get_demo_provider().disclosure}\n\n"
+                    f"# {d.title}\n\n> {disclosure_line}\n\n"
                     f"## Executive summary\n\n{summary_json.get('executive_summary', '')}\n\n"
                     f"## Final synthesis\n\n{final_text}\n"
                 )
@@ -841,6 +936,27 @@ async def execute_run(
                 db, workspace_id=run.workspace_id, run_id=run.id,
                 event_type="run.failed",
                 payload={"failure_code": "budget_exceeded", "message": run.failure_safe_message},
+            )
+            _m, _e = await ensure_manifest_safe(db, run)
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="manifest.created" if _e is None else "manifest.failed",
+                payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+            )
+        except (ProviderCallError, ProviderConfigurationError) as exc:
+            await db.rollback()
+            run = await db.get(Run, run_id)
+            run.status = "failed"
+            run.failure_code = getattr(exc, "code", "provider_configuration_error")
+            run.failure_safe_message = getattr(exc, "safe_message", str(exc))
+            run.completed_at = datetime.now(UTC)
+            run.lease_owner = None
+            run.lease_expires_at = None
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.failed",
+                payload={"failure_code": run.failure_code, "message": run.failure_safe_message},
             )
             _m, _e = await ensure_manifest_safe(db, run)
             await append_event(

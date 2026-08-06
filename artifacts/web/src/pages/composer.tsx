@@ -112,16 +112,34 @@ export default function Composer() {
   
   const resolvedProjectId = projectId || initialProject || projects[0]?.id || '';
 
-  // Provider defaults: prefer demo provider + its first enabled model.
-  const defaultProvider = useMemo(() => {
-    const demo = providers.find((p) => p.provider_type === 'demo' && p.is_enabled);
-    return demo ?? providers.find((p) => p.is_enabled) ?? providers[0];
-  }, [providers]);
-  
-  const defaultModel = useMemo(() => {
-    const models = defaultProvider?.models ?? [];
-    return models.find((m) => m.is_enabled) ?? models[0];
-  }, [defaultProvider]);
+  // Provider + model selection for the whole session team. Defaults to the
+  // Demo Provider; any enabled real provider with enabled models is selectable.
+  const [providerId, setProviderId] = useState('');
+  const [modelId, setModelId] = useState('');
+  const selectableProviders = useMemo(
+    () => providers.filter((p) => p.is_enabled && (p.models ?? []).some((m) => m.is_enabled)),
+    [providers],
+  );
+  useEffect(() => {
+    if (providerId || selectableProviders.length === 0) return;
+    const demo = selectableProviders.find((p) => p.provider_type === 'demo');
+    const pick = demo ?? selectableProviders[0];
+    setProviderId(pick.id);
+    setModelId((pick.models ?? []).find((m) => m.is_enabled)?.id ?? '');
+  }, [providerId, selectableProviders]);
+  const selectedProvider = useMemo(
+    () => selectableProviders.find((p) => p.id === providerId),
+    [selectableProviders, providerId],
+  );
+  const selectedModel = useMemo(
+    () => (selectedProvider?.models ?? []).find((m) => m.id === modelId && m.is_enabled),
+    [selectedProvider, modelId],
+  );
+  const chooseProvider = (id: string) => {
+    setProviderId(id);
+    const p = selectableProviders.find((x) => x.id === id);
+    setModelId((p?.models ?? []).find((m) => m.is_enabled)?.id ?? '');
+  };
 
   const evidenceQuery = useProjectEvidence(resolvedProjectId, {
     query: { queryKey: getProjectEvidenceQueryKey(resolvedProjectId), enabled: Boolean(resolvedProjectId) && enabled },
@@ -209,7 +227,7 @@ export default function Composer() {
     setEstimate(null);
     setValidatedDraftId(null);
     setLaunchError(null);
-  }, [title, meetingType, agenda, questions, rules, rounds, temperature, maxProviderCalls, maxCostUsd, participants, evidenceIds]);
+  }, [title, meetingType, agenda, questions, rules, rounds, temperature, maxProviderCalls, maxCostUsd, participants, evidenceIds, providerId, modelId]);
 
   // ---- roster helpers ----
   const handleMeetingTypeChange = (type: MeetingType) => {
@@ -260,7 +278,7 @@ export default function Composer() {
     if (!resolvedProjectId) b.push('Select a project.');
     if (!title.trim()) b.push('Provide a session title.');
     if (!agenda.trim()) b.push('State your research question or agenda.');
-    if (!defaultProvider || !defaultModel) b.push('No enabled provider/model is available in this workspace.');
+    if (!selectedProvider || !selectedModel) b.push('Select an enabled model provider and model.');
     const roles = participants.map((p) => p.roleType);
     if (meetingType === 'team') {
       if (roles.filter((r) => r === 'lead').length !== 1) b.push('A team council needs exactly one lead investigator.');
@@ -277,7 +295,7 @@ export default function Composer() {
     }
     if (rounds < 1 || rounds > 12) b.push('Rounds must be between 1 and 12.');
     return b;
-  }, [resolvedProjectId, title, agenda, defaultProvider, defaultModel, participants, meetingType, rounds]);
+  }, [resolvedProjectId, title, agenda, selectedProvider, selectedModel, participants, meetingType, rounds]);
 
   const canLaunch = roleBlockers.length === 0;
 
@@ -289,8 +307,8 @@ export default function Composer() {
       position: idx,
       role_type: p.roleType,
       agent_version_id: p.agent.latest_version?.id ?? '',
-      provider_config_id: defaultProvider!.id,
-      provider_model_id: defaultModel!.id,
+      provider_config_id: selectedProvider!.id,
+      provider_model_id: selectedModel!.id,
       temperature_override: null,
     }));
     return {
@@ -682,6 +700,47 @@ export default function Composer() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-border/60">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-foreground">Model Provider</label>
+                    <select
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground cursor-pointer shadow-sm"
+                      value={providerId}
+                      onChange={(e) => chooseProvider(e.target.value)}
+                      data-testid="select-provider"
+                    >
+                      {selectableProviders.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.provider_type === 'demo' ? ' (Simulation)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedProvider?.provider_type === 'demo'
+                        ? 'Deterministic simulation — free, no external calls, truthfully labeled.'
+                        : 'Real model calls with recorded usage, cost, and provenance.'}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-foreground">Model</label>
+                    <select
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground cursor-pointer shadow-sm"
+                      value={modelId}
+                      onChange={(e) => setModelId(e.target.value)}
+                      data-testid="select-model"
+                    >
+                      {(selectedProvider?.models ?? []).filter((m) => m.is_enabled).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.display_name}
+                          {m.input_per_million != null && m.output_per_million != null
+                            ? ` — $${m.input_per_million}/$${m.output_per_million} per 1M`
+                            : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-6 border-t border-border/60">
                   <div className="space-y-4">
                     <label className="text-sm font-bold text-foreground flex justify-between">
@@ -761,7 +820,11 @@ export default function Composer() {
                      </div>
                      <div className="flex flex-col">
                        <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-bold mb-0.5">Est. Cost</span>
-                       <span className="font-bold text-foreground text-base">{estimate.estimated_cost_usd ? `$${estimate.estimated_cost_usd.toFixed(2)}` : 'N/A'}</span>
+                       <span className="font-bold text-foreground text-base" data-testid="text-est-cost">
+                         {estimate.estimated_cost_usd != null
+                           ? `$${estimate.estimated_cost_usd.toFixed(estimate.estimated_cost_usd > 0 && estimate.estimated_cost_usd < 0.01 ? 4 : 2)}${estimate.pricing_complete === false ? ' (partial pricing)' : ''}`
+                           : 'N/A'}
+                       </span>
                      </div>
                   </div>
                 </div>

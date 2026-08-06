@@ -22,6 +22,11 @@ export {
   useListAgentsApiV1WorkspacesWorkspaceIdAgentsGet as useAgents,
   useListTemplatesApiV1WorkspacesWorkspaceIdTemplatesGet as useTemplates,
   useListProvidersApiV1WorkspacesWorkspaceIdProvidersGet as useProviders,
+  getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey as getProvidersQueryKey,
+  useCreateProviderApiV1WorkspacesWorkspaceIdProvidersPost as useCreateProvider,
+  useUpdateProviderApiV1ProvidersProviderIdPatch as useUpdateProvider,
+  useTestProviderApiV1ProvidersProviderIdTestPost as useTestProvider,
+  useProviderEnvironmentApiV1ProvidersEnvironmentGet as useProviderEnvironment,
   // meeting drafts / launch
   useCreateDraftApiV1ProjectsProjectIdMeetingDraftsPost as useCreateDraft,
   useValidateDraftApiV1MeetingDraftsDraftIdValidatePost as useValidateDraft,

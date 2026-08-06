@@ -410,6 +410,9 @@ export interface ProviderModelOut {
   supports_structured_output: boolean;
   supports_streaming: boolean;
   is_enabled: boolean;
+  input_per_million?: number | null;
+  cached_input_per_million?: number | null;
+  output_per_million?: number | null;
 }
 
 export interface ProviderConfigOut {
@@ -417,10 +420,77 @@ export interface ProviderConfigOut {
   workspace_id: string;
   name: string;
   provider_type: string;
+  base_url?: string | null;
   is_enabled: boolean;
+  credential_source?: string;
+  has_credentials?: boolean;
+  last_tested_at?: string | null;
   last_test_status: string | null;
   last_test_safe_message: string | null;
   models?: ProviderModelOut[];
+}
+
+export type ProviderCreateInProviderType = typeof ProviderCreateInProviderType[keyof typeof ProviderCreateInProviderType];
+
+
+export const ProviderCreateInProviderType = {
+  openai: 'openai',
+  openai_compatible: 'openai_compatible',
+} as const;
+
+export type ProviderCreateInCredentialSource = typeof ProviderCreateInCredentialSource[keyof typeof ProviderCreateInCredentialSource];
+
+
+export const ProviderCreateInCredentialSource = {
+  api_key: 'api_key',
+  replit_ai: 'replit_ai',
+} as const;
+
+export interface ProviderModelIn {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  model_key: string;
+  display_name?: string | null;
+  input_per_million?: number | null;
+  cached_input_per_million?: number | null;
+  output_per_million?: number | null;
+  is_enabled?: boolean;
+}
+
+export interface ProviderCreateIn {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  provider_type: ProviderCreateInProviderType;
+  base_url?: string | null;
+  api_key?: string | null;
+  credential_source?: ProviderCreateInCredentialSource;
+  organization_id?: string | null;
+  /** @maxItems 25 */
+  models?: ProviderModelIn[];
+}
+
+export interface ProviderEnvironmentOut {
+  replit_ai_available: boolean;
+}
+
+export interface ProviderTestOut {
+  status: string;
+  message: string;
+  tested_model?: string | null;
+  latency_ms?: number | null;
+}
+
+export interface ProviderUpdateIn {
+  name?: string | null;
+  base_url?: string | null;
+  api_key?: string | null;
+  is_enabled?: boolean | null;
+  models?: ProviderModelIn[] | null;
 }
 
 export interface RunCitationOut {

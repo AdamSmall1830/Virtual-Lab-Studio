@@ -148,3 +148,17 @@
     --vls-glass-bg: 0 0% 100% / 0.97;
   }
 }
+
+.vls-input {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  color: hsl(var(--foreground));
+  width: 100%;
+}
+.vls-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+}

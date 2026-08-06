@@ -129,6 +129,9 @@ class ProviderModelOut(ORMModel):
     supports_structured_output: bool
     supports_streaming: bool
     is_enabled: bool
+    input_per_million: float | None = None
+    cached_input_per_million: float | None = None
+    output_per_million: float | None = None
 
 
 class ProviderConfigOut(ORMModel):
@@ -136,10 +139,52 @@ class ProviderConfigOut(ORMModel):
     workspace_id: uuid.UUID
     name: str
     provider_type: str
+    base_url: str | None = None
     is_enabled: bool
+    credential_source: str = "api_key"
+    has_credentials: bool = False
+    last_tested_at: datetime | None = None
     last_test_status: str | None
     last_test_safe_message: str | None
     models: list[ProviderModelOut] = []
+
+
+class ProviderModelIn(BaseModel):
+    model_key: str = Field(min_length=1, max_length=200)
+    display_name: str | None = Field(default=None, max_length=200)
+    input_per_million: float | None = Field(default=None, ge=0)
+    cached_input_per_million: float | None = Field(default=None, ge=0)
+    output_per_million: float | None = Field(default=None, ge=0)
+    is_enabled: bool = True
+
+
+class ProviderCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    provider_type: Literal["openai", "openai_compatible"]
+    base_url: str | None = Field(default=None, max_length=2000)
+    api_key: str | None = Field(default=None, min_length=1, max_length=4000)
+    credential_source: Literal["api_key", "replit_ai"] = "api_key"
+    organization_id: str | None = Field(default=None, max_length=200)
+    models: list[ProviderModelIn] = Field(default_factory=list, max_length=25)
+
+
+class ProviderUpdateIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    base_url: str | None = Field(default=None, max_length=2000)
+    api_key: str | None = Field(default=None, min_length=1, max_length=4000)
+    is_enabled: bool | None = None
+    models: list[ProviderModelIn] | None = Field(default=None, max_length=25)
+
+
+class ProviderTestOut(BaseModel):
+    status: str
+    message: str
+    tested_model: str | None = None
+    latency_ms: int | None = None
+
+
+class ProviderEnvironmentOut(BaseModel):
+    replit_ai_available: bool
 
 
 class DraftAgentIn(BaseModel):

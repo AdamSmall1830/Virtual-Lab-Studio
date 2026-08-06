@@ -9,11 +9,17 @@ and costs nothing.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
+import socket
+import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
-from .config import SPECS_DIR
+import httpx
+
+from .config import SPECS_DIR, get_settings
 
 
 @dataclass
@@ -143,9 +149,250 @@ def get_demo_provider() -> DemoProvider:
     return _demo_provider
 
 
+class ProviderConfigurationError(ValueError):
+    """A provider configuration is unsafe or incomplete (safe to show)."""
+
+
+def validate_base_url(base_url: str, *, allow_private: bool = False) -> str:
+    """Validate an OpenAI-compatible endpoint URL.
+
+    Blocks non-HTTPS schemes and private/reserved networks by default to
+    prevent server-side request forgery from user-supplied endpoints.
+    Returns the normalized URL without a trailing slash.
+    """
+    url = (base_url or "").strip().rstrip("/")
+    parsed = urlparse(url)
+    if parsed.scheme not in {"https", "http"}:
+        raise ProviderConfigurationError("Base URL must start with https://")
+    if parsed.scheme == "http" and not allow_private:
+        raise ProviderConfigurationError("Plain http endpoints are not allowed; use https.")
+    if not parsed.hostname:
+        raise ProviderConfigurationError("Base URL must include a hostname.")
+    if parsed.username or parsed.password:
+        raise ProviderConfigurationError("Credentials embedded in the URL are not allowed.")
+    if not allow_private:
+        host = parsed.hostname
+        try:
+            infos = socket.getaddrinfo(host, None)
+        except socket.gaierror:
+            raise ProviderConfigurationError(f"Could not resolve host '{host}'.")
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if (
+                ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified
+            ):
+                raise ProviderConfigurationError(
+                    "Endpoints on private or reserved networks are not allowed."
+                )
+    return url
+
+
+class ProviderCallError(RuntimeError):
+    """A provider request failed; message is safe to persist/show."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.safe_message = message
+
+
+@dataclass
+class ModelPricing:
+    input_per_million: float | None = None
+    cached_input_per_million: float | None = None
+    output_per_million: float | None = None
+
+    @property
+    def complete(self) -> bool:
+        return self.input_per_million is not None and self.output_per_million is not None
+
+    def cost(self, input_tokens: int, cached_input_tokens: int, output_tokens: int) -> float:
+        total = 0.0
+        if self.input_per_million is not None:
+            uncached = max(0, input_tokens - cached_input_tokens)
+            total += uncached * self.input_per_million / 1_000_000
+            cached_rate = (
+                self.cached_input_per_million
+                if self.cached_input_per_million is not None
+                else self.input_per_million
+            )
+            total += cached_input_tokens * cached_rate / 1_000_000
+        if self.output_per_million is not None:
+            total += output_tokens * self.output_per_million / 1_000_000
+        return round(total, 6)
+
+
+def pricing_from_capabilities(capabilities: dict[str, Any] | None) -> ModelPricing:
+    p = (capabilities or {}).get("pricing") or {}
+    def _num(key: str) -> float | None:
+        v = p.get(key)
+        return float(v) if v is not None else None
+    return ModelPricing(
+        input_per_million=_num("input_per_million"),
+        cached_input_per_million=_num("cached_input_per_million"),
+        output_per_million=_num("output_per_million"),
+    )
+
+
+def _model_rejects_temperature(model: str) -> bool:
+    # gpt-5+ and o-series reasoning models reject non-default temperature.
+    m = model.lower()
+    return m.startswith(("gpt-5", "o1", "o3", "o4"))
+
+
+class OpenAICompatibleProvider:
+    """Chat-completions adapter for OpenAI and OpenAI-compatible endpoints."""
+
+    provider_type = "openai_compatible"
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        *,
+        organization_id: str | None = None,
+        pricing_by_model: dict[str, ModelPricing] | None = None,
+        timeout_seconds: float = 180.0,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.organization_id = organization_id
+        self.pricing_by_model = pricing_by_model or {}
+        self.timeout_seconds = timeout_seconds
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        if self.organization_id:
+            headers["OpenAI-Organization"] = self.organization_id
+        return headers
+
+    async def complete(self, request: CompletionRequest) -> CompletionResult:
+        payload: dict[str, Any] = {
+            "model": request.model,
+            "messages": (
+                [{"role": "system", "content": request.system_prompt}] + request.messages
+            ),
+        }
+        if not _model_rejects_temperature(request.model):
+            payload["temperature"] = request.temperature
+        started = time.monotonic()
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                resp = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=self._headers(),
+                )
+        except httpx.TimeoutException:
+            raise ProviderCallError("provider_timeout", "The model provider timed out.")
+        except httpx.HTTPError:
+            raise ProviderCallError(
+                "provider_unreachable", "Could not reach the model provider endpoint."
+            )
+        latency_ms = int((time.monotonic() - started) * 1000)
+        if resp.status_code == 401 or resp.status_code == 403:
+            raise ProviderCallError("provider_auth_failed", "The provider rejected the API key.")
+        if resp.status_code == 404:
+            raise ProviderCallError(
+                "provider_model_not_found",
+                f"The provider endpoint rejected model '{request.model}'.",
+            )
+        if resp.status_code == 429:
+            raise ProviderCallError("provider_rate_limited", "The provider rate-limited the request.")
+        if resp.status_code >= 400:
+            raise ProviderCallError(
+                "provider_error", f"The provider returned an error (HTTP {resp.status_code})."
+            )
+        try:
+            data = resp.json()
+            choice = data["choices"][0]
+            content = choice["message"]["content"] or ""
+            finish_reason = choice.get("finish_reason") or "stop"
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise ProviderCallError(
+                "provider_bad_response", "The provider returned an unexpected response shape."
+            )
+        usage = data.get("usage") or {}
+        input_tokens = int(usage.get("prompt_tokens") or 0)
+        output_tokens = int(usage.get("completion_tokens") or 0)
+        cached = int(((usage.get("prompt_tokens_details") or {}).get("cached_tokens")) or 0)
+        pricing = self.pricing_by_model.get(request.model, ModelPricing())
+        return CompletionResult(
+            content=content,
+            finish_reason=finish_reason,
+            provider_request_id=data.get("id"),
+            model=data.get("model") or request.model,
+            input_tokens=input_tokens,
+            cached_input_tokens=cached,
+            output_tokens=output_tokens,
+            cost_usd=pricing.cost(input_tokens, cached, output_tokens),
+            latency_ms=latency_ms,
+            is_simulation=False,
+        )
+
+
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+
+
+def replit_ai_credentials() -> tuple[str, str] | None:
+    """Zero-key option: Replit AI Integrations proxy credentials from the
+    environment, when provisioned. Returns (base_url, api_key) or None."""
+    settings = get_settings()
+    base = settings.ai_integrations_openai_base_url.strip().rstrip("/")
+    key = settings.ai_integrations_openai_api_key.strip()
+    if base and key:
+        return base, key
+    return None
+
+
+def resolve_credentials(provider_config: Any, decrypted_key: str | None) -> tuple[str, str]:
+    """Resolve (base_url, api_key) for a non-demo provider config.
+
+    Supports two credential sources recorded in routing_policy:
+    - "api_key" (default): encrypted key stored server-side
+    - "replit_ai": Replit AI Integrations proxy from the environment
+    """
+    source = (provider_config.routing_policy or {}).get("credential_source", "api_key")
+    if source == "replit_ai":
+        creds = replit_ai_credentials()
+        if creds is None:
+            raise ProviderConfigurationError(
+                "Replit AI credentials are not configured in this environment."
+            )
+        return creds
+    base_url = provider_config.base_url or DEFAULT_OPENAI_BASE_URL
+    if not decrypted_key:
+        raise ProviderConfigurationError(
+            f"Provider '{provider_config.name}' has no stored API key."
+        )
+    return base_url, decrypted_key
+
+
+def build_provider(
+    provider_config: Any,
+    decrypted_key: str | None,
+    pricing_by_model: dict[str, ModelPricing] | None = None,
+) -> ModelProvider:
+    """Build a provider instance for a stored ProviderConfig row."""
+    if provider_config.provider_type == "demo":
+        return get_demo_provider()
+    if provider_config.provider_type in {"openai", "openai_compatible"}:
+        base_url, api_key = resolve_credentials(provider_config, decrypted_key)
+        return OpenAICompatibleProvider(
+            base_url=base_url,
+            api_key=api_key,
+            organization_id=provider_config.organization_id,
+            pricing_by_model=pricing_by_model,
+        )
+    raise LookupError(
+        f"Provider type '{provider_config.provider_type}' is not configured in this environment"
+    )
+
+
 def get_provider(provider_type: str) -> DemoProvider:
-    """Provider registry. v1 foundation ships the Demo Provider; OpenAI and
-    OpenAI-compatible adapters plug in behind the same protocol."""
+    """Legacy registry lookup for the Demo Provider. Real providers are
+    constructed per configuration via build_provider()."""
     if provider_type == "demo":
         return get_demo_provider()
     raise LookupError(f"Provider type '{provider_type}' is not configured in this environment")

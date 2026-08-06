@@ -251,6 +251,111 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      summary: Create Provider
+      operationId: create_provider_api_v1_workspaces__workspace_id__providers_post
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderCreateIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConfigOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/providers/environment:
+    get:
+      summary: Provider Environment
+      description: Whether the zero-key Replit AI Integrations option is available.
+      operationId: provider_environment_api_v1_providers_environment_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderEnvironmentOut'
+  /v1/providers/{provider_id}:
+    patch:
+      summary: Update Provider
+      operationId: update_provider_api_v1_providers__provider_id__patch
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Provider Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderUpdateIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConfigOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/providers/{provider_id}/test:
+    post:
+      summary: Test Provider
+      description: 'Run a minimal live completion against the provider and record
+        the result.
+
+
+        The stored API key is decrypted server-side only; the response never
+
+        contains credentials.'
+      operationId: test_provider_api_v1_providers__provider_id__test_post
+      parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Provider Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderTestOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/projects/{project_id}/meeting-drafts:
     post:
       summary: Create Draft
@@ -2351,9 +2456,28 @@ components:
         provider_type:
           type: string
           title: Provider Type
+        base_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Base Url
         is_enabled:
           type: boolean
           title: Is Enabled
+        credential_source:
+          type: string
+          title: Credential Source
+          default: api_key
+        has_credentials:
+          type: boolean
+          title: Has Credentials
+          default: false
+        last_tested_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Tested At
         last_test_status:
           anyOf:
           - type: string
@@ -2380,6 +2504,104 @@ components:
       - last_test_status
       - last_test_safe_message
       title: ProviderConfigOut
+    ProviderCreateIn:
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Name
+        provider_type:
+          type: string
+          enum:
+          - openai
+          - openai_compatible
+          title: Provider Type
+        base_url:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Base Url
+        api_key:
+          anyOf:
+          - type: string
+            maxLength: 4000
+            minLength: 1
+          - type: 'null'
+          title: Api Key
+        credential_source:
+          type: string
+          enum:
+          - api_key
+          - replit_ai
+          title: Credential Source
+          default: api_key
+        organization_id:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Organization Id
+        models:
+          items:
+            $ref: '#/components/schemas/ProviderModelIn'
+          type: array
+          maxItems: 25
+          title: Models
+      type: object
+      required:
+      - name
+      - provider_type
+      title: ProviderCreateIn
+    ProviderEnvironmentOut:
+      properties:
+        replit_ai_available:
+          type: boolean
+          title: Replit Ai Available
+      type: object
+      required:
+      - replit_ai_available
+      title: ProviderEnvironmentOut
+    ProviderModelIn:
+      properties:
+        model_key:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Model Key
+        display_name:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Display Name
+        input_per_million:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Input Per Million
+        cached_input_per_million:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Cached Input Per Million
+        output_per_million:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Output Per Million
+        is_enabled:
+          type: boolean
+          title: Is Enabled
+          default: true
+      type: object
+      required:
+      - model_key
+      title: ProviderModelIn
     ProviderModelOut:
       properties:
         id:
@@ -2408,6 +2630,21 @@ components:
         is_enabled:
           type: boolean
           title: Is Enabled
+        input_per_million:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Input Per Million
+        cached_input_per_million:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cached Input Per Million
+        output_per_million:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Output Per Million
       type: object
       required:
       - id
@@ -2419,6 +2656,66 @@ components:
       - supports_streaming
       - is_enabled
       title: ProviderModelOut
+    ProviderTestOut:
+      properties:
+        status:
+          type: string
+          title: Status
+        message:
+          type: string
+          title: Message
+        tested_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tested Model
+        latency_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Latency Ms
+      type: object
+      required:
+      - status
+      - message
+      title: ProviderTestOut
+    ProviderUpdateIn:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 1
+          - type: 'null'
+          title: Name
+        base_url:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Base Url
+        api_key:
+          anyOf:
+          - type: string
+            maxLength: 4000
+            minLength: 1
+          - type: 'null'
+          title: Api Key
+        is_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Enabled
+        models:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderModelIn'
+            type: array
+            maxItems: 25
+          - type: 'null'
+          title: Models
+      type: object
+      title: ProviderUpdateIn
     RunCitationOut:
       properties:
         id:

@@ -44,6 +44,10 @@ import type {
   ProjectCreateIn,
   ProjectOut,
   ProviderConfigOut,
+  ProviderCreateIn,
+  ProviderEnvironmentOut,
+  ProviderTestOut,
+  ProviderUpdateIn,
   RunCitationOut,
   RunEventOut,
   RunManifestOut,
@@ -913,6 +917,303 @@ export function useListProvidersApiV1WorkspacesWorkspaceIdProvidersGet<TData = A
 
 
 
+
+export const getCreateProviderApiV1WorkspacesWorkspaceIdProvidersPostUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/providers`
+}
+
+/**
+ * @summary Create Provider
+ */
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPost = async (workspaceId: string,
+    providerCreateIn: ProviderCreateIn, options?: Parameters<typeof customFetch>[1]): Promise<ProviderConfigOut> => {
+
+  return customFetch<ProviderConfigOut>(getCreateProviderApiV1WorkspacesWorkspaceIdProvidersPostUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(providerCreateIn)
+  }
+);}
+
+
+
+
+
+export const getCreateProviderApiV1WorkspacesWorkspaceIdProvidersPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProviderApiV1WorkspacesWorkspaceIdProvidersPost>>, TError,{workspaceId: string;data: BodyType<ProviderCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProviderApiV1WorkspacesWorkspaceIdProvidersPost>>, TError,{workspaceId: string;data: BodyType<ProviderCreateIn>}, TContext> => {
+
+const mutationKey = ['createProviderApiV1WorkspacesWorkspaceIdProvidersPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProviderApiV1WorkspacesWorkspaceIdProvidersPost>>, {workspaceId: string;data: BodyType<ProviderCreateIn>}> = (props) => {
+          const {workspaceId,data} = props ?? {};
+
+          return  createProviderApiV1WorkspacesWorkspaceIdProvidersPost(workspaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostMutationResult = NonNullable<Awaited<ReturnType<typeof createProviderApiV1WorkspacesWorkspaceIdProvidersPost>>>
+    export type CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostMutationBody = BodyType<ProviderCreateIn>
+    export type CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Provider
+ */
+export const useCreateProviderApiV1WorkspacesWorkspaceIdProvidersPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProviderApiV1WorkspacesWorkspaceIdProvidersPost>>, TError,{workspaceId: string;data: BodyType<ProviderCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProviderApiV1WorkspacesWorkspaceIdProvidersPost>>,
+        TError,
+        {workspaceId: string;data: BodyType<ProviderCreateIn>},
+        TContext
+      > => {
+      return useMutation(getCreateProviderApiV1WorkspacesWorkspaceIdProvidersPostMutationOptions(options));
+    }
+
+export const getProviderEnvironmentApiV1ProvidersEnvironmentGetUrl = () => {
+
+
+
+
+  return `/api/v1/providers/environment`
+}
+
+/**
+ * Whether the zero-key Replit AI Integrations option is available.
+ * @summary Provider Environment
+ */
+export const providerEnvironmentApiV1ProvidersEnvironmentGet = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderEnvironmentOut> => {
+
+  return customFetch<ProviderEnvironmentOut>(getProviderEnvironmentApiV1ProvidersEnvironmentGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getProviderEnvironmentApiV1ProvidersEnvironmentGetQueryKey = () => {
+    return [
+    `/api/v1/providers/environment`
+    ] as const;
+    }
+
+
+export const getProviderEnvironmentApiV1ProvidersEnvironmentGetQueryOptions = <TData = Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getProviderEnvironmentApiV1ProvidersEnvironmentGetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>> = ({ signal }) => providerEnvironmentApiV1ProvidersEnvironmentGet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ProviderEnvironmentApiV1ProvidersEnvironmentGetQueryResult = NonNullable<Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>>
+export type ProviderEnvironmentApiV1ProvidersEnvironmentGetQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Provider Environment
+ */
+
+export function useProviderEnvironmentApiV1ProvidersEnvironmentGet<TData = Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof providerEnvironmentApiV1ProvidersEnvironmentGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getProviderEnvironmentApiV1ProvidersEnvironmentGetQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateProviderApiV1ProvidersProviderIdPatchUrl = (providerId: string,) => {
+
+
+
+
+  return `/api/v1/providers/${providerId}`
+}
+
+/**
+ * @summary Update Provider
+ */
+export const updateProviderApiV1ProvidersProviderIdPatch = async (providerId: string,
+    providerUpdateIn: ProviderUpdateIn, options?: Parameters<typeof customFetch>[1]): Promise<ProviderConfigOut> => {
+
+  return customFetch<ProviderConfigOut>(getUpdateProviderApiV1ProvidersProviderIdPatchUrl(providerId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(providerUpdateIn)
+  }
+);}
+
+
+
+
+
+export const getUpdateProviderApiV1ProvidersProviderIdPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProviderApiV1ProvidersProviderIdPatch>>, TError,{providerId: string;data: BodyType<ProviderUpdateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProviderApiV1ProvidersProviderIdPatch>>, TError,{providerId: string;data: BodyType<ProviderUpdateIn>}, TContext> => {
+
+const mutationKey = ['updateProviderApiV1ProvidersProviderIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProviderApiV1ProvidersProviderIdPatch>>, {providerId: string;data: BodyType<ProviderUpdateIn>}> = (props) => {
+          const {providerId,data} = props ?? {};
+
+          return  updateProviderApiV1ProvidersProviderIdPatch(providerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProviderApiV1ProvidersProviderIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof updateProviderApiV1ProvidersProviderIdPatch>>>
+    export type UpdateProviderApiV1ProvidersProviderIdPatchMutationBody = BodyType<ProviderUpdateIn>
+    export type UpdateProviderApiV1ProvidersProviderIdPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Provider
+ */
+export const useUpdateProviderApiV1ProvidersProviderIdPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProviderApiV1ProvidersProviderIdPatch>>, TError,{providerId: string;data: BodyType<ProviderUpdateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProviderApiV1ProvidersProviderIdPatch>>,
+        TError,
+        {providerId: string;data: BodyType<ProviderUpdateIn>},
+        TContext
+      > => {
+      return useMutation(getUpdateProviderApiV1ProvidersProviderIdPatchMutationOptions(options));
+    }
+
+export const getTestProviderApiV1ProvidersProviderIdTestPostUrl = (providerId: string,) => {
+
+
+
+
+  return `/api/v1/providers/${providerId}/test`
+}
+
+/**
+ * Run a minimal live completion against the provider and record the result.
+ *
+ * The stored API key is decrypted server-side only; the response never
+ * contains credentials.
+ * @summary Test Provider
+ */
+export const testProviderApiV1ProvidersProviderIdTestPost = async (providerId: string, options?: Parameters<typeof customFetch>[1]): Promise<ProviderTestOut> => {
+
+  return customFetch<ProviderTestOut>(getTestProviderApiV1ProvidersProviderIdTestPostUrl(providerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTestProviderApiV1ProvidersProviderIdTestPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testProviderApiV1ProvidersProviderIdTestPost>>, TError,{providerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testProviderApiV1ProvidersProviderIdTestPost>>, TError,{providerId: string}, TContext> => {
+
+const mutationKey = ['testProviderApiV1ProvidersProviderIdTestPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testProviderApiV1ProvidersProviderIdTestPost>>, {providerId: string}> = (props) => {
+          const {providerId} = props ?? {};
+
+          return  testProviderApiV1ProvidersProviderIdTestPost(providerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestProviderApiV1ProvidersProviderIdTestPostMutationResult = NonNullable<Awaited<ReturnType<typeof testProviderApiV1ProvidersProviderIdTestPost>>>
+
+    export type TestProviderApiV1ProvidersProviderIdTestPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Test Provider
+ */
+export const useTestProviderApiV1ProvidersProviderIdTestPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testProviderApiV1ProvidersProviderIdTestPost>>, TError,{providerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testProviderApiV1ProvidersProviderIdTestPost>>,
+        TError,
+        {providerId: string},
+        TContext
+      > => {
+      return useMutation(getTestProviderApiV1ProvidersProviderIdTestPostMutationOptions(options));
+    }
 
 export const getCreateDraftApiV1ProjectsProjectIdMeetingDraftsPostUrl = (projectId: string,) => {
 

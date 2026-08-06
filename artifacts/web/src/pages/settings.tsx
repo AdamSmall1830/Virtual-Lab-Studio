@@ -2,8 +2,8 @@ import React from 'react';
 import { useRoute, Link } from 'wouter';
 import { useSession } from '@/api/session';
 import { useTheme } from '@/components/theme-provider';
-import { useProviders, getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey } from '@/api';
-import { User, Settings as SettingsIcon, Server, FileLock2, LogOut, Loader2 } from 'lucide-react';
+import ProvidersTab from './settings-providers';
+import { User, Settings as SettingsIcon, Server, FileLock2, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 export default function Settings() {
@@ -12,13 +12,6 @@ export default function Settings() {
   const { user, workspace, workspaceId, signOut } = useSession();
   const { theme, toggleTheme } = useTheme();
   const [, setLocation] = useLocation();
-
-  const providersQuery = useProviders(workspaceId ?? '', {
-    query: {
-      queryKey: getListProvidersApiV1WorkspacesWorkspaceIdProvidersGetQueryKey(workspaceId ?? ''),
-      enabled: Boolean(workspaceId),
-    },
-  });
 
   const tabs = [
     { id: 'profile', label: 'Profile & Preferences', icon: User },
@@ -124,55 +117,7 @@ export default function Settings() {
             </div>
           )}
 
-          {tab === 'providers' && (
-            <div className="space-y-6">
-              <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex items-start gap-4">
-                <Server className="w-6 h-6 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-sm text-primary mb-1">Model Providers</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Virtual Lab Studio supports a deterministic Demo Provider plus OpenAI and
-                    OpenAI-compatible endpoints. Provider credentials never reach the browser.
-                  </p>
-                </div>
-              </div>
-
-              <div className="vls-reading-surface rounded-xl p-6 border space-y-4">
-                {providersQuery.isLoading && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Loading providers…
-                  </div>
-                )}
-                {providersQuery.isError && (
-                  <p className="text-sm text-destructive">Could not load providers.</p>
-                )}
-                {providersQuery.data?.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-4 bg-background border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold font-mono uppercase">
-                        {p.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-semibold flex items-center gap-2">
-                          {p.name}
-                          {p.is_enabled && (
-                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Enabled</span>
-                          )}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {p.provider_type}
-                          {p.models && p.models.length > 0 && ` · ${p.models.length} model${p.models.length > 1 ? 's' : ''}`}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {providersQuery.data && providersQuery.data.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No providers configured for this workspace.</p>
-                )}
-              </div>
-            </div>
-          )}
+          {tab === 'providers' && workspaceId && <ProvidersTab workspaceId={workspaceId} />}
 
           {tab === 'governance' && (
             <div className="vls-reading-surface rounded-xl p-6 border space-y-4">

@@ -11,7 +11,11 @@ export interface ProviderConfigOut {
   workspace_id: string;
   name: string;
   provider_type: string;
+  base_url?: string | null;
   is_enabled: boolean;
+  credential_source?: string;
+  has_credentials?: boolean;
+  last_tested_at?: Date | null;
   last_test_status: string | null;
   last_test_safe_message: string | null;
   models?: ProviderModelOut[];

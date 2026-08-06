@@ -253,6 +253,8 @@ export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetParams = zod.obj
   "workspace_id": zod.uuid()
 })
 
+export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseCredentialSourceDefault = `api_key`;
+export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseHasCredentialsDefault = false;
 export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseModelsDefault = [];
 
 export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem = zod.object({
@@ -260,7 +262,11 @@ export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem = z
   "workspace_id": zod.uuid(),
   "name": zod.string(),
   "provider_type": zod.string(),
+  "base_url": zod.union([zod.string(),zod.null()]).optional(),
   "is_enabled": zod.boolean(),
+  "credential_source": zod.string().default(listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseCredentialSourceDefault),
+  "has_credentials": zod.boolean().default(listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseHasCredentialsDefault),
+  "last_tested_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
   "last_test_status": zod.union([zod.string(),zod.null()]),
   "last_test_safe_message": zod.union([zod.string(),zod.null()]),
   "models": zod.array(zod.object({
@@ -271,10 +277,196 @@ export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem = z
   "supports_tools": zod.boolean(),
   "supports_structured_output": zod.boolean(),
   "supports_streaming": zod.boolean(),
-  "is_enabled": zod.boolean()
+  "is_enabled": zod.boolean(),
+  "input_per_million": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_per_million": zod.union([zod.number(),zod.null()]).optional(),
+  "output_per_million": zod.union([zod.number(),zod.null()]).optional()
 })).default(listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseModelsDefault)
 })
 export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponse = zod.array(ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem)
+
+
+/**
+ * @summary Create Provider
+ */
+export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyNameMax = 200;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyBaseUrlOneMax = 2000;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyApiKeyOneMax = 4000;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyCredentialSourceDefault = `api_key`;
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyOrganizationIdOneMax = 200;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemModelKeyMax = 200;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemDisplayNameOneMax = 200;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemInputPerMillionOneMin = 0;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemCachedInputPerMillionOneMin = 0;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemOutputPerMillionOneMin = 0;
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemIsEnabledDefault = true;
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsMax = 25;
+
+
+
+export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostBody = zod.object({
+  "name": zod.string().min(1).max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyNameMax),
+  "provider_type": zod.enum(['openai', 'openai_compatible']),
+  "base_url": zod.union([zod.string().max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyBaseUrlOneMax),zod.null()]).optional(),
+  "api_key": zod.union([zod.string().min(1).max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyApiKeyOneMax),zod.null()]).optional(),
+  "credential_source": zod.enum(['api_key', 'replit_ai']).default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyCredentialSourceDefault),
+  "organization_id": zod.union([zod.string().max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyOrganizationIdOneMax),zod.null()]).optional(),
+  "models": zod.array(zod.object({
+  "model_key": zod.string().min(1).max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemModelKeyMax),
+  "display_name": zod.union([zod.string().max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemDisplayNameOneMax),zod.null()]).optional(),
+  "input_per_million": zod.union([zod.number().min(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemInputPerMillionOneMin),zod.null()]).optional(),
+  "cached_input_per_million": zod.union([zod.number().min(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemCachedInputPerMillionOneMin),zod.null()]).optional(),
+  "output_per_million": zod.union([zod.number().min(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemOutputPerMillionOneMin),zod.null()]).optional(),
+  "is_enabled": zod.boolean().default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemIsEnabledDefault)
+})).max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsMax).optional()
+})
+
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseCredentialSourceDefault = `api_key`;
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseHasCredentialsDefault = false;
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseModelsDefault = [];
+
+export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "name": zod.string(),
+  "provider_type": zod.string(),
+  "base_url": zod.union([zod.string(),zod.null()]).optional(),
+  "is_enabled": zod.boolean(),
+  "credential_source": zod.string().default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseCredentialSourceDefault),
+  "has_credentials": zod.boolean().default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseHasCredentialsDefault),
+  "last_tested_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
+  "last_test_status": zod.union([zod.string(),zod.null()]),
+  "last_test_safe_message": zod.union([zod.string(),zod.null()]),
+  "models": zod.array(zod.object({
+  "id": zod.uuid(),
+  "provider_config_id": zod.uuid(),
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "supports_tools": zod.boolean(),
+  "supports_structured_output": zod.boolean(),
+  "supports_streaming": zod.boolean(),
+  "is_enabled": zod.boolean(),
+  "input_per_million": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_per_million": zod.union([zod.number(),zod.null()]).optional(),
+  "output_per_million": zod.union([zod.number(),zod.null()]).optional()
+})).default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseModelsDefault)
+})
+
+
+/**
+ * Whether the zero-key Replit AI Integrations option is available.
+ * @summary Provider Environment
+ */
+export const ProviderEnvironmentApiV1ProvidersEnvironmentGetResponse = zod.object({
+  "replit_ai_available": zod.boolean()
+})
+
+
+/**
+ * @summary Update Provider
+ */
+export const UpdateProviderApiV1ProvidersProviderIdPatchParams = zod.object({
+  "provider_id": zod.uuid()
+})
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyNameOneMax = 200;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyBaseUrlOneMax = 2000;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyApiKeyOneMax = 4000;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemModelKeyMax = 200;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemDisplayNameOneMax = 200;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemInputPerMillionOneMin = 0;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemCachedInputPerMillionOneMin = 0;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemOutputPerMillionOneMin = 0;
+
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemIsEnabledDefault = true;
+export const updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneMax = 25;
+
+
+
+export const UpdateProviderApiV1ProvidersProviderIdPatchBody = zod.object({
+  "name": zod.union([zod.string().min(1).max(updateProviderApiV1ProvidersProviderIdPatchBodyNameOneMax),zod.null()]).optional(),
+  "base_url": zod.union([zod.string().max(updateProviderApiV1ProvidersProviderIdPatchBodyBaseUrlOneMax),zod.null()]).optional(),
+  "api_key": zod.union([zod.string().min(1).max(updateProviderApiV1ProvidersProviderIdPatchBodyApiKeyOneMax),zod.null()]).optional(),
+  "is_enabled": zod.union([zod.boolean(),zod.null()]).optional(),
+  "models": zod.union([zod.array(zod.object({
+  "model_key": zod.string().min(1).max(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemModelKeyMax),
+  "display_name": zod.union([zod.string().max(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemDisplayNameOneMax),zod.null()]).optional(),
+  "input_per_million": zod.union([zod.number().min(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemInputPerMillionOneMin),zod.null()]).optional(),
+  "cached_input_per_million": zod.union([zod.number().min(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemCachedInputPerMillionOneMin),zod.null()]).optional(),
+  "output_per_million": zod.union([zod.number().min(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemOutputPerMillionOneMin),zod.null()]).optional(),
+  "is_enabled": zod.boolean().default(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneItemIsEnabledDefault)
+})).max(updateProviderApiV1ProvidersProviderIdPatchBodyModelsOneMax),zod.null()]).optional()
+})
+
+export const updateProviderApiV1ProvidersProviderIdPatchResponseCredentialSourceDefault = `api_key`;
+export const updateProviderApiV1ProvidersProviderIdPatchResponseHasCredentialsDefault = false;
+export const updateProviderApiV1ProvidersProviderIdPatchResponseModelsDefault = [];
+
+export const UpdateProviderApiV1ProvidersProviderIdPatchResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "name": zod.string(),
+  "provider_type": zod.string(),
+  "base_url": zod.union([zod.string(),zod.null()]).optional(),
+  "is_enabled": zod.boolean(),
+  "credential_source": zod.string().default(updateProviderApiV1ProvidersProviderIdPatchResponseCredentialSourceDefault),
+  "has_credentials": zod.boolean().default(updateProviderApiV1ProvidersProviderIdPatchResponseHasCredentialsDefault),
+  "last_tested_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
+  "last_test_status": zod.union([zod.string(),zod.null()]),
+  "last_test_safe_message": zod.union([zod.string(),zod.null()]),
+  "models": zod.array(zod.object({
+  "id": zod.uuid(),
+  "provider_config_id": zod.uuid(),
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "supports_tools": zod.boolean(),
+  "supports_structured_output": zod.boolean(),
+  "supports_streaming": zod.boolean(),
+  "is_enabled": zod.boolean(),
+  "input_per_million": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_per_million": zod.union([zod.number(),zod.null()]).optional(),
+  "output_per_million": zod.union([zod.number(),zod.null()]).optional()
+})).default(updateProviderApiV1ProvidersProviderIdPatchResponseModelsDefault)
+})
+
+
+/**
+ * Run a minimal live completion against the provider and record the result.
+ *
+ * The stored API key is decrypted server-side only; the response never
+ * contains credentials.
+ * @summary Test Provider
+ */
+export const TestProviderApiV1ProvidersProviderIdTestPostParams = zod.object({
+  "provider_id": zod.uuid()
+})
+
+export const TestProviderApiV1ProvidersProviderIdTestPostResponse = zod.object({
+  "status": zod.string(),
+  "message": zod.string(),
+  "tested_model": zod.union([zod.string(),zod.null()]).optional(),
+  "latency_ms": zod.union([zod.int(),zod.null()]).optional()
+})
 
 
 /**

@@ -42,7 +42,19 @@ from ..models import (
     Workspace,
     WorkspaceMembership,
 )
-from ..providers import get_demo_provider
+from ..providers import (
+    DEFAULT_OPENAI_BASE_URL,
+    CompletionRequest,
+    ModelPricing,
+    ProviderCallError,
+    ProviderConfigurationError,
+    build_provider,
+    get_demo_provider,
+    pricing_from_capabilities,
+    replit_ai_credentials,
+    validate_base_url,
+)
+from ..secretbox import decrypt_secret, encrypt_secret
 from ..provenance import ensure_manifest_safe
 from ..schemas import (
     AgentProfileOut,
@@ -58,7 +70,12 @@ from ..schemas import (
     ProjectCreateIn,
     ProjectOut,
     ProviderConfigOut,
+    ProviderCreateIn,
+    ProviderEnvironmentOut,
+    ProviderModelIn,
     ProviderModelOut,
+    ProviderTestOut,
+    ProviderUpdateIn,
     RunEventOut,
     RunOut,
     RunSummaryOut,
@@ -370,6 +387,31 @@ async def list_templates(
     return out
 
 
+def _model_out(pm: ProviderModel) -> ProviderModelOut:
+    out = ProviderModelOut.model_validate(pm)
+    pricing = (pm.capabilities or {}).get("pricing") or {}
+    out.input_per_million = pricing.get("input_per_million")
+    out.cached_input_per_million = pricing.get("cached_input_per_million")
+    out.output_per_million = pricing.get("output_per_million")
+    return out
+
+
+async def _provider_out(db: AsyncSession, pc: ProviderConfig) -> ProviderConfigOut:
+    models = list(
+        (
+            await db.execute(
+                select(ProviderModel).where(ProviderModel.provider_config_id == pc.id)
+                .order_by(ProviderModel.model_key)
+            )
+        ).scalars()
+    )
+    item = ProviderConfigOut.model_validate(pc)
+    item.credential_source = (pc.routing_policy or {}).get("credential_source", "api_key")
+    item.has_credentials = bool(pc.secret_ciphertext) or item.credential_source == "replit_ai"
+    item.models = [_model_out(m) for m in models]
+    return item
+
+
 @router.get("/workspaces/{workspace_id}/providers", response_model=list[ProviderConfigOut])
 async def list_providers(
     workspace_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
@@ -383,20 +425,234 @@ async def list_providers(
             )
         ).scalars()
     )
-    out = []
-    for pc in rows:
-        models = list(
-            (
-                await db.execute(
-                    select(ProviderModel).where(ProviderModel.provider_config_id == pc.id)
-                    .order_by(ProviderModel.model_key)
-                )
-            ).scalars()
+    return [await _provider_out(db, pc) for pc in rows]
+
+
+@router.get("/providers/environment", response_model=ProviderEnvironmentOut)
+async def provider_environment(user: User = Depends(get_current_user)):
+    """Whether the zero-key Replit AI Integrations option is available."""
+    return ProviderEnvironmentOut(replit_ai_available=replit_ai_credentials() is not None)
+
+
+def _model_capabilities(m: ProviderModelIn) -> dict[str, Any]:
+    pricing = {
+        k: v for k, v in {
+            "input_per_million": m.input_per_million,
+            "cached_input_per_million": m.cached_input_per_million,
+            "output_per_million": m.output_per_million,
+        }.items() if v is not None
+    }
+    return {"pricing": pricing} if pricing else {}
+
+
+async def _upsert_models(
+    db: AsyncSession, pc: ProviderConfig, models_in: list[ProviderModelIn]
+) -> None:
+    """Upsert models by model_key; disable stored models that were removed.
+
+    Rows are never deleted because completed run turns reference them.
+    """
+    existing = {
+        m.model_key: m
+        for m in (
+            await db.execute(
+                select(ProviderModel).where(ProviderModel.provider_config_id == pc.id)
+            )
+        ).scalars()
+    }
+    seen: set[str] = set()
+    for m in models_in:
+        key = m.model_key.strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        row = existing.get(key)
+        if row is None:
+            db.add(ProviderModel(
+                provider_config_id=pc.id, model_key=key,
+                display_name=(m.display_name or key).strip(),
+                supports_streaming=True,
+                capabilities=_model_capabilities(m),
+                is_enabled=m.is_enabled,
+            ))
+        else:
+            row.display_name = (m.display_name or key).strip()
+            row.capabilities = {**(row.capabilities or {}), **_model_capabilities(m)}
+            if not _model_capabilities(m):
+                row.capabilities = {
+                    k: v for k, v in (row.capabilities or {}).items() if k != "pricing"
+                }
+            row.is_enabled = m.is_enabled
+    for key, row in existing.items():
+        if key not in seen:
+            row.is_enabled = False
+
+
+@router.post(
+    "/workspaces/{workspace_id}/providers", response_model=ProviderConfigOut, status_code=201
+)
+async def create_provider(
+    workspace_id: uuid.UUID, body: ProviderCreateIn,
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+):
+    await require_workspace_role(db, workspace_id, user, "researcher")
+    settings = get_settings()
+
+    routing_policy: dict[str, Any] = {"credential_source": body.credential_source}
+    base_url: str | None = None
+    ciphertext = nonce = None
+    key_version = None
+    if body.credential_source == "replit_ai":
+        if replit_ai_credentials() is None:
+            raise problem(
+                422, "replit_ai_unavailable",
+                "Replit AI credentials are not configured in this environment.",
+            )
+    else:
+        if not body.api_key or not body.api_key.strip():
+            raise problem(422, "api_key_required", "An API key is required for this provider.")
+        raw_url = body.base_url or (
+            DEFAULT_OPENAI_BASE_URL if body.provider_type == "openai" else None
         )
-        item = ProviderConfigOut.model_validate(pc)
-        item.models = [ProviderModelOut.model_validate(m) for m in models]
-        out.append(item)
-    return out
+        if not raw_url:
+            raise problem(422, "base_url_required", "A base URL is required for OpenAI-compatible endpoints.")
+        try:
+            base_url = validate_base_url(raw_url, allow_private=settings.is_development)
+        except ProviderConfigurationError as exc:
+            raise problem(422, "invalid_base_url", str(exc))
+        ciphertext, nonce, key_version = encrypt_secret(body.api_key.strip())
+
+    if not body.models:
+        raise problem(422, "models_required", "Add at least one model for this provider.")
+
+    pc = ProviderConfig(
+        workspace_id=workspace_id, name=body.name.strip(),
+        provider_type=body.provider_type, base_url=base_url,
+        organization_id=body.organization_id,
+        secret_ciphertext=ciphertext, secret_nonce=nonce, secret_key_version=key_version,
+        endpoint_fingerprint=sha256_text(base_url or "replit_ai"),
+        is_enabled=True, routing_policy=routing_policy, created_by=user.id,
+    )
+    db.add(pc)
+    await db.flush()
+    await _upsert_models(db, pc, body.models)
+    await audit(db, workspace_id, user, "provider.created", "provider_config", str(pc.id),
+                {"name": pc.name, "provider_type": pc.provider_type,
+                 "credential_source": body.credential_source})
+    await db.commit()
+    await db.refresh(pc)
+    return await _provider_out(db, pc)
+
+
+async def _get_provider_config(
+    db: AsyncSession, provider_id: uuid.UUID, user: User, minimum_role: str
+) -> ProviderConfig:
+    pc = await db.get(ProviderConfig, provider_id)
+    if pc is None:
+        raise problem(404, "not_found", "Provider not found")
+    await require_workspace_role(db, pc.workspace_id, user, minimum_role)
+    return pc
+
+
+@router.patch("/providers/{provider_id}", response_model=ProviderConfigOut)
+async def update_provider(
+    provider_id: uuid.UUID, body: ProviderUpdateIn,
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+):
+    pc = await _get_provider_config(db, provider_id, user, "researcher")
+    if pc.provider_type == "demo":
+        if body.is_enabled is not None:
+            pc.is_enabled = body.is_enabled
+        else:
+            raise problem(422, "demo_provider_readonly", "The Demo Provider cannot be edited.")
+    else:
+        settings = get_settings()
+        if body.name is not None:
+            pc.name = body.name.strip()
+        if body.base_url is not None:
+            source = (pc.routing_policy or {}).get("credential_source", "api_key")
+            if source == "replit_ai":
+                raise problem(422, "base_url_managed", "This provider's endpoint is managed by Replit AI.")
+            try:
+                pc.base_url = validate_base_url(body.base_url, allow_private=settings.is_development)
+            except ProviderConfigurationError as exc:
+                raise problem(422, "invalid_base_url", str(exc))
+            pc.endpoint_fingerprint = sha256_text(pc.base_url)
+        if body.api_key is not None:
+            ciphertext, nonce, key_version = encrypt_secret(body.api_key.strip())
+            pc.secret_ciphertext = ciphertext
+            pc.secret_nonce = nonce
+            pc.secret_key_version = key_version
+            pc.last_test_status = None
+            pc.last_test_safe_message = None
+        if body.is_enabled is not None:
+            pc.is_enabled = body.is_enabled
+        if body.models is not None:
+            if not body.models:
+                raise problem(422, "models_required", "A provider needs at least one model.")
+            await _upsert_models(db, pc, body.models)
+    await audit(db, pc.workspace_id, user, "provider.updated", "provider_config", str(pc.id),
+                {"rotated_key": body.api_key is not None})
+    await db.commit()
+    await db.refresh(pc)
+    return await _provider_out(db, pc)
+
+
+@router.post("/providers/{provider_id}/test", response_model=ProviderTestOut)
+async def test_provider(
+    provider_id: uuid.UUID,
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+):
+    """Run a minimal live completion against the provider and record the result.
+
+    The stored API key is decrypted server-side only; the response never
+    contains credentials.
+    """
+    import datetime as _dt
+
+    pc = await _get_provider_config(db, provider_id, user, "researcher")
+    if pc.provider_type == "demo":
+        return ProviderTestOut(
+            status="ok", message="Deterministic simulation provider; no network access.",
+            tested_model="demo-research-v1", latency_ms=0,
+        )
+    model = (
+        await db.execute(
+            select(ProviderModel).where(
+                ProviderModel.provider_config_id == pc.id, ProviderModel.is_enabled.is_(True)
+            ).order_by(ProviderModel.model_key).limit(1)
+        )
+    ).scalar_one_or_none()
+    if model is None:
+        raise problem(422, "no_models", "Add at least one enabled model before testing.")
+
+    status = "ok"
+    message = f"Connected. Model '{model.model_key}' responded."
+    latency: int | None = None
+    try:
+        decrypted = None
+        if pc.secret_ciphertext and pc.secret_nonce and pc.secret_key_version:
+            decrypted = decrypt_secret(pc.secret_ciphertext, pc.secret_nonce, pc.secret_key_version)
+        provider = build_provider(pc, decrypted, {model.model_key: ModelPricing()})
+        result = await provider.complete(CompletionRequest(
+            model=model.model_key,
+            system_prompt="You are a connection test. Reply with the single word OK.",
+            messages=[{"role": "user", "content": "Connection test. Reply with OK."}],
+            temperature=0.0, run_id="provider-test", call_index=0,
+            agent_title="Connection Test", role_type="lead", round_number=1, is_final=False,
+        ))
+        latency = result.latency_ms
+    except (ProviderCallError, ProviderConfigurationError) as exc:
+        status = "failed"
+        message = getattr(exc, "safe_message", str(exc))
+
+    pc.last_tested_at = _dt.datetime.now(_dt.timezone.utc)
+    pc.last_test_status = status
+    pc.last_test_safe_message = message
+    await audit(db, pc.workspace_id, user, "provider.tested", "provider_config", str(pc.id),
+                {"status": status})
+    await db.commit()
+    return ProviderTestOut(status=status, message=message, tested_model=model.model_key, latency_ms=latency)
 
 
 # --------------------------------------------------------------------------
@@ -498,15 +754,41 @@ async def validate_draft(
     errors, warnings, base_calls = await _validate_draft(db, draft.workspace_id, body)
     demo = get_demo_provider()
     est_in = est_out = est_cost = None
+    pricing_complete = True
     if base_calls is not None:
         est_in = base_calls * demo.input_tokens_per_call
         est_out = base_calls * demo.output_tokens_per_call
-        est_cost = 0.0  # demo provider is free; real providers price via model_pricing_versions
+        # Cost estimate: per-agent planned call counts priced against each
+        # agent's model. Demo calls are free; unpriced real models mark the
+        # estimate incomplete instead of silently pretending it is zero.
+        est_cost = 0.0
+        for a in body.agents:
+            if body.meeting_type == "team":
+                calls = body.rounds + 1 if a.role_type == "lead" else body.rounds
+            else:
+                calls = body.rounds + 1 if a.role_type == "expert" else body.rounds
+            pc = await db.get(ProviderConfig, a.provider_config_id)
+            pm = await db.get(ProviderModel, a.provider_model_id)
+            if pc is None or pm is None or pc.provider_type == "demo":
+                continue
+            pricing = pricing_from_capabilities(pm.capabilities)
+            if not pricing.complete:
+                pricing_complete = False
+                continue
+            est_cost += calls * pricing.cost(
+                demo.input_tokens_per_call, 0, demo.output_tokens_per_call
+            )
+        est_cost = round(est_cost, 4)
+        if not pricing_complete:
+            warnings.append({
+                "field": "agents",
+                "message": "Some selected models have no pricing; the cost estimate is incomplete.",
+            })
     return ValidationEstimateOut(
         valid=not errors, errors=errors, warnings=warnings,
         base_calls=base_calls, max_calls=base_calls,
         estimated_input_tokens=est_in, estimated_output_tokens=est_out,
-        estimated_cost_usd=est_cost, pricing_complete=True, budget=body.budget,
+        estimated_cost_usd=est_cost, pricing_complete=pricing_complete, budget=body.budget,
     )
 
 

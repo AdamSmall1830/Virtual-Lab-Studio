@@ -5,16 +5,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ProviderModelOut {
-  id: string;
-  provider_config_id: string;
+export interface ProviderModelIn {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
   model_key: string;
-  display_name: string;
-  supports_tools: boolean;
-  supports_structured_output: boolean;
-  supports_streaming: boolean;
-  is_enabled: boolean;
+  display_name?: string | null;
   input_per_million?: number | null;
   cached_input_per_million?: number | null;
   output_per_million?: number | null;
+  is_enabled?: boolean;
 }
