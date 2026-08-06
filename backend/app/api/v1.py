@@ -1216,12 +1216,15 @@ async def cancel_run(run_id: uuid.UUID, user: User = Depends(get_current_user), 
         maker = get_sessionmaker()
         async with maker() as mdb:
             mrun = await mdb.get(Run, run.id)
-            _, mf_err = await ensure_manifest_safe(mdb, mrun)
-        await append_event(
-            db, workspace_id=run.workspace_id, run_id=run.id,
-            event_type="manifest.created" if mf_err is None else "manifest.failed",
-            payload={"manifest_version": "1.0"} if mf_err is None else {"message": mf_err},
-        )
+            manifest, mf_err = await ensure_manifest_safe(mdb, mrun)
+        if (manifest, mf_err) != (None, None):
+            # (None, None) means the write was skipped because a retry requeued
+            # this run in the meantime; no manifest exists to announce.
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="manifest.created" if mf_err is None else "manifest.failed",
+                payload={"manifest_version": "1.0"} if mf_err is None else {"message": mf_err},
+            )
         await db.refresh(run)
         return RunOut.model_validate(run)
     return await _request_control(

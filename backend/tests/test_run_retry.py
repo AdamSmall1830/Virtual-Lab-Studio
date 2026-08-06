@@ -20,11 +20,13 @@ from sqlalchemy import select
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import app.api.v1 as v1_module  # noqa: E402
 import app.engine as engine_module  # noqa: E402
-from app.api.v1 import retry_run  # noqa: E402
+from app.api.v1 import cancel_run, retry_run  # noqa: E402
 from app.engine import execute_run  # noqa: E402
 from app.models import (  # noqa: E402
     Run,
+    RunEvent,
     RunManifest,
     RunSummary,
     RunTurn,
@@ -197,6 +199,53 @@ async def test_retry_during_terminal_finalization_wins_over_the_stale_attempt(
         assert "No scientific conclusions were produced" not in (
             summary.summary_json.get("executive_summary", "")
         ), "the resumed run inherited the failed attempt's terminal summary"
+
+
+async def test_retry_during_direct_cancel_does_not_announce_a_missing_manifest(
+    sessionmaker, monkeypatch
+):
+    """Cancelling a queued run finalizes it from its own session, not the worker.
+
+    That path commits the cancellation and then builds the manifest separately,
+    so it has the same window as the worker: a retry can land in between. It
+    must read the skip signal rather than announcing a manifest that was never
+    written.
+    """
+    async with sessionmaker() as db:
+        await seed(db)
+        run = await _make_demo_run(db, rounds=1, lease_owner=None)
+        run.status = "queued"
+        await db.commit()
+        run_id, workspace_id = run.id, run.workspace_id
+        user = await _member_of(db, workspace_id)
+
+    real_ensure = v1_module.ensure_manifest_safe
+
+    async def retry_then_finalize(db, run):
+        async with sessionmaker() as other:
+            await retry_run(run_id, user, other)
+        return await real_ensure(db, run)
+
+    monkeypatch.setattr(v1_module, "ensure_manifest_safe", retry_then_finalize)
+    # The direct-cancel path finalizes through the app-global sessionmaker,
+    # whose engine is bound to whichever event loop created it first. Pin it to
+    # this test's loop-local one.
+    monkeypatch.setattr(v1_module, "get_sessionmaker", lambda: sessionmaker)
+    async with sessionmaker() as db:
+        await cancel_run(run_id, user, db)
+
+    async with sessionmaker() as db:
+        assert await db.get(RunManifest, run_id) is None, "no manifest should exist"
+        events = list(
+            (
+                await db.execute(
+                    select(RunEvent.event_type).where(RunEvent.run_id == run_id)
+                )
+            ).scalars()
+        )
+        assert "manifest.created" not in events, (
+            "cancel announced a manifest that was never written"
+        )
 
 
 async def test_retry_is_refused_once_a_run_has_finished(sessionmaker, monkeypatch):

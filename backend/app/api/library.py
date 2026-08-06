@@ -363,6 +363,10 @@ async def get_run_manifest(
         # against schema and data errors on historical rows.
         manifest, err = await ensure_manifest_safe(db, run)
         if manifest is None:
+            if err is None:
+                # Skipped: a retry requeued the run, so it is no longer terminal
+                # and has no manifest until it finishes again.
+                raise problem(409, "run_not_finished", "The manifest is created when the run finishes.")
             raise problem(500, "manifest_invalid", "The run manifest could not be generated.")
     return RunManifestOut.model_validate(manifest)
 
@@ -432,6 +436,13 @@ async def create_export(
     if manifest_row is None:
         manifest_row, _err = await ensure_manifest_safe(db, run)
         if manifest_row is None:
+            if _err is None:
+                # Skipped: a retry requeued the run between the check above and
+                # here, so there is nothing final to package yet.
+                raise problem(
+                    409, "run_not_finished",
+                    "Export packets are available once the run finishes.",
+                )
             raise problem(
                 422, "manifest_unavailable",
                 "A valid provenance manifest could not be generated, so the "
