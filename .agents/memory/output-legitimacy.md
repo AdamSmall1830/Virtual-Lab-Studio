@@ -64,3 +64,50 @@ sent on every item regardless of blinding.
 
 **Why:** a reviewer scoring a blinded set was ranking simulated demo output
 against real findings with no warning.
+
+# A document that leaves the app carries its provenance on every page
+
+Anything exported as a standalone file — PDF, printout, slide paste — loses the
+surrounding UI. Authorship (model-generated), human review status, and
+simulated/demo status must appear in the page furniture of *every* page, not
+only on a cover sheet or in a header block.
+
+**Why:** pages get photocopied, pasted into decks and quoted in email. A cover
+disclaimer protects only the reader who received the whole file, which is the
+reader least likely to be misled.
+
+**How to apply:** put the three facts in the running footer, and assert them
+per-page in a test rather than searching the whole extracted text — a
+whole-document match passes even when the warning appears exactly once.
+
+# One definition for any value shown both on screen and on paper
+
+A figure that appears in the UI and in an exported document must come from a
+single shared rule, copied verbatim if the two live in different languages.
+Independently "improving" the export's formatting or wording is a defect.
+
+**Why:** a reader holding the printout beside the screen and seeing two
+different numbers, or two different explanations for a missing one, has no way
+to tell which is authoritative. Extra precision in one place is still a
+disagreement.
+
+**How to apply:** when porting a display rule across the stack, copy the
+placeholder and the explanatory hint character-for-character and say in a
+comment that the two are kept in step.
+
+# A renderer of a stored record must survive shapes it did not expect
+
+Records are validated on write, but a validator change, a hand-edited row or a
+migration can leave stored data whose shape the renderer does not expect.
+Coerce what is coercible, skip what is not, and state on the page how many
+entries were skipped and why.
+
+**Why:** a record that has drifted off-schema is exactly the record a reader
+most needs to see. Raising instead turns the problem into a failed export,
+which reads as a bug in the exporter rather than a defect in the data. Silently
+dropping the bad entries is worse — the reader assumes the omissions were
+deliberate.
+
+**How to apply:** never call `.get` on an element of a parsed JSON list without
+first filtering to mappings, and return the count of what was dropped alongside
+the good entries so the caller can disclose it.
