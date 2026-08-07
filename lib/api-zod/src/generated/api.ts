@@ -493,10 +493,37 @@ export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyDefaultTemper
 
 export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemPositionMin = 0;
 
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemExecutionModeDefault = `standard`;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneSchemaVersionDefault = `1.0`;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneCapabilityProfileDefault = `research_read_only`;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneCoordinatorModelKeyMax = 300;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneChildModelKeyOneMax = 300;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxChildrenDefault = 3;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxChildrenMax = 8;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxDepthDefault = 1;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxDepthMax = 2;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxAgentTurnsDefault = 8;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxAgentTurnsMax = 20;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxTokensDefault = 32000;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxRuntimeSecondsDefault = 900;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxRuntimeSecondsMin = 60;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxRuntimeSecondsMax = 3600;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxCostUsdOneMin = 0;
+
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxCostUsdDefault = 2;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneAllowPythonDefault = true;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneAllowEvidenceSearchDefault = true;
+export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneAllowWebDefault = false;
 export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMin = 0;
 export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMax = 2;
 
-export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemToolDefinitionIdsDefault = [];
 export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsDefault = [];
 export const createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyEvidenceSourceIdsDefault = [];
 
@@ -514,10 +541,28 @@ export const CreateDraftApiV1ProjectsProjectIdMeetingDraftsPostBody = zod.object
   "position": zod.int().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemPositionMin),
   "role_type": zod.enum(['lead', 'member', 'expert', 'critic', 'merger']),
   "agent_version_id": zod.uuid(),
-  "provider_config_id": zod.uuid(),
-  "provider_model_id": zod.uuid(),
+  "execution_mode": zod.enum(['standard', 'recursive_rlm']).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemExecutionModeDefault),
+  "provider_config_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "provider_model_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "recursive_execution": zod.union([zod.object({
+  "schema_version": zod.literal("1.0").default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneSchemaVersionDefault),
+  "capability_profile": zod.literal("research_read_only").default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneCapabilityProfileDefault),
+  "requested_worker_id": zod.uuid(),
+  "coordinator_model_key": zod.string().min(1).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneCoordinatorModelKeyMax),
+  "child_model_key": zod.union([zod.string().max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneChildModelKeyOneMax),zod.null()]).optional(),
+  "max_children": zod.int().min(1).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxChildrenMax).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxChildrenDefault),
+  "max_depth": zod.int().min(1).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxDepthMax).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxDepthDefault),
+  "max_agent_turns": zod.int().min(1).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxAgentTurnsMax).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxAgentTurnsDefault),
+  "max_tokens": zod.int().min(1).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxTokensDefault),
+  "max_runtime_seconds": zod.int().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxRuntimeSecondsMin).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxRuntimeSecondsMax).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxRuntimeSecondsDefault),
+  "max_cost_usd": zod.union([zod.number().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxCostUsdOneMin),zod.null()]).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneMaxCostUsdDefault),
+  "allow_python": zod.literal(true).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneAllowPythonDefault),
+  "allow_evidence_search": zod.literal(true).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneAllowEvidenceSearchDefault),
+  "allow_web": zod.literal(false).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemRecursiveExecutionOneAllowWebDefault),
+  "allowed_skill_ids": zod.array(zod.literal("vls_evidence")).optional()
+}).describe('Per-participant settings for the optional Recursive Agent runtime.\n\nBounds here are the schema ceiling. Deployment and workspace policy is\napplied separately at draft validation, which may only narrow these.\nCapabilities the product does not support are pinned to a literal rather\nthan defaulted, so a client cannot request web access or extra skills.'),zod.null()]).optional(),
   "temperature_override": zod.union([zod.number().min(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMin).max(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemTemperatureOverrideOneMax),zod.null()]).optional(),
-  "tool_definition_ids": zod.array(zod.uuid()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsItemToolDefinitionIdsDefault)
+  "tool_definition_ids": zod.array(zod.uuid()).optional()
 })).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyAgentsDefault),
   "template_version_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "evidence_source_ids": zod.array(zod.uuid()).default(createDraftApiV1ProjectsProjectIdMeetingDraftsPostBodyEvidenceSourceIdsDefault)
@@ -552,7 +597,18 @@ export const ValidateDraftApiV1MeetingDraftsDraftIdValidatePostResponse = zod.ob
   "estimated_output_tokens": zod.union([zod.int(),zod.null()]),
   "estimated_cost_usd": zod.union([zod.number(),zod.null()]),
   "pricing_complete": zod.boolean(),
-  "budget": zod.record(zod.string(), zod.unknown())
+  "budget": zod.record(zod.string(), zod.unknown()),
+  "recursive_execution": zod.union([zod.object({
+  "recursive_turn_count": zod.int(),
+  "max_agent_turns": zod.int(),
+  "max_children_per_turn": zod.int(),
+  "max_depth": zod.int(),
+  "max_tokens": zod.int(),
+  "max_runtime_seconds": zod.int(),
+  "max_cost_usd": zod.union([zod.number(),zod.null()]),
+  "pricing_complete": zod.boolean(),
+  "workers_online": zod.boolean()
+}).describe('Bounded maxima for the recursive part of a meeting.\n\nThese are ceilings, not predictions. A recursive participant decides its\nown fan-out inside the limits, so presenting a single expected call count\nwould be a number the product cannot stand behind.'),zod.null()]).optional()
 })
 
 
@@ -577,6 +633,9 @@ export const ListRunsApiV1ProjectsProjectIdRunsGetParams = zod.object({
   "project_id": zod.uuid()
 })
 
+export const listRunsApiV1ProjectsProjectIdRunsGetResponseRecursiveJobCountDefault = 0;
+export const listRunsApiV1ProjectsProjectIdRunsGetResponseRecursiveAgentNodeCountDefault = 0;
+
 export const ListRunsApiV1ProjectsProjectIdRunsGetResponseItem = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -588,6 +647,8 @@ export const ListRunsApiV1ProjectsProjectIdRunsGetResponseItem = zod.object({
   "current_round": zod.int(),
   "provider_call_count": zod.int(),
   "tool_call_count": zod.int(),
+  "recursive_job_count": zod.int().default(listRunsApiV1ProjectsProjectIdRunsGetResponseRecursiveJobCountDefault),
+  "recursive_agent_node_count": zod.int().default(listRunsApiV1ProjectsProjectIdRunsGetResponseRecursiveAgentNodeCountDefault),
   "input_tokens": zod.int(),
   "output_tokens": zod.int(),
   "actual_cost_usd": zod.number(),
@@ -608,6 +669,9 @@ export const GetRunApiV1RunsRunIdGetParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const getRunApiV1RunsRunIdGetResponseRecursiveJobCountDefault = 0;
+export const getRunApiV1RunsRunIdGetResponseRecursiveAgentNodeCountDefault = 0;
+
 export const GetRunApiV1RunsRunIdGetResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -619,6 +683,8 @@ export const GetRunApiV1RunsRunIdGetResponse = zod.object({
   "current_round": zod.int(),
   "provider_call_count": zod.int(),
   "tool_call_count": zod.int(),
+  "recursive_job_count": zod.int().default(getRunApiV1RunsRunIdGetResponseRecursiveJobCountDefault),
+  "recursive_agent_node_count": zod.int().default(getRunApiV1RunsRunIdGetResponseRecursiveAgentNodeCountDefault),
   "input_tokens": zod.int(),
   "output_tokens": zod.int(),
   "actual_cost_usd": zod.number(),
@@ -638,6 +704,8 @@ export const GetRunTurnsApiV1RunsRunIdTurnsGetParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const getRunTurnsApiV1RunsRunIdTurnsGetResponseExecutionModeDefault = `standard`;
+
 export const GetRunTurnsApiV1RunsRunIdTurnsGetResponseItem = zod.object({
   "id": zod.uuid(),
   "run_id": zod.uuid(),
@@ -647,6 +715,7 @@ export const GetRunTurnsApiV1RunsRunIdTurnsGetResponseItem = zod.object({
   "agent_version_id": zod.uuid(),
   "role_type": zod.string(),
   "status": zod.string(),
+  "execution_mode": zod.string().default(getRunTurnsApiV1RunsRunIdTurnsGetResponseExecutionModeDefault),
   "response_text": zod.union([zod.string(),zod.null()]),
   "finish_reason": zod.union([zod.string(),zod.null()]),
   "input_tokens": zod.int(),
@@ -713,6 +782,9 @@ export const PauseRunApiV1RunsRunIdPausePostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const pauseRunApiV1RunsRunIdPausePostResponseRecursiveJobCountDefault = 0;
+export const pauseRunApiV1RunsRunIdPausePostResponseRecursiveAgentNodeCountDefault = 0;
+
 export const PauseRunApiV1RunsRunIdPausePostResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -724,6 +796,8 @@ export const PauseRunApiV1RunsRunIdPausePostResponse = zod.object({
   "current_round": zod.int(),
   "provider_call_count": zod.int(),
   "tool_call_count": zod.int(),
+  "recursive_job_count": zod.int().default(pauseRunApiV1RunsRunIdPausePostResponseRecursiveJobCountDefault),
+  "recursive_agent_node_count": zod.int().default(pauseRunApiV1RunsRunIdPausePostResponseRecursiveAgentNodeCountDefault),
   "input_tokens": zod.int(),
   "output_tokens": zod.int(),
   "actual_cost_usd": zod.number(),
@@ -743,6 +817,9 @@ export const ResumeRunApiV1RunsRunIdResumePostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const resumeRunApiV1RunsRunIdResumePostResponseRecursiveJobCountDefault = 0;
+export const resumeRunApiV1RunsRunIdResumePostResponseRecursiveAgentNodeCountDefault = 0;
+
 export const ResumeRunApiV1RunsRunIdResumePostResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -754,6 +831,8 @@ export const ResumeRunApiV1RunsRunIdResumePostResponse = zod.object({
   "current_round": zod.int(),
   "provider_call_count": zod.int(),
   "tool_call_count": zod.int(),
+  "recursive_job_count": zod.int().default(resumeRunApiV1RunsRunIdResumePostResponseRecursiveJobCountDefault),
+  "recursive_agent_node_count": zod.int().default(resumeRunApiV1RunsRunIdResumePostResponseRecursiveAgentNodeCountDefault),
   "input_tokens": zod.int(),
   "output_tokens": zod.int(),
   "actual_cost_usd": zod.number(),
@@ -779,6 +858,9 @@ export const RetryRunApiV1RunsRunIdRetryPostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const retryRunApiV1RunsRunIdRetryPostResponseRecursiveJobCountDefault = 0;
+export const retryRunApiV1RunsRunIdRetryPostResponseRecursiveAgentNodeCountDefault = 0;
+
 export const RetryRunApiV1RunsRunIdRetryPostResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -790,6 +872,8 @@ export const RetryRunApiV1RunsRunIdRetryPostResponse = zod.object({
   "current_round": zod.int(),
   "provider_call_count": zod.int(),
   "tool_call_count": zod.int(),
+  "recursive_job_count": zod.int().default(retryRunApiV1RunsRunIdRetryPostResponseRecursiveJobCountDefault),
+  "recursive_agent_node_count": zod.int().default(retryRunApiV1RunsRunIdRetryPostResponseRecursiveAgentNodeCountDefault),
   "input_tokens": zod.int(),
   "output_tokens": zod.int(),
   "actual_cost_usd": zod.number(),
@@ -809,6 +893,9 @@ export const CancelRunApiV1RunsRunIdCancelPostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const cancelRunApiV1RunsRunIdCancelPostResponseRecursiveJobCountDefault = 0;
+export const cancelRunApiV1RunsRunIdCancelPostResponseRecursiveAgentNodeCountDefault = 0;
+
 export const CancelRunApiV1RunsRunIdCancelPostResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -820,6 +907,8 @@ export const CancelRunApiV1RunsRunIdCancelPostResponse = zod.object({
   "current_round": zod.int(),
   "provider_call_count": zod.int(),
   "tool_call_count": zod.int(),
+  "recursive_job_count": zod.int().default(cancelRunApiV1RunsRunIdCancelPostResponseRecursiveJobCountDefault),
+  "recursive_agent_node_count": zod.int().default(cancelRunApiV1RunsRunIdCancelPostResponseRecursiveAgentNodeCountDefault),
   "input_tokens": zod.int(),
   "output_tokens": zod.int(),
   "actual_cost_usd": zod.number(),
@@ -1485,6 +1574,1060 @@ export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponseIt
   "submitted_at": zod.coerce.date()
 })
 export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponse = zod.array(ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponseItem)
+
+
+/**
+ * @summary List Workers
+ */
+export const ListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesSupportsRecursiveAgentsDefault = false;
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesSupportsPythonDefault = false;
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesSupportsEvidenceSearchDefault = false;
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesAllowWebDefault = false;
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseModelCatalogItemSupportsRecursiveAgentsDefault = false;
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseModelCatalogItemSupportsToolsDefault = false;
+
+export const ListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "display_name": zod.string(),
+  "status": zod.string(),
+  "enabled": zod.boolean(),
+  "token_prefix": zod.string(),
+  "adapter_version": zod.union([zod.string(),zod.null()]),
+  "prime_agent_version": zod.union([zod.string(),zod.null()]),
+  "sandbox_mode": zod.union([zod.string(),zod.null()]),
+  "capabilities": zod.object({
+  "sandbox_mode": zod.union([zod.string(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesSupportsRecursiveAgentsDefault),
+  "supports_python": zod.boolean().default(listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesSupportsPythonDefault),
+  "supports_evidence_search": zod.boolean().default(listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesSupportsEvidenceSearchDefault),
+  "allow_web": zod.boolean().default(listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseCapabilitiesAllowWebDefault),
+  "max_children": zod.union([zod.int(),zod.null()]).optional(),
+  "max_depth": zod.union([zod.int(),zod.null()]).optional()
+}).describe('A worker\'s self-reported capability snapshot.'),
+  "model_catalog": zod.array(zod.object({
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "provider_kind": zod.string(),
+  "context_window": zod.union([zod.int(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseModelCatalogItemSupportsRecursiveAgentsDefault),
+  "supports_tools": zod.boolean().default(listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseModelCatalogItemSupportsToolsDefault),
+  "pricing": zod.object({
+  "input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "output_usd_per_1m": zod.union([zod.number(),zod.null()]).optional()
+}).optional()
+}).describe('One entry of a worker\'s self-reported, non-secret model catalogue.')),
+  "last_seen_at": zod.union([zod.coerce.date(),zod.null()]),
+  "last_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "enrolled_at": zod.coerce.date(),
+  "disabled_at": zod.union([zod.coerce.date(),zod.null()]),
+  "revoked_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponse = zod.array(ListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetResponseItem)
+
+
+/**
+ * Mint a short-lived enrollment token. Admin only, shown exactly once.
+ * @summary Create Enrollment
+ */
+export const CreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostBodyDisplayNameMax = 200;
+
+
+
+export const CreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostBody = zod.object({
+  "display_name": zod.string().min(1).max(createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostBodyDisplayNameMax)
+}).describe('What the admin supplies when minting an enrollment token.\n\nA declared model rather than a bare dict: the operator only ever names the\nmachine here, and the generated client should say so.')
+
+export const CreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "requested_display_name": zod.string(),
+  "token_prefix": zod.string(),
+  "expires_at": zod.coerce.date(),
+  "consumed_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
+  "consumed_worker_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "created_at": zod.coerce.date(),
+  "enrollment_token": zod.string()
+}).describe('The one-time response to minting an enrollment token.\n\nenrollment_token is the only moment the raw value exists outside the\noperator\'s machine: the server stores nothing but its keyed hash, so it\ncannot be shown again. This type must never be used for a list or detail\nresponse -- use RecursiveWorkerEnrollmentOut for those.')
+
+
+/**
+ * @summary Disable Worker
+ */
+export const DisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostParams = zod.object({
+  "workspace_id": zod.uuid(),
+  "worker_id": zod.uuid()
+})
+
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesSupportsRecursiveAgentsDefault = false;
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesSupportsPythonDefault = false;
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesSupportsEvidenceSearchDefault = false;
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesAllowWebDefault = false;
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseModelCatalogItemSupportsRecursiveAgentsDefault = false;
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseModelCatalogItemSupportsToolsDefault = false;
+
+export const DisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "display_name": zod.string(),
+  "status": zod.string(),
+  "enabled": zod.boolean(),
+  "token_prefix": zod.string(),
+  "adapter_version": zod.union([zod.string(),zod.null()]),
+  "prime_agent_version": zod.union([zod.string(),zod.null()]),
+  "sandbox_mode": zod.union([zod.string(),zod.null()]),
+  "capabilities": zod.object({
+  "sandbox_mode": zod.union([zod.string(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesSupportsRecursiveAgentsDefault),
+  "supports_python": zod.boolean().default(disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesSupportsPythonDefault),
+  "supports_evidence_search": zod.boolean().default(disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesSupportsEvidenceSearchDefault),
+  "allow_web": zod.boolean().default(disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseCapabilitiesAllowWebDefault),
+  "max_children": zod.union([zod.int(),zod.null()]).optional(),
+  "max_depth": zod.union([zod.int(),zod.null()]).optional()
+}).describe('A worker\'s self-reported capability snapshot.'),
+  "model_catalog": zod.array(zod.object({
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "provider_kind": zod.string(),
+  "context_window": zod.union([zod.int(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseModelCatalogItemSupportsRecursiveAgentsDefault),
+  "supports_tools": zod.boolean().default(disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostResponseModelCatalogItemSupportsToolsDefault),
+  "pricing": zod.object({
+  "input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "output_usd_per_1m": zod.union([zod.number(),zod.null()]).optional()
+}).optional()
+}).describe('One entry of a worker\'s self-reported, non-secret model catalogue.')),
+  "last_seen_at": zod.union([zod.coerce.date(),zod.null()]),
+  "last_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "enrolled_at": zod.coerce.date(),
+  "disabled_at": zod.union([zod.coerce.date(),zod.null()]),
+  "revoked_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Enable Worker
+ */
+export const EnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostParams = zod.object({
+  "workspace_id": zod.uuid(),
+  "worker_id": zod.uuid()
+})
+
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesSupportsRecursiveAgentsDefault = false;
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesSupportsPythonDefault = false;
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesSupportsEvidenceSearchDefault = false;
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesAllowWebDefault = false;
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseModelCatalogItemSupportsRecursiveAgentsDefault = false;
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseModelCatalogItemSupportsToolsDefault = false;
+
+export const EnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "display_name": zod.string(),
+  "status": zod.string(),
+  "enabled": zod.boolean(),
+  "token_prefix": zod.string(),
+  "adapter_version": zod.union([zod.string(),zod.null()]),
+  "prime_agent_version": zod.union([zod.string(),zod.null()]),
+  "sandbox_mode": zod.union([zod.string(),zod.null()]),
+  "capabilities": zod.object({
+  "sandbox_mode": zod.union([zod.string(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesSupportsRecursiveAgentsDefault),
+  "supports_python": zod.boolean().default(enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesSupportsPythonDefault),
+  "supports_evidence_search": zod.boolean().default(enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesSupportsEvidenceSearchDefault),
+  "allow_web": zod.boolean().default(enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseCapabilitiesAllowWebDefault),
+  "max_children": zod.union([zod.int(),zod.null()]).optional(),
+  "max_depth": zod.union([zod.int(),zod.null()]).optional()
+}).describe('A worker\'s self-reported capability snapshot.'),
+  "model_catalog": zod.array(zod.object({
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "provider_kind": zod.string(),
+  "context_window": zod.union([zod.int(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseModelCatalogItemSupportsRecursiveAgentsDefault),
+  "supports_tools": zod.boolean().default(enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostResponseModelCatalogItemSupportsToolsDefault),
+  "pricing": zod.object({
+  "input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "output_usd_per_1m": zod.union([zod.number(),zod.null()]).optional()
+}).optional()
+}).describe('One entry of a worker\'s self-reported, non-secret model catalogue.')),
+  "last_seen_at": zod.union([zod.coerce.date(),zod.null()]),
+  "last_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "enrolled_at": zod.coerce.date(),
+  "disabled_at": zod.union([zod.coerce.date(),zod.null()]),
+  "revoked_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * Permanently invalidate a worker's credential.
+ *
+ * The hash is overwritten rather than merely flagged, so the credential stops
+ * working even if a later code path forgets to check ``revoked_at``.
+ * @summary Revoke Worker
+ */
+export const RevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostParams = zod.object({
+  "workspace_id": zod.uuid(),
+  "worker_id": zod.uuid()
+})
+
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesSupportsRecursiveAgentsDefault = false;
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesSupportsPythonDefault = false;
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesSupportsEvidenceSearchDefault = false;
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesAllowWebDefault = false;
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseModelCatalogItemSupportsRecursiveAgentsDefault = false;
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseModelCatalogItemSupportsToolsDefault = false;
+
+export const RevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "display_name": zod.string(),
+  "status": zod.string(),
+  "enabled": zod.boolean(),
+  "token_prefix": zod.string(),
+  "adapter_version": zod.union([zod.string(),zod.null()]),
+  "prime_agent_version": zod.union([zod.string(),zod.null()]),
+  "sandbox_mode": zod.union([zod.string(),zod.null()]),
+  "capabilities": zod.object({
+  "sandbox_mode": zod.union([zod.string(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesSupportsRecursiveAgentsDefault),
+  "supports_python": zod.boolean().default(revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesSupportsPythonDefault),
+  "supports_evidence_search": zod.boolean().default(revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesSupportsEvidenceSearchDefault),
+  "allow_web": zod.boolean().default(revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseCapabilitiesAllowWebDefault),
+  "max_children": zod.union([zod.int(),zod.null()]).optional(),
+  "max_depth": zod.union([zod.int(),zod.null()]).optional()
+}).describe('A worker\'s self-reported capability snapshot.'),
+  "model_catalog": zod.array(zod.object({
+  "model_key": zod.string(),
+  "display_name": zod.string(),
+  "provider_kind": zod.string(),
+  "context_window": zod.union([zod.int(),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseModelCatalogItemSupportsRecursiveAgentsDefault),
+  "supports_tools": zod.boolean().default(revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostResponseModelCatalogItemSupportsToolsDefault),
+  "pricing": zod.object({
+  "input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "output_usd_per_1m": zod.union([zod.number(),zod.null()]).optional()
+}).optional()
+}).describe('One entry of a worker\'s self-reported, non-secret model catalogue.')),
+  "last_seen_at": zod.union([zod.coerce.date(),zod.null()]),
+  "last_error_safe_message": zod.union([zod.string(),zod.null()]),
+  "enrolled_at": zod.coerce.date(),
+  "disabled_at": zod.union([zod.coerce.date(),zod.null()]),
+  "revoked_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Run Jobs
+ */
+export const ListRunJobsApiV1RunsRunIdRecursiveJobsGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const ListRunJobsApiV1RunsRunIdRecursiveJobsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "run_turn_id": zod.uuid(),
+  "agent_version_id": zod.uuid(),
+  "requested_worker_id": zod.union([zod.uuid(),zod.null()]),
+  "leased_worker_id": zod.union([zod.uuid(),zod.null()]),
+  "status": zod.string(),
+  "attempt_count": zod.int(),
+  "max_attempts": zod.int(),
+  "request_sha256": zod.string(),
+  "result_sha256": zod.union([zod.string(),zod.null()]),
+  "model_key": zod.string(),
+  "child_model_key": zod.union([zod.string(),zod.null()]),
+  "capability_profile": zod.string(),
+  "max_children": zod.int(),
+  "max_depth": zod.int(),
+  "max_agent_turns": zod.int(),
+  "max_tokens": zod.int(),
+  "max_runtime_seconds": zod.int(),
+  "max_cost_usd": zod.union([zod.number(),zod.null()]),
+  "model_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "cost_usd": zod.number(),
+  "lease_expires_at": zod.union([zod.coerce.date(),zod.null()]),
+  "heartbeat_at": zod.union([zod.coerce.date(),zod.null()]),
+  "cancellation_requested_at": zod.union([zod.coerce.date(),zod.null()]),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()]),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListRunJobsApiV1RunsRunIdRecursiveJobsGetResponse = zod.array(ListRunJobsApiV1RunsRunIdRecursiveJobsGetResponseItem)
+
+
+/**
+ * @summary Get Run Tree
+ */
+export const GetRunTreeApiV1RunsRunIdRecursiveTreeGetParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const GetRunTreeApiV1RunsRunIdRecursiveTreeGetResponse = zod.object({
+  "run_id": zod.uuid(),
+  "jobs": zod.array(zod.object({
+  "job": zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "run_turn_id": zod.uuid(),
+  "agent_version_id": zod.uuid(),
+  "requested_worker_id": zod.union([zod.uuid(),zod.null()]),
+  "leased_worker_id": zod.union([zod.uuid(),zod.null()]),
+  "status": zod.string(),
+  "attempt_count": zod.int(),
+  "max_attempts": zod.int(),
+  "request_sha256": zod.string(),
+  "result_sha256": zod.union([zod.string(),zod.null()]),
+  "model_key": zod.string(),
+  "child_model_key": zod.union([zod.string(),zod.null()]),
+  "capability_profile": zod.string(),
+  "max_children": zod.int(),
+  "max_depth": zod.int(),
+  "max_agent_turns": zod.int(),
+  "max_tokens": zod.int(),
+  "max_runtime_seconds": zod.int(),
+  "max_cost_usd": zod.union([zod.number(),zod.null()]),
+  "model_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "cost_usd": zod.number(),
+  "lease_expires_at": zod.union([zod.coerce.date(),zod.null()]),
+  "heartbeat_at": zod.union([zod.coerce.date(),zod.null()]),
+  "cancellation_requested_at": zod.union([zod.coerce.date(),zod.null()]),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()]),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+}),
+  "nodes": zod.array(zod.object({
+  "id": zod.uuid(),
+  "job_id": zod.uuid(),
+  "external_node_id": zod.string(),
+  "parent_external_node_id": zod.union([zod.string(),zod.null()]),
+  "display_name": zod.string(),
+  "status": zod.string(),
+  "model_key": zod.union([zod.string(),zod.null()]),
+  "task_summary": zod.union([zod.string(),zod.null()]),
+  "result_summary": zod.union([zod.string(),zod.null()]),
+  "cited_evidence_keys": zod.array(zod.string()),
+  "tool_labels": zod.array(zod.string()),
+  "model_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "cost_usd": zod.number(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()])
+}).describe('Safe visualisation record for one agent in a job\'s tree.')).optional()
+})).optional()
+})
+
+
+/**
+ * @summary Get Job
+ */
+export const GetJobApiV1RecursiveJobsJobIdGetParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const GetJobApiV1RecursiveJobsJobIdGetResponse = zod.object({
+  "job": zod.object({
+  "id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "run_turn_id": zod.uuid(),
+  "agent_version_id": zod.uuid(),
+  "requested_worker_id": zod.union([zod.uuid(),zod.null()]),
+  "leased_worker_id": zod.union([zod.uuid(),zod.null()]),
+  "status": zod.string(),
+  "attempt_count": zod.int(),
+  "max_attempts": zod.int(),
+  "request_sha256": zod.string(),
+  "result_sha256": zod.union([zod.string(),zod.null()]),
+  "model_key": zod.string(),
+  "child_model_key": zod.union([zod.string(),zod.null()]),
+  "capability_profile": zod.string(),
+  "max_children": zod.int(),
+  "max_depth": zod.int(),
+  "max_agent_turns": zod.int(),
+  "max_tokens": zod.int(),
+  "max_runtime_seconds": zod.int(),
+  "max_cost_usd": zod.union([zod.number(),zod.null()]),
+  "model_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "cost_usd": zod.number(),
+  "lease_expires_at": zod.union([zod.coerce.date(),zod.null()]),
+  "heartbeat_at": zod.union([zod.coerce.date(),zod.null()]),
+  "cancellation_requested_at": zod.union([zod.coerce.date(),zod.null()]),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()]),
+  "failure_code": zod.union([zod.string(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+}),
+  "nodes": zod.array(zod.object({
+  "id": zod.uuid(),
+  "job_id": zod.uuid(),
+  "external_node_id": zod.string(),
+  "parent_external_node_id": zod.union([zod.string(),zod.null()]),
+  "display_name": zod.string(),
+  "status": zod.string(),
+  "model_key": zod.union([zod.string(),zod.null()]),
+  "task_summary": zod.union([zod.string(),zod.null()]),
+  "result_summary": zod.union([zod.string(),zod.null()]),
+  "cited_evidence_keys": zod.array(zod.string()),
+  "tool_labels": zod.array(zod.string()),
+  "model_call_count": zod.int(),
+  "input_tokens": zod.int(),
+  "output_tokens": zod.int(),
+  "cost_usd": zod.number(),
+  "started_at": zod.union([zod.coerce.date(),zod.null()]),
+  "completed_at": zod.union([zod.coerce.date(),zod.null()]),
+  "failure_safe_message": zod.union([zod.string(),zod.null()])
+}).describe('Safe visualisation record for one agent in a job\'s tree.')).optional()
+})
+
+
+/**
+ * Exchange a one-time enrollment token for a long-lived worker credential.
+ * @summary Enroll Worker
+ */
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyAdapterVersionOneMax = 60;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyPrimeAgentVersionOneMax = 60;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesProfilesMax = 16;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxDepthOneMin = 0;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxDepthOneMax = 8;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxChildrenOneMin = 0;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxChildrenOneMax = 64;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesPythonDefault = false;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesWebDefault = false;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemModelKeyMax = 300;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemDisplayNameDefault = ``;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemDisplayNameMax = 200;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemProviderKindDefault = `unknown`;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemProviderKindMax = 60;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemContextWindowOneMin = 0;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemContextWindowOneMax = 100000000;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemSupportsRecursiveAgentsDefault = false;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemSupportsToolsDefault = false;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogMax = 200;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyEnrollmentTokenMin = 8;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyEnrollmentTokenMax = 200;
+
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyDisplayNameDefault = ``;
+export const enrollWorkerApiV1RecursiveWorkersEnrollPostBodyDisplayNameMax = 200;
+
+
+
+export const EnrollWorkerApiV1RecursiveWorkersEnrollPostBody = zod.object({
+  "adapter_version": zod.union([zod.string().max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyAdapterVersionOneMax),zod.null()]).optional(),
+  "prime_agent_version": zod.union([zod.string().max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyPrimeAgentVersionOneMax),zod.null()]).optional(),
+  "sandbox_mode": zod.union([zod.enum(['docker', 'rootless', 'process']),zod.null()]).optional(),
+  "capabilities": zod.object({
+  "profiles": zod.array(zod.string()).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesProfilesMax).optional(),
+  "max_depth": zod.union([zod.int().min(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxDepthOneMin).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxDepthOneMax),zod.null()]).optional(),
+  "max_children": zod.union([zod.int().min(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxChildrenOneMin).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesMaxChildrenOneMax),zod.null()]).optional(),
+  "python": zod.boolean().default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesPythonDefault),
+  "web": zod.boolean().default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyCapabilitiesWebDefault)
+}).optional(),
+  "model_catalog": zod.array(zod.object({
+  "model_key": zod.string().min(1).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemModelKeyMax),
+  "display_name": zod.string().max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemDisplayNameMax).default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemDisplayNameDefault),
+  "provider_kind": zod.string().max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemProviderKindMax).default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemProviderKindDefault),
+  "context_window": zod.union([zod.int().min(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemContextWindowOneMin).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemContextWindowOneMax),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemSupportsRecursiveAgentsDefault),
+  "supports_tools": zod.boolean().default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogItemSupportsToolsDefault),
+  "pricing": zod.object({
+  "input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "output_usd_per_1m": zod.union([zod.number(),zod.null()]).optional()
+}).optional()
+}).describe('One entry of the worker\'s self-reported catalogue.\n\nNon-secret descriptive metadata only. There is deliberately no field for a\nbase URL, an API key or a filesystem path: the worker owns its own model\ncredentials and this deployment must never learn them.')).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyModelCatalogMax).optional(),
+  "enrollment_token": zod.string().min(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyEnrollmentTokenMin).max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyEnrollmentTokenMax),
+  "display_name": zod.string().max(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyDisplayNameMax).default(enrollWorkerApiV1RecursiveWorkersEnrollPostBodyDisplayNameDefault)
+})
+
+export const EnrollWorkerApiV1RecursiveWorkersEnrollPostResponse = zod.object({
+  "worker_id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "display_name": zod.string(),
+  "worker_token": zod.string(),
+  "heartbeat_interval_seconds": zod.int(),
+  "lease_poll_interval_seconds": zod.int()
+}).describe('The one-time response that hands a worker its long-lived credential.')
+
+
+/**
+ * Liveness plus the worker's only channel for learning about cancellation.
+ * @summary Worker Heartbeat
+ */
+export const WorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyAdapterVersionOneMax = 60;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyPrimeAgentVersionOneMax = 60;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesProfilesMax = 16;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxDepthOneMin = 0;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxDepthOneMax = 8;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxChildrenOneMin = 0;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxChildrenOneMax = 64;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesPythonDefault = false;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesWebDefault = false;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemModelKeyMax = 300;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemDisplayNameDefault = ``;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemDisplayNameMax = 200;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemProviderKindDefault = `unknown`;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemProviderKindMax = 60;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemContextWindowOneMin = 0;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemContextWindowOneMax = 100000000;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemSupportsRecursiveAgentsDefault = false;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemSupportsToolsDefault = false;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogMax = 200;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyActiveJobIdsMax = 64;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityMaxConcurrentJobsDefault = 1;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityMaxConcurrentJobsMin = 0;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityMaxConcurrentJobsMax = 64;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityAvailableSlotsDefault = 1;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityAvailableSlotsMin = 0;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityAvailableSlotsMax = 64;
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthPrimeAgentDefault = `ok`;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthSandboxDefault = `ok`;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthModelsDefault = `ok`;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthSafeMessageOneMax = 300;
+
+
+
+export const WorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostBody = zod.object({
+  "adapter_version": zod.union([zod.string().max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyAdapterVersionOneMax),zod.null()]).optional(),
+  "prime_agent_version": zod.union([zod.string().max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyPrimeAgentVersionOneMax),zod.null()]).optional(),
+  "sandbox_mode": zod.union([zod.enum(['docker', 'rootless', 'process']),zod.null()]).optional(),
+  "capabilities": zod.object({
+  "profiles": zod.array(zod.string()).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesProfilesMax).optional(),
+  "max_depth": zod.union([zod.int().min(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxDepthOneMin).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxDepthOneMax),zod.null()]).optional(),
+  "max_children": zod.union([zod.int().min(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxChildrenOneMin).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesMaxChildrenOneMax),zod.null()]).optional(),
+  "python": zod.boolean().default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesPythonDefault),
+  "web": zod.boolean().default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapabilitiesWebDefault)
+}).optional(),
+  "model_catalog": zod.array(zod.object({
+  "model_key": zod.string().min(1).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemModelKeyMax),
+  "display_name": zod.string().max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemDisplayNameMax).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemDisplayNameDefault),
+  "provider_kind": zod.string().max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemProviderKindMax).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemProviderKindDefault),
+  "context_window": zod.union([zod.int().min(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemContextWindowOneMin).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemContextWindowOneMax),zod.null()]).optional(),
+  "supports_recursive_agents": zod.boolean().default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemSupportsRecursiveAgentsDefault),
+  "supports_tools": zod.boolean().default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogItemSupportsToolsDefault),
+  "pricing": zod.object({
+  "input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "cached_input_usd_per_1m": zod.union([zod.number(),zod.null()]).optional(),
+  "output_usd_per_1m": zod.union([zod.number(),zod.null()]).optional()
+}).optional()
+}).describe('One entry of the worker\'s self-reported catalogue.\n\nNon-secret descriptive metadata only. There is deliberately no field for a\nbase URL, an API key or a filesystem path: the worker owns its own model\ncredentials and this deployment must never learn them.')).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyModelCatalogMax).optional(),
+  "active_job_ids": zod.array(zod.uuid()).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyActiveJobIdsMax).optional(),
+  "capacity": zod.object({
+  "max_concurrent_jobs": zod.int().min(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityMaxConcurrentJobsMin).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityMaxConcurrentJobsMax).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityMaxConcurrentJobsDefault),
+  "available_slots": zod.int().min(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityAvailableSlotsMin).max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityAvailableSlotsMax).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyCapacityAvailableSlotsDefault)
+}).optional(),
+  "health": zod.object({
+  "prime_agent": zod.enum(['ok', 'degraded', 'error']).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthPrimeAgentDefault),
+  "sandbox": zod.enum(['ok', 'degraded', 'error']).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthSandboxDefault),
+  "models": zod.enum(['ok', 'degraded', 'error']).default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthModelsDefault),
+  "safe_message": zod.union([zod.string().max(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostBodyHealthSafeMessageOneMax),zod.null()]).optional()
+}).optional()
+})
+
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostResponseJobControlsItemCancelRequestedDefault = false;
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPostResponseJobControlsItemPauseRequestedDefault = false;
+
+export const WorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostResponse = zod.object({
+  "worker_id": zod.uuid(),
+  "status": zod.string(),
+  "heartbeat_interval_seconds": zod.int(),
+  "lease_poll_interval_seconds": zod.int(),
+  "job_controls": zod.array(zod.object({
+  "job_id": zod.uuid(),
+  "cancel_requested": zod.boolean().default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostResponseJobControlsItemCancelRequestedDefault),
+  "pause_requested": zod.boolean().default(workerHeartbeatApiV1RecursiveWorkersHeartbeatPostResponseJobControlsItemPauseRequestedDefault)
+}).describe('How the server answers \"what should I do with this job right now?\".\n\nCancellation and pause reach a running worker only through its own polling:\nthis deployment never opens a connection to the operator\'s machine.')).optional()
+})
+
+
+/**
+ * @summary Lease Job
+ */
+export const LeaseJobApiV1RecursiveWorkersJobsLeasePostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const leaseJobApiV1RecursiveWorkersJobsLeasePostBodyAvailableSlotsDefault = 1;
+export const leaseJobApiV1RecursiveWorkersJobsLeasePostBodyAvailableSlotsMin = 0;
+export const leaseJobApiV1RecursiveWorkersJobsLeasePostBodyAvailableSlotsMax = 64;
+
+export const leaseJobApiV1RecursiveWorkersJobsLeasePostBodySupportedProfilesMax = 16;
+
+export const leaseJobApiV1RecursiveWorkersJobsLeasePostBodyModelKeysMax = 200;
+
+
+
+export const LeaseJobApiV1RecursiveWorkersJobsLeasePostBody = zod.object({
+  "available_slots": zod.int().min(leaseJobApiV1RecursiveWorkersJobsLeasePostBodyAvailableSlotsMin).max(leaseJobApiV1RecursiveWorkersJobsLeasePostBodyAvailableSlotsMax).default(leaseJobApiV1RecursiveWorkersJobsLeasePostBodyAvailableSlotsDefault),
+  "supported_profiles": zod.array(zod.string()).max(leaseJobApiV1RecursiveWorkersJobsLeasePostBodySupportedProfilesMax).optional(),
+  "model_keys": zod.array(zod.string()).max(leaseJobApiV1RecursiveWorkersJobsLeasePostBodyModelKeysMax).optional()
+})
+
+export const LeaseJobApiV1RecursiveWorkersJobsLeasePostResponse = zod.union([zod.object({
+  "job_id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "attempt": zod.int(),
+  "request_sha256": zod.string(),
+  "capability_profile": zod.string(),
+  "model_key": zod.string(),
+  "child_model_key": zod.union([zod.string(),zod.null()]),
+  "limits": zod.object({
+  "max_children": zod.int(),
+  "max_depth": zod.int(),
+  "max_agent_turns": zod.int(),
+  "max_tokens": zod.int(),
+  "max_runtime_seconds": zod.int(),
+  "max_cost_usd": zod.union([zod.number(),zod.null()])
+}),
+  "allowed_skill_ids": zod.array(zod.string()),
+  "lease_expires_at": zod.coerce.date(),
+  "heartbeat_interval_seconds": zod.int(),
+  "bundle_url": zod.string()
+}).describe('What a worker learns when it wins a job.\n\nDeliberately free of evidence content: the bundle is fetched separately so\na lease response stays small and the evidence transfer is a distinct,\nlease-checked request.'),zod.null()])
+
+
+/**
+ * @summary Job Heartbeat
+ */
+export const JobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const JobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostResponseCancelRequestedDefault = false;
+export const jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostResponsePauseRequestedDefault = false;
+
+export const JobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostResponse = zod.object({
+  "job_id": zod.uuid(),
+  "cancel_requested": zod.boolean().default(jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostResponseCancelRequestedDefault),
+  "pause_requested": zod.boolean().default(jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostResponsePauseRequestedDefault)
+}).describe('How the server answers \"what should I do with this job right now?\".\n\nCancellation and pause reach a running worker only through its own polling:\nthis deployment never opens a connection to the operator\'s machine.')
+
+
+/**
+ * The frozen evidence and brief for a job this worker currently holds.
+ * @summary Get Job Bundle
+ */
+export const GetJobBundleApiV1RecursiveJobsJobIdBundleGetParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const GetJobBundleApiV1RecursiveJobsJobIdBundleGetHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const GetJobBundleApiV1RecursiveJobsJobIdBundleGetResponse = zod.unknown()
+
+
+/**
+ * @summary Post Job Events
+ */
+export const PostJobEventsApiV1RecursiveJobsJobIdEventsPostParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const PostJobEventsApiV1RecursiveJobsJobIdEventsPostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodySchemaVersionDefault = `1.0`;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemExternalEventIdMax = 200;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemWorkerSequenceMin = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemWorkerSequenceMax = 1000000000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemTypeMax = 80;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneExternalNodeIdMax = 120;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneParentExternalNodeIdOneMax = 120;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneDisplayNameDefault = ``;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneDisplayNameMax = 200;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadTaskSummaryOneMax = 1000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadResultSummaryOneMax = 2000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadModelKeyOneMax = 300;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadFailureCategoryOneMax = 120;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadFailureSafeMessageOneMax = 300;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneModelCallCountDefault = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneModelCallCountMin = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneModelCallCountMax = 100000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneInputTokensDefault = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneInputTokensMin = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneInputTokensMax = 1000000000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCachedInputTokensDefault = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCachedInputTokensMin = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCachedInputTokensMax = 1000000000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneOutputTokensDefault = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneOutputTokensMin = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneOutputTokensMax = 1000000000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCostUsdDefault = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCostUsdMin = 0;
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCostUsdMax = 1000000;
+
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOnePricingCompleteDefault = true;
+
+export const PostJobEventsApiV1RecursiveJobsJobIdEventsPostBody = zod.object({
+  "schema_version": zod.literal("1.0").default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodySchemaVersionDefault),
+  "events": zod.array(zod.object({
+  "external_event_id": zod.string().min(1).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemExternalEventIdMax),
+  "worker_sequence": zod.int().min(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemWorkerSequenceMin).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemWorkerSequenceMax),
+  "occurred_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
+  "type": zod.string().min(1).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemTypeMax),
+  "node": zod.union([zod.object({
+  "external_node_id": zod.string().min(1).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneExternalNodeIdMax),
+  "parent_external_node_id": zod.union([zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneParentExternalNodeIdOneMax),zod.null()]).optional(),
+  "display_name": zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneDisplayNameMax).default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemNodeOneDisplayNameDefault)
+}),zod.null()]).optional(),
+  "payload": zod.object({
+  "task_summary": zod.union([zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadTaskSummaryOneMax),zod.null()]).optional(),
+  "result_summary": zod.union([zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadResultSummaryOneMax),zod.null()]).optional(),
+  "model_key": zod.union([zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadModelKeyOneMax),zod.null()]).optional(),
+  "tool_label": zod.union([zod.enum(['Python', 'Frozen evidence search']),zod.null()]).optional(),
+  "node_status": zod.union([zod.enum(['queued', 'running', 'completed', 'failed', 'cancelled']),zod.null()]).optional(),
+  "failure_category": zod.union([zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadFailureCategoryOneMax),zod.null()]).optional(),
+  "failure_safe_message": zod.union([zod.string().max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadFailureSafeMessageOneMax),zod.null()]).optional(),
+  "usage": zod.union([zod.object({
+  "model_call_count": zod.int().min(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneModelCallCountMin).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneModelCallCountMax).default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneModelCallCountDefault),
+  "input_tokens": zod.int().min(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneInputTokensMin).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneInputTokensMax).default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneInputTokensDefault),
+  "cached_input_tokens": zod.int().min(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCachedInputTokensMin).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCachedInputTokensMax).default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCachedInputTokensDefault),
+  "output_tokens": zod.int().min(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneOutputTokensMin).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneOutputTokensMax).default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneOutputTokensDefault),
+  "cost_usd": zod.number().min(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCostUsdMin).max(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCostUsdMax).default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOneCostUsdDefault),
+  "pricing_complete": zod.boolean().default(postJobEventsApiV1RecursiveJobsJobIdEventsPostBodyEventsItemPayloadUsageOnePricingCompleteDefault)
+}),zod.null()]).optional()
+}).optional().describe('The only payload fields a worker event may carry into the run stream.\n\nAnything not named here is dropped. That direction is deliberate: the\nevents a coordinator emits are full of reasoning deltas, scratchpads, shell\noutput and host paths, none of which may reach a browser or an export.')
+})).optional()
+})
+
+export const PostJobEventsApiV1RecursiveJobsJobIdEventsPostResponse = zod.object({
+  "accepted": zod.int(),
+  "duplicates": zod.int(),
+  "rejected": zod.int()
+})
+
+
+/**
+ * @summary Complete Job Route
+ */
+export const CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodySchemaVersionDefault = `1.0`;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRequestSha256Min = 64;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRequestSha256Max = 64;
+
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyFinalTextMax = 60000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemEvidenceKeyMax = 60;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemLocatorOneMax = 300;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemClaimDefault = ``;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemClaimMax = 4000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemSupportTypeDefault = `context`;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsMax = 200;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyLimitationsMax = 50;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageModelCallCountDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageModelCallCountMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageModelCallCountMax = 100000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageInputTokensDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageInputTokensMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageInputTokensMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCachedInputTokensDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCachedInputTokensMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCachedInputTokensMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageOutputTokensDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageOutputTokensMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageOutputTokensMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCostUsdDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCostUsdMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCostUsdMax = 1000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsagePricingCompleteDefault = true;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeAdapterVersionOneMax = 60;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimePrimeAgentVersionOneMax = 60;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeModelKeyOneMax = 300;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeChildModelKeyOneMax = 300;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeIsSimulationDefault = false;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMax = 64;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemExternalNodeIdMax = 120;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemParentExternalNodeIdOneMax = 120;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemDisplayNameDefault = ``;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemDisplayNameMax = 200;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemStatusDefault = `completed`;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemModelKeyOneMax = 300;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemTaskSummaryOneMax = 1000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemResultSummaryOneMax = 2000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemCitedEvidenceKeysMax = 200;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemToolLabelsMax = 16;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemFailureSafeMessageOneMax = 300;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageModelCallCountDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageModelCallCountMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageModelCallCountMax = 100000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageInputTokensDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageInputTokensMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageInputTokensMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCachedInputTokensDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCachedInputTokensMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCachedInputTokensMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageOutputTokensDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageOutputTokensMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageOutputTokensMax = 1000000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCostUsdDefault = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCostUsdMin = 0;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCostUsdMax = 1000000;
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsagePricingCompleteDefault = true;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesMax = 200;
+
+
+
+export const CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostBody = zod.object({
+  "schema_version": zod.literal("1.0").default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodySchemaVersionDefault),
+  "request_sha256": zod.string().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRequestSha256Min).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRequestSha256Max).regex(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRequestSha256RegExp),
+  "final_text": zod.string().min(1).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyFinalTextMax),
+  "citations": zod.array(zod.object({
+  "evidence_key": zod.string().min(1).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemEvidenceKeyMax),
+  "locator": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemLocatorOneMax),zod.null()]).optional(),
+  "claim": zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemClaimMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemClaimDefault),
+  "support_type": zod.enum(['supports', 'contradicts', 'context', 'uncertain']).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsItemSupportTypeDefault)
+})).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyCitationsMax).optional(),
+  "limitations": zod.array(zod.string()).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyLimitationsMax).optional(),
+  "usage": zod.object({
+  "model_call_count": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageModelCallCountMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageModelCallCountMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageModelCallCountDefault),
+  "input_tokens": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageInputTokensMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageInputTokensMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageInputTokensDefault),
+  "cached_input_tokens": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCachedInputTokensMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCachedInputTokensMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCachedInputTokensDefault),
+  "output_tokens": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageOutputTokensMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageOutputTokensMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageOutputTokensDefault),
+  "cost_usd": zod.number().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCostUsdMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCostUsdMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsageCostUsdDefault),
+  "pricing_complete": zod.boolean().default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyUsagePricingCompleteDefault)
+}).optional(),
+  "runtime": zod.object({
+  "adapter_version": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeAdapterVersionOneMax),zod.null()]).optional(),
+  "prime_agent_version": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimePrimeAgentVersionOneMax),zod.null()]).optional(),
+  "model_key": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeModelKeyOneMax),zod.null()]).optional(),
+  "child_model_key": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeChildModelKeyOneMax),zod.null()]).optional(),
+  "elapsed_ms": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsDefault),
+  "is_simulation": zod.boolean().default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeIsSimulationDefault),
+  "session_reference_hash": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMax),zod.null()]).optional()
+}).optional(),
+  "nodes": zod.array(zod.object({
+  "external_node_id": zod.string().min(1).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemExternalNodeIdMax),
+  "parent_external_node_id": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemParentExternalNodeIdOneMax),zod.null()]).optional(),
+  "display_name": zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemDisplayNameMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemDisplayNameDefault),
+  "status": zod.enum(['queued', 'running', 'completed', 'failed', 'cancelled']).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemStatusDefault),
+  "model_key": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemModelKeyOneMax),zod.null()]).optional(),
+  "task_summary": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemTaskSummaryOneMax),zod.null()]).optional(),
+  "result_summary": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemResultSummaryOneMax),zod.null()]).optional(),
+  "cited_evidence_keys": zod.array(zod.string()).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemCitedEvidenceKeysMax).optional(),
+  "tool_labels": zod.array(zod.enum(['Python', 'Frozen evidence search'])).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemToolLabelsMax).optional(),
+  "failure_safe_message": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemFailureSafeMessageOneMax),zod.null()]).optional(),
+  "usage": zod.object({
+  "model_call_count": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageModelCallCountMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageModelCallCountMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageModelCallCountDefault),
+  "input_tokens": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageInputTokensMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageInputTokensMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageInputTokensDefault),
+  "cached_input_tokens": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCachedInputTokensMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCachedInputTokensMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCachedInputTokensDefault),
+  "output_tokens": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageOutputTokensMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageOutputTokensMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageOutputTokensDefault),
+  "cost_usd": zod.number().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCostUsdMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCostUsdMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsageCostUsdDefault),
+  "pricing_complete": zod.boolean().default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemUsagePricingCompleteDefault)
+}).optional()
+})).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesMax).optional()
+})
+
+export const CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostResponse = zod.object({
+  "job_id": zod.uuid(),
+  "status": zod.string(),
+  "accepted": zod.boolean(),
+  "detail": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Fail Job Route
+ */
+export const FailJobRouteApiV1RecursiveJobsJobIdFailPostParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const FailJobRouteApiV1RecursiveJobsJobIdFailPostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodySafeMessageDefault = ``;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodySafeMessageMax = 300;
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyRetryableDefault = true;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageModelCallCountDefault = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageModelCallCountMin = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageModelCallCountMax = 100000;
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageInputTokensDefault = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageInputTokensMin = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageInputTokensMax = 1000000000;
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCachedInputTokensDefault = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCachedInputTokensMin = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCachedInputTokensMax = 1000000000;
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageOutputTokensDefault = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageOutputTokensMin = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageOutputTokensMax = 1000000000;
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCostUsdDefault = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCostUsdMin = 0;
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCostUsdMax = 1000000;
+
+export const failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsagePricingCompleteDefault = true;
+
+export const FailJobRouteApiV1RecursiveJobsJobIdFailPostBody = zod.object({
+  "failure_code": zod.enum(['worker_error', 'model_error', 'sandbox_error', 'timeout', 'limit_exceeded', 'invalid_result', 'cancelled', 'paused']),
+  "safe_message": zod.string().max(failJobRouteApiV1RecursiveJobsJobIdFailPostBodySafeMessageMax).default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodySafeMessageDefault),
+  "retryable": zod.boolean().default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyRetryableDefault),
+  "usage": zod.object({
+  "model_call_count": zod.int().min(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageModelCallCountMin).max(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageModelCallCountMax).default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageModelCallCountDefault),
+  "input_tokens": zod.int().min(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageInputTokensMin).max(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageInputTokensMax).default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageInputTokensDefault),
+  "cached_input_tokens": zod.int().min(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCachedInputTokensMin).max(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCachedInputTokensMax).default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCachedInputTokensDefault),
+  "output_tokens": zod.int().min(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageOutputTokensMin).max(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageOutputTokensMax).default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageOutputTokensDefault),
+  "cost_usd": zod.number().min(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCostUsdMin).max(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCostUsdMax).default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsageCostUsdDefault),
+  "pricing_complete": zod.boolean().default(failJobRouteApiV1RecursiveJobsJobIdFailPostBodyUsagePricingCompleteDefault)
+}).optional()
+})
+
+export const FailJobRouteApiV1RecursiveJobsJobIdFailPostResponse = zod.object({
+  "job_id": zod.uuid(),
+  "status": zod.string(),
+  "accepted": zod.boolean(),
+  "detail": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Release Job Route
+ */
+export const ReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostParams = zod.object({
+  "job_id": zod.uuid()
+})
+
+export const ReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostHeader = zod.object({
+  "authorization": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const ReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostResponse = zod.object({
+  "job_id": zod.uuid(),
+  "status": zod.string(),
+  "accepted": zod.boolean(),
+  "detail": zod.union([zod.string(),zod.null()]).optional()
+})
 
 
 /**

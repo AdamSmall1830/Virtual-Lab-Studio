@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { RecursiveExecutionEstimateOut } from './recursiveExecutionEstimateOut';
 import type { ValidationEstimateOutBudget } from './validationEstimateOutBudget';
 import type { ValidationEstimateOutErrorsItem } from './validationEstimateOutErrorsItem';
 import type { ValidationEstimateOutWarningsItem } from './validationEstimateOutWarningsItem';
@@ -19,4 +20,5 @@ export interface ValidationEstimateOut {
   estimated_cost_usd: number | null;
   pricing_complete: boolean;
   budget: ValidationEstimateOutBudget;
+  recursive_execution?: RecursiveExecutionEstimateOut | null;
 }

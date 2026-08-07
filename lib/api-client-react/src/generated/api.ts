@@ -49,6 +49,24 @@ import type {
   ProviderEnvironmentOut,
   ProviderTestOut,
   ProviderUpdateIn,
+  RecursiveAgentJobDetailOut,
+  RecursiveAgentJobOut,
+  RecursiveCompletionIn,
+  RecursiveEnrollIn,
+  RecursiveEnrolledOut,
+  RecursiveEventBatchIn,
+  RecursiveEventBatchOut,
+  RecursiveFailIn,
+  RecursiveHeartbeatIn,
+  RecursiveHeartbeatOut,
+  RecursiveJobAckOut,
+  RecursiveJobControlOut,
+  RecursiveLeaseOut,
+  RecursiveLeaseRequestIn,
+  RecursiveTreeOut,
+  RecursiveWorkerEnrollmentCreatedOut,
+  RecursiveWorkerEnrollmentIn,
+  RecursiveWorkerOut,
   RunCitationOut,
   RunEventOut,
   RunManifestOut,
@@ -3906,6 +3924,1261 @@ export function useListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet<TDa
 
 
 
+
+export const getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/recursive-workers`
+}
+
+/**
+ * @summary List Workers
+ */
+export const listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveWorkerOut[]> => {
+
+  return customFetch<RecursiveWorkerOut[]>(getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetUrl(workspaceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/recursive-workers`
+    ] as const;
+    }
+
+
+export const getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryOptions = <TData = Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>> = ({ signal }) => listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>>
+export type ListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Workers
+ */
+
+export function useListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet<TData = Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/recursive-worker-enrollments`
+}
+
+/**
+ * Mint a short-lived enrollment token. Admin only, shown exactly once.
+ * @summary Create Enrollment
+ */
+export const createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost = async (workspaceId: string,
+    recursiveWorkerEnrollmentIn: RecursiveWorkerEnrollmentIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveWorkerEnrollmentCreatedOut> => {
+
+  return customFetch<RecursiveWorkerEnrollmentCreatedOut>(getCreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveWorkerEnrollmentIn)
+  }
+);}
+
+
+
+
+
+export const getCreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost>>, TError,{workspaceId: string;data: BodyType<RecursiveWorkerEnrollmentIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost>>, TError,{workspaceId: string;data: BodyType<RecursiveWorkerEnrollmentIn>}, TContext> => {
+
+const mutationKey = ['createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost>>, {workspaceId: string;data: BodyType<RecursiveWorkerEnrollmentIn>}> = (props) => {
+          const {workspaceId,data} = props ?? {};
+
+          return  createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost(workspaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost>>>
+    export type CreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostMutationBody = BodyType<RecursiveWorkerEnrollmentIn>
+    export type CreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Enrollment
+ */
+export const useCreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost>>, TError,{workspaceId: string;data: BodyType<RecursiveWorkerEnrollmentIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost>>,
+        TError,
+        {workspaceId: string;data: BodyType<RecursiveWorkerEnrollmentIn>},
+        TContext
+      > => {
+      return useMutation(getCreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPostMutationOptions(options));
+    }
+
+export const getDisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostUrl = (workspaceId: string,
+    workerId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/recursive-workers/${workerId}/disable`
+}
+
+/**
+ * @summary Disable Worker
+ */
+export const disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost = async (workspaceId: string,
+    workerId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveWorkerOut> => {
+
+  return customFetch<RecursiveWorkerOut>(getDisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostUrl(workspaceId,workerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost>>, TError,{workspaceId: string;workerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost>>, TError,{workspaceId: string;workerId: string}, TContext> => {
+
+const mutationKey = ['disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost>>, {workspaceId: string;workerId: string}> = (props) => {
+          const {workspaceId,workerId} = props ?? {};
+
+          return  disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost(workspaceId,workerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostMutationResult = NonNullable<Awaited<ReturnType<typeof disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost>>>
+
+    export type DisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Disable Worker
+ */
+export const useDisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost>>, TError,{workspaceId: string;workerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost>>,
+        TError,
+        {workspaceId: string;workerId: string},
+        TContext
+      > => {
+      return useMutation(getDisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePostMutationOptions(options));
+    }
+
+export const getEnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostUrl = (workspaceId: string,
+    workerId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/recursive-workers/${workerId}/enable`
+}
+
+/**
+ * @summary Enable Worker
+ */
+export const enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost = async (workspaceId: string,
+    workerId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveWorkerOut> => {
+
+  return customFetch<RecursiveWorkerOut>(getEnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostUrl(workspaceId,workerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost>>, TError,{workspaceId: string;workerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost>>, TError,{workspaceId: string;workerId: string}, TContext> => {
+
+const mutationKey = ['enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost>>, {workspaceId: string;workerId: string}> = (props) => {
+          const {workspaceId,workerId} = props ?? {};
+
+          return  enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost(workspaceId,workerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostMutationResult = NonNullable<Awaited<ReturnType<typeof enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost>>>
+
+    export type EnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Enable Worker
+ */
+export const useEnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost>>, TError,{workspaceId: string;workerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost>>,
+        TError,
+        {workspaceId: string;workerId: string},
+        TContext
+      > => {
+      return useMutation(getEnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePostMutationOptions(options));
+    }
+
+export const getRevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostUrl = (workspaceId: string,
+    workerId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/recursive-workers/${workerId}/revoke`
+}
+
+/**
+ * Permanently invalidate a worker's credential.
+ *
+ * The hash is overwritten rather than merely flagged, so the credential stops
+ * working even if a later code path forgets to check ``revoked_at``.
+ * @summary Revoke Worker
+ */
+export const revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost = async (workspaceId: string,
+    workerId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveWorkerOut> => {
+
+  return customFetch<RecursiveWorkerOut>(getRevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostUrl(workspaceId,workerId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost>>, TError,{workspaceId: string;workerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost>>, TError,{workspaceId: string;workerId: string}, TContext> => {
+
+const mutationKey = ['revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost>>, {workspaceId: string;workerId: string}> = (props) => {
+          const {workspaceId,workerId} = props ?? {};
+
+          return  revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost(workspaceId,workerId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostMutationResult = NonNullable<Awaited<ReturnType<typeof revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost>>>
+
+    export type RevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Revoke Worker
+ */
+export const useRevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost>>, TError,{workspaceId: string;workerId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost>>,
+        TError,
+        {workspaceId: string;workerId: string},
+        TContext
+      > => {
+      return useMutation(getRevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePostMutationOptions(options));
+    }
+
+export const getListRunJobsApiV1RunsRunIdRecursiveJobsGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/recursive-jobs`
+}
+
+/**
+ * @summary List Run Jobs
+ */
+export const listRunJobsApiV1RunsRunIdRecursiveJobsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveAgentJobOut[]> => {
+
+  return customFetch<RecursiveAgentJobOut[]>(getListRunJobsApiV1RunsRunIdRecursiveJobsGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/recursive-jobs`
+    ] as const;
+    }
+
+
+export const getListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryOptions = <TData = Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>> = ({ signal }) => listRunJobsApiV1RunsRunIdRecursiveJobsGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>>
+export type ListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Run Jobs
+ */
+
+export function useListRunJobsApiV1RunsRunIdRecursiveJobsGet<TData = Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRunJobsApiV1RunsRunIdRecursiveJobsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRunTreeApiV1RunsRunIdRecursiveTreeGetUrl = (runId: string,) => {
+
+
+
+
+  return `/api/v1/runs/${runId}/recursive-tree`
+}
+
+/**
+ * @summary Get Run Tree
+ */
+export const getRunTreeApiV1RunsRunIdRecursiveTreeGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveTreeOut> => {
+
+  return customFetch<RecursiveTreeOut>(getGetRunTreeApiV1RunsRunIdRecursiveTreeGetUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryKey = (runId: string,) => {
+    return [
+    `/api/v1/runs/${runId}/recursive-tree`
+    ] as const;
+    }
+
+
+export const getGetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryKey(runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>> = ({ signal }) => getRunTreeApiV1RunsRunIdRecursiveTreeGet(runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryResult = NonNullable<Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>>
+export type GetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Run Tree
+ */
+
+export function useGetRunTreeApiV1RunsRunIdRecursiveTreeGet<TData = Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>, TError = ErrorType<HTTPValidationError>>(
+ runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunTreeApiV1RunsRunIdRecursiveTreeGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryOptions(runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetJobApiV1RecursiveJobsJobIdGetUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}`
+}
+
+/**
+ * @summary Get Job
+ */
+export const getJobApiV1RecursiveJobsJobIdGet = async (jobId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveAgentJobDetailOut> => {
+
+  return customFetch<RecursiveAgentJobDetailOut>(getGetJobApiV1RecursiveJobsJobIdGetUrl(jobId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJobApiV1RecursiveJobsJobIdGetQueryKey = (jobId: string,) => {
+    return [
+    `/api/v1/recursive-jobs/${jobId}`
+    ] as const;
+    }
+
+
+export const getGetJobApiV1RecursiveJobsJobIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>, TError = ErrorType<HTTPValidationError>>(jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJobApiV1RecursiveJobsJobIdGetQueryKey(jobId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>> = ({ signal }) => getJobApiV1RecursiveJobsJobIdGet(jobId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJobApiV1RecursiveJobsJobIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>>
+export type GetJobApiV1RecursiveJobsJobIdGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Job
+ */
+
+export function useGetJobApiV1RecursiveJobsJobIdGet<TData = Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>, TError = ErrorType<HTTPValidationError>>(
+ jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJobApiV1RecursiveJobsJobIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJobApiV1RecursiveJobsJobIdGetQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEnrollWorkerApiV1RecursiveWorkersEnrollPostUrl = () => {
+
+
+
+
+  return `/api/v1/recursive-workers/enroll`
+}
+
+/**
+ * Exchange a one-time enrollment token for a long-lived worker credential.
+ * @summary Enroll Worker
+ */
+export const enrollWorkerApiV1RecursiveWorkersEnrollPost = async (recursiveEnrollIn: RecursiveEnrollIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveEnrolledOut> => {
+
+  return customFetch<RecursiveEnrolledOut>(getEnrollWorkerApiV1RecursiveWorkersEnrollPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveEnrollIn)
+  }
+);}
+
+
+
+
+
+export const getEnrollWorkerApiV1RecursiveWorkersEnrollPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrollWorkerApiV1RecursiveWorkersEnrollPost>>, TError,{data: BodyType<RecursiveEnrollIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enrollWorkerApiV1RecursiveWorkersEnrollPost>>, TError,{data: BodyType<RecursiveEnrollIn>}, TContext> => {
+
+const mutationKey = ['enrollWorkerApiV1RecursiveWorkersEnrollPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enrollWorkerApiV1RecursiveWorkersEnrollPost>>, {data: BodyType<RecursiveEnrollIn>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  enrollWorkerApiV1RecursiveWorkersEnrollPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnrollWorkerApiV1RecursiveWorkersEnrollPostMutationResult = NonNullable<Awaited<ReturnType<typeof enrollWorkerApiV1RecursiveWorkersEnrollPost>>>
+    export type EnrollWorkerApiV1RecursiveWorkersEnrollPostMutationBody = BodyType<RecursiveEnrollIn>
+    export type EnrollWorkerApiV1RecursiveWorkersEnrollPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Enroll Worker
+ */
+export const useEnrollWorkerApiV1RecursiveWorkersEnrollPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enrollWorkerApiV1RecursiveWorkersEnrollPost>>, TError,{data: BodyType<RecursiveEnrollIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enrollWorkerApiV1RecursiveWorkersEnrollPost>>,
+        TError,
+        {data: BodyType<RecursiveEnrollIn>},
+        TContext
+      > => {
+      return useMutation(getEnrollWorkerApiV1RecursiveWorkersEnrollPostMutationOptions(options));
+    }
+
+export const getWorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostUrl = () => {
+
+
+
+
+  return `/api/v1/recursive-workers/heartbeat`
+}
+
+/**
+ * Liveness plus the worker's only channel for learning about cancellation.
+ * @summary Worker Heartbeat
+ */
+export const workerHeartbeatApiV1RecursiveWorkersHeartbeatPost = async (recursiveHeartbeatIn: RecursiveHeartbeatIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveHeartbeatOut> => {
+
+  return customFetch<RecursiveHeartbeatOut>(getWorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveHeartbeatIn)
+  }
+);}
+
+
+
+
+
+export const getWorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof workerHeartbeatApiV1RecursiveWorkersHeartbeatPost>>, TError,{data: BodyType<RecursiveHeartbeatIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof workerHeartbeatApiV1RecursiveWorkersHeartbeatPost>>, TError,{data: BodyType<RecursiveHeartbeatIn>}, TContext> => {
+
+const mutationKey = ['workerHeartbeatApiV1RecursiveWorkersHeartbeatPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof workerHeartbeatApiV1RecursiveWorkersHeartbeatPost>>, {data: BodyType<RecursiveHeartbeatIn>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  workerHeartbeatApiV1RecursiveWorkersHeartbeatPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostMutationResult = NonNullable<Awaited<ReturnType<typeof workerHeartbeatApiV1RecursiveWorkersHeartbeatPost>>>
+    export type WorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostMutationBody = BodyType<RecursiveHeartbeatIn>
+    export type WorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Worker Heartbeat
+ */
+export const useWorkerHeartbeatApiV1RecursiveWorkersHeartbeatPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof workerHeartbeatApiV1RecursiveWorkersHeartbeatPost>>, TError,{data: BodyType<RecursiveHeartbeatIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof workerHeartbeatApiV1RecursiveWorkersHeartbeatPost>>,
+        TError,
+        {data: BodyType<RecursiveHeartbeatIn>},
+        TContext
+      > => {
+      return useMutation(getWorkerHeartbeatApiV1RecursiveWorkersHeartbeatPostMutationOptions(options));
+    }
+
+export const getLeaseJobApiV1RecursiveWorkersJobsLeasePostUrl = () => {
+
+
+
+
+  return `/api/v1/recursive-workers/jobs/lease`
+}
+
+/**
+ * @summary Lease Job
+ */
+export const leaseJobApiV1RecursiveWorkersJobsLeasePost = async (recursiveLeaseRequestIn: RecursiveLeaseRequestIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveLeaseOut | null> => {
+
+  return customFetch<RecursiveLeaseOut | null>(getLeaseJobApiV1RecursiveWorkersJobsLeasePostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveLeaseRequestIn)
+  }
+);}
+
+
+
+
+
+export const getLeaseJobApiV1RecursiveWorkersJobsLeasePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaseJobApiV1RecursiveWorkersJobsLeasePost>>, TError,{data: BodyType<RecursiveLeaseRequestIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaseJobApiV1RecursiveWorkersJobsLeasePost>>, TError,{data: BodyType<RecursiveLeaseRequestIn>}, TContext> => {
+
+const mutationKey = ['leaseJobApiV1RecursiveWorkersJobsLeasePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaseJobApiV1RecursiveWorkersJobsLeasePost>>, {data: BodyType<RecursiveLeaseRequestIn>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  leaseJobApiV1RecursiveWorkersJobsLeasePost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaseJobApiV1RecursiveWorkersJobsLeasePostMutationResult = NonNullable<Awaited<ReturnType<typeof leaseJobApiV1RecursiveWorkersJobsLeasePost>>>
+    export type LeaseJobApiV1RecursiveWorkersJobsLeasePostMutationBody = BodyType<RecursiveLeaseRequestIn>
+    export type LeaseJobApiV1RecursiveWorkersJobsLeasePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Lease Job
+ */
+export const useLeaseJobApiV1RecursiveWorkersJobsLeasePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaseJobApiV1RecursiveWorkersJobsLeasePost>>, TError,{data: BodyType<RecursiveLeaseRequestIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof leaseJobApiV1RecursiveWorkersJobsLeasePost>>,
+        TError,
+        {data: BodyType<RecursiveLeaseRequestIn>},
+        TContext
+      > => {
+      return useMutation(getLeaseJobApiV1RecursiveWorkersJobsLeasePostMutationOptions(options));
+    }
+
+export const getJobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}/heartbeat`
+}
+
+/**
+ * @summary Job Heartbeat
+ */
+export const jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost = async (jobId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveJobControlOut> => {
+
+  return customFetch<RecursiveJobControlOut>(getJobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostUrl(jobId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getJobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost>>, TError,{jobId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost>>, TError,{jobId: string}, TContext> => {
+
+const mutationKey = ['jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost>>, {jobId: string}> = (props) => {
+          const {jobId} = props ?? {};
+
+          return  jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost(jobId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostMutationResult = NonNullable<Awaited<ReturnType<typeof jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost>>>
+
+    export type JobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Job Heartbeat
+ */
+export const useJobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost>>, TError,{jobId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof jobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPost>>,
+        TError,
+        {jobId: string},
+        TContext
+      > => {
+      return useMutation(getJobHeartbeatApiV1RecursiveJobsJobIdHeartbeatPostMutationOptions(options));
+    }
+
+export const getGetJobBundleApiV1RecursiveJobsJobIdBundleGetUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}/bundle`
+}
+
+/**
+ * The frozen evidence and brief for a job this worker currently holds.
+ * @summary Get Job Bundle
+ */
+export const getJobBundleApiV1RecursiveJobsJobIdBundleGet = async (jobId: string, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getGetJobBundleApiV1RecursiveJobsJobIdBundleGetUrl(jobId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJobBundleApiV1RecursiveJobsJobIdBundleGetQueryKey = (jobId: string,) => {
+    return [
+    `/api/v1/recursive-jobs/${jobId}/bundle`
+    ] as const;
+    }
+
+
+export const getGetJobBundleApiV1RecursiveJobsJobIdBundleGetQueryOptions = <TData = Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>, TError = ErrorType<HTTPValidationError>>(jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJobBundleApiV1RecursiveJobsJobIdBundleGetQueryKey(jobId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>> = ({ signal }) => getJobBundleApiV1RecursiveJobsJobIdBundleGet(jobId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJobBundleApiV1RecursiveJobsJobIdBundleGetQueryResult = NonNullable<Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>>
+export type GetJobBundleApiV1RecursiveJobsJobIdBundleGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Job Bundle
+ */
+
+export function useGetJobBundleApiV1RecursiveJobsJobIdBundleGet<TData = Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>, TError = ErrorType<HTTPValidationError>>(
+ jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJobBundleApiV1RecursiveJobsJobIdBundleGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJobBundleApiV1RecursiveJobsJobIdBundleGetQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPostJobEventsApiV1RecursiveJobsJobIdEventsPostUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}/events`
+}
+
+/**
+ * @summary Post Job Events
+ */
+export const postJobEventsApiV1RecursiveJobsJobIdEventsPost = async (jobId: string,
+    recursiveEventBatchIn: RecursiveEventBatchIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveEventBatchOut> => {
+
+  return customFetch<RecursiveEventBatchOut>(getPostJobEventsApiV1RecursiveJobsJobIdEventsPostUrl(jobId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveEventBatchIn)
+  }
+);}
+
+
+
+
+
+export const getPostJobEventsApiV1RecursiveJobsJobIdEventsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postJobEventsApiV1RecursiveJobsJobIdEventsPost>>, TError,{jobId: string;data: BodyType<RecursiveEventBatchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postJobEventsApiV1RecursiveJobsJobIdEventsPost>>, TError,{jobId: string;data: BodyType<RecursiveEventBatchIn>}, TContext> => {
+
+const mutationKey = ['postJobEventsApiV1RecursiveJobsJobIdEventsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postJobEventsApiV1RecursiveJobsJobIdEventsPost>>, {jobId: string;data: BodyType<RecursiveEventBatchIn>}> = (props) => {
+          const {jobId,data} = props ?? {};
+
+          return  postJobEventsApiV1RecursiveJobsJobIdEventsPost(jobId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostJobEventsApiV1RecursiveJobsJobIdEventsPostMutationResult = NonNullable<Awaited<ReturnType<typeof postJobEventsApiV1RecursiveJobsJobIdEventsPost>>>
+    export type PostJobEventsApiV1RecursiveJobsJobIdEventsPostMutationBody = BodyType<RecursiveEventBatchIn>
+    export type PostJobEventsApiV1RecursiveJobsJobIdEventsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Post Job Events
+ */
+export const usePostJobEventsApiV1RecursiveJobsJobIdEventsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postJobEventsApiV1RecursiveJobsJobIdEventsPost>>, TError,{jobId: string;data: BodyType<RecursiveEventBatchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postJobEventsApiV1RecursiveJobsJobIdEventsPost>>,
+        TError,
+        {jobId: string;data: BodyType<RecursiveEventBatchIn>},
+        TContext
+      > => {
+      return useMutation(getPostJobEventsApiV1RecursiveJobsJobIdEventsPostMutationOptions(options));
+    }
+
+export const getCompleteJobRouteApiV1RecursiveJobsJobIdCompletePostUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}/complete`
+}
+
+/**
+ * @summary Complete Job Route
+ */
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePost = async (jobId: string,
+    recursiveCompletionIn: RecursiveCompletionIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveJobAckOut> => {
+
+  return customFetch<RecursiveJobAckOut>(getCompleteJobRouteApiV1RecursiveJobsJobIdCompletePostUrl(jobId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveCompletionIn)
+  }
+);}
+
+
+
+
+
+export const getCompleteJobRouteApiV1RecursiveJobsJobIdCompletePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeJobRouteApiV1RecursiveJobsJobIdCompletePost>>, TError,{jobId: string;data: BodyType<RecursiveCompletionIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeJobRouteApiV1RecursiveJobsJobIdCompletePost>>, TError,{jobId: string;data: BodyType<RecursiveCompletionIn>}, TContext> => {
+
+const mutationKey = ['completeJobRouteApiV1RecursiveJobsJobIdCompletePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeJobRouteApiV1RecursiveJobsJobIdCompletePost>>, {jobId: string;data: BodyType<RecursiveCompletionIn>}> = (props) => {
+          const {jobId,data} = props ?? {};
+
+          return  completeJobRouteApiV1RecursiveJobsJobIdCompletePost(jobId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostMutationResult = NonNullable<Awaited<ReturnType<typeof completeJobRouteApiV1RecursiveJobsJobIdCompletePost>>>
+    export type CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostMutationBody = BodyType<RecursiveCompletionIn>
+    export type CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Complete Job Route
+ */
+export const useCompleteJobRouteApiV1RecursiveJobsJobIdCompletePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeJobRouteApiV1RecursiveJobsJobIdCompletePost>>, TError,{jobId: string;data: BodyType<RecursiveCompletionIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeJobRouteApiV1RecursiveJobsJobIdCompletePost>>,
+        TError,
+        {jobId: string;data: BodyType<RecursiveCompletionIn>},
+        TContext
+      > => {
+      return useMutation(getCompleteJobRouteApiV1RecursiveJobsJobIdCompletePostMutationOptions(options));
+    }
+
+export const getFailJobRouteApiV1RecursiveJobsJobIdFailPostUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}/fail`
+}
+
+/**
+ * @summary Fail Job Route
+ */
+export const failJobRouteApiV1RecursiveJobsJobIdFailPost = async (jobId: string,
+    recursiveFailIn: RecursiveFailIn, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveJobAckOut> => {
+
+  return customFetch<RecursiveJobAckOut>(getFailJobRouteApiV1RecursiveJobsJobIdFailPostUrl(jobId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recursiveFailIn)
+  }
+);}
+
+
+
+
+
+export const getFailJobRouteApiV1RecursiveJobsJobIdFailPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof failJobRouteApiV1RecursiveJobsJobIdFailPost>>, TError,{jobId: string;data: BodyType<RecursiveFailIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof failJobRouteApiV1RecursiveJobsJobIdFailPost>>, TError,{jobId: string;data: BodyType<RecursiveFailIn>}, TContext> => {
+
+const mutationKey = ['failJobRouteApiV1RecursiveJobsJobIdFailPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof failJobRouteApiV1RecursiveJobsJobIdFailPost>>, {jobId: string;data: BodyType<RecursiveFailIn>}> = (props) => {
+          const {jobId,data} = props ?? {};
+
+          return  failJobRouteApiV1RecursiveJobsJobIdFailPost(jobId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FailJobRouteApiV1RecursiveJobsJobIdFailPostMutationResult = NonNullable<Awaited<ReturnType<typeof failJobRouteApiV1RecursiveJobsJobIdFailPost>>>
+    export type FailJobRouteApiV1RecursiveJobsJobIdFailPostMutationBody = BodyType<RecursiveFailIn>
+    export type FailJobRouteApiV1RecursiveJobsJobIdFailPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Fail Job Route
+ */
+export const useFailJobRouteApiV1RecursiveJobsJobIdFailPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof failJobRouteApiV1RecursiveJobsJobIdFailPost>>, TError,{jobId: string;data: BodyType<RecursiveFailIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof failJobRouteApiV1RecursiveJobsJobIdFailPost>>,
+        TError,
+        {jobId: string;data: BodyType<RecursiveFailIn>},
+        TContext
+      > => {
+      return useMutation(getFailJobRouteApiV1RecursiveJobsJobIdFailPostMutationOptions(options));
+    }
+
+export const getReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/v1/recursive-jobs/${jobId}/release`
+}
+
+/**
+ * @summary Release Job Route
+ */
+export const releaseJobRouteApiV1RecursiveJobsJobIdReleasePost = async (jobId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecursiveJobAckOut> => {
+
+  return customFetch<RecursiveJobAckOut>(getReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostUrl(jobId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releaseJobRouteApiV1RecursiveJobsJobIdReleasePost>>, TError,{jobId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof releaseJobRouteApiV1RecursiveJobsJobIdReleasePost>>, TError,{jobId: string}, TContext> => {
+
+const mutationKey = ['releaseJobRouteApiV1RecursiveJobsJobIdReleasePost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof releaseJobRouteApiV1RecursiveJobsJobIdReleasePost>>, {jobId: string}> = (props) => {
+          const {jobId} = props ?? {};
+
+          return  releaseJobRouteApiV1RecursiveJobsJobIdReleasePost(jobId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostMutationResult = NonNullable<Awaited<ReturnType<typeof releaseJobRouteApiV1RecursiveJobsJobIdReleasePost>>>
+
+    export type ReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Release Job Route
+ */
+export const useReleaseJobRouteApiV1RecursiveJobsJobIdReleasePost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releaseJobRouteApiV1RecursiveJobsJobIdReleasePost>>, TError,{jobId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof releaseJobRouteApiV1RecursiveJobsJobIdReleasePost>>,
+        TError,
+        {jobId: string},
+        TContext
+      > => {
+      return useMutation(getReleaseJobRouteApiV1RecursiveJobsJobIdReleasePostMutationOptions(options));
+    }
 
 export const getHealthLiveApiHealthLiveGetUrl = () => {
 

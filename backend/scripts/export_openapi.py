@@ -13,11 +13,18 @@ Two transformations are applied to FastAPI's own output:
    per operation and collides with itself when query params are present; the
    frontend passes query strings manually instead.
 
+The app is built here with every optional feature switched on. A deployment
+decides which routes it actually serves -- the Recursive Agent routes are only
+registered when that feature is enabled -- but the spec is the whole contract,
+so the generated client always has types for them. The frontend asks the server
+at runtime whether a feature is available; it never infers that from the spec.
+
 Usage:  backend/.venv/bin/python backend/scripts/export_openapi.py
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -26,9 +33,20 @@ BACKEND = REPO_ROOT / "backend"
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
+os.environ["RECURSIVE_AGENTS_ENABLED"] = "true"
+# The pepper is only a startup precondition of the feature flag. This app is
+# never served and never signs a token; it is introspected for its schema and
+# thrown away, so a fixed placeholder is correct here and a real secret would
+# be wrong -- it would put a live credential in a build step.
+os.environ.setdefault(
+    "RECURSIVE_WORKER_TOKEN_PEPPER", "openapi-export-placeholder-not-a-secret"
+)
+
 import yaml  # noqa: E402
 
-from app.main import app  # noqa: E402
+from app.main import create_app  # noqa: E402
+
+app = create_app()
 
 OUTPUT = REPO_ROOT / "lib" / "api-spec" / "openapi.yaml"
 MOUNT_PREFIX = "/api"

@@ -1371,6 +1371,557 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/recursive-workers:
+    get:
+      summary: List Workers
+      operationId: list_workers_api_v1_workspaces__workspace_id__recursive_workers_get
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecursiveWorkerOut'
+                title: Response List Workers Api V1 Workspaces  Workspace Id  Recursive
+                  Workers Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/recursive-worker-enrollments:
+    post:
+      summary: Create Enrollment
+      description: Mint a short-lived enrollment token. Admin only, shown exactly
+        once.
+      operationId: create_enrollment_api_v1_workspaces__workspace_id__recursive_worker_enrollments_post
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveWorkerEnrollmentIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveWorkerEnrollmentCreatedOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/recursive-workers/{worker_id}/disable:
+    post:
+      summary: Disable Worker
+      operationId: disable_worker_api_v1_workspaces__workspace_id__recursive_workers__worker_id__disable_post
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: worker_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Worker Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveWorkerOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/recursive-workers/{worker_id}/enable:
+    post:
+      summary: Enable Worker
+      operationId: enable_worker_api_v1_workspaces__workspace_id__recursive_workers__worker_id__enable_post
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: worker_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Worker Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveWorkerOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/recursive-workers/{worker_id}/revoke:
+    post:
+      summary: Revoke Worker
+      description: 'Permanently invalidate a worker''s credential.
+
+
+        The hash is overwritten rather than merely flagged, so the credential stops
+
+        working even if a later code path forgets to check ``revoked_at``.'
+      operationId: revoke_worker_api_v1_workspaces__workspace_id__recursive_workers__worker_id__revoke_post
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: worker_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Worker Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveWorkerOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/runs/{run_id}/recursive-jobs:
+    get:
+      summary: List Run Jobs
+      operationId: list_run_jobs_api_v1_runs__run_id__recursive_jobs_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecursiveAgentJobOut'
+                title: Response List Run Jobs Api V1 Runs  Run Id  Recursive Jobs
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/runs/{run_id}/recursive-tree:
+    get:
+      summary: Get Run Tree
+      operationId: get_run_tree_api_v1_runs__run_id__recursive_tree_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveTreeOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}:
+    get:
+      summary: Get Job
+      operationId: get_job_api_v1_recursive_jobs__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveAgentJobDetailOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-workers/enroll:
+    post:
+      summary: Enroll Worker
+      description: Exchange a one-time enrollment token for a long-lived worker credential.
+      operationId: enroll_worker_api_v1_recursive_workers_enroll_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveEnrollIn'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveEnrolledOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-workers/heartbeat:
+    post:
+      summary: Worker Heartbeat
+      description: Liveness plus the worker's only channel for learning about cancellation.
+      operationId: worker_heartbeat_api_v1_recursive_workers_heartbeat_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveHeartbeatIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveHeartbeatOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-workers/jobs/lease:
+    post:
+      summary: Lease Job
+      operationId: lease_job_api_v1_recursive_workers_jobs_lease_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveLeaseRequestIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/RecursiveLeaseOut'
+                - type: 'null'
+                title: Response Lease Job Api V1 Recursive Workers Jobs Lease Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}/heartbeat:
+    post:
+      summary: Job Heartbeat
+      operationId: job_heartbeat_api_v1_recursive_jobs__job_id__heartbeat_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveJobControlOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}/bundle:
+    get:
+      summary: Get Job Bundle
+      description: The frozen evidence and brief for a job this worker currently holds.
+      operationId: get_job_bundle_api_v1_recursive_jobs__job_id__bundle_get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}/events:
+    post:
+      summary: Post Job Events
+      operationId: post_job_events_api_v1_recursive_jobs__job_id__events_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveEventBatchIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveEventBatchOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}/complete:
+    post:
+      summary: Complete Job Route
+      operationId: complete_job_route_api_v1_recursive_jobs__job_id__complete_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveCompletionIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveJobAckOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}/fail:
+    post:
+      summary: Fail Job Route
+      operationId: fail_job_route_api_v1_recursive_jobs__job_id__fail_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecursiveFailIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveJobAckOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/recursive-jobs/{job_id}/release:
+    post:
+      summary: Release Job Route
+      operationId: release_job_route_api_v1_recursive_jobs__job_id__release_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursiveJobAckOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /health/live:
     get:
       summary: Health Live
@@ -1782,14 +2333,29 @@ components:
           type: string
           format: uuid
           title: Agent Version Id
-        provider_config_id:
+        execution_mode:
           type: string
-          format: uuid
+          enum:
+          - standard
+          - recursive_rlm
+          title: Execution Mode
+          default: standard
+        provider_config_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
           title: Provider Config Id
         provider_model_id:
-          type: string
-          format: uuid
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
           title: Provider Model Id
+        recursive_execution:
+          anyOf:
+          - $ref: '#/components/schemas/RecursiveExecutionConfigIn'
+          - type: 'null'
         temperature_override:
           anyOf:
           - type: number
@@ -1803,14 +2369,11 @@ components:
             format: uuid
           type: array
           title: Tool Definition Ids
-          default: []
       type: object
       required:
       - position
       - role_type
       - agent_version_id
-      - provider_config_id
-      - provider_model_id
       title: DraftAgentIn
     EvidenceChunkOut:
       properties:
@@ -2802,6 +3365,1579 @@ components:
           title: Models
       type: object
       title: ProviderUpdateIn
+    RecursiveAgentJobDetailOut:
+      properties:
+        job:
+          $ref: '#/components/schemas/RecursiveAgentJobOut'
+        nodes:
+          items:
+            $ref: '#/components/schemas/RecursiveAgentNodeOut'
+          type: array
+          title: Nodes
+      type: object
+      required:
+      - job
+      title: RecursiveAgentJobDetailOut
+    RecursiveAgentJobOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        run_turn_id:
+          type: string
+          format: uuid
+          title: Run Turn Id
+        agent_version_id:
+          type: string
+          format: uuid
+          title: Agent Version Id
+        requested_worker_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Requested Worker Id
+        leased_worker_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Leased Worker Id
+        status:
+          type: string
+          title: Status
+        attempt_count:
+          type: integer
+          title: Attempt Count
+        max_attempts:
+          type: integer
+          title: Max Attempts
+        request_sha256:
+          type: string
+          title: Request Sha256
+        result_sha256:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Sha256
+        model_key:
+          type: string
+          title: Model Key
+        child_model_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Child Model Key
+        capability_profile:
+          type: string
+          title: Capability Profile
+        max_children:
+          type: integer
+          title: Max Children
+        max_depth:
+          type: integer
+          title: Max Depth
+        max_agent_turns:
+          type: integer
+          title: Max Agent Turns
+        max_tokens:
+          type: integer
+          title: Max Tokens
+        max_runtime_seconds:
+          type: integer
+          title: Max Runtime Seconds
+        max_cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Cost Usd
+        model_call_count:
+          type: integer
+          title: Model Call Count
+        input_tokens:
+          type: integer
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          title: Output Tokens
+        cost_usd:
+          type: number
+          title: Cost Usd
+        lease_expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Lease Expires At
+        heartbeat_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Heartbeat At
+        cancellation_requested_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Cancellation Requested At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        failure_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Failure Code
+        failure_safe_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Failure Safe Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - run_id
+      - run_turn_id
+      - agent_version_id
+      - requested_worker_id
+      - leased_worker_id
+      - status
+      - attempt_count
+      - max_attempts
+      - request_sha256
+      - result_sha256
+      - model_key
+      - child_model_key
+      - capability_profile
+      - max_children
+      - max_depth
+      - max_agent_turns
+      - max_tokens
+      - max_runtime_seconds
+      - max_cost_usd
+      - model_call_count
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - lease_expires_at
+      - heartbeat_at
+      - cancellation_requested_at
+      - started_at
+      - completed_at
+      - failure_code
+      - failure_safe_message
+      - created_at
+      - updated_at
+      title: RecursiveAgentJobOut
+    RecursiveAgentNodeOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        job_id:
+          type: string
+          format: uuid
+          title: Job Id
+        external_node_id:
+          type: string
+          title: External Node Id
+        parent_external_node_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parent External Node Id
+        display_name:
+          type: string
+          title: Display Name
+        status:
+          type: string
+          title: Status
+        model_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Key
+        task_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Summary
+        result_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Summary
+        cited_evidence_keys:
+          items:
+            type: string
+          type: array
+          title: Cited Evidence Keys
+        tool_labels:
+          items:
+            type: string
+          type: array
+          title: Tool Labels
+        model_call_count:
+          type: integer
+          title: Model Call Count
+        input_tokens:
+          type: integer
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          title: Output Tokens
+        cost_usd:
+          type: number
+          title: Cost Usd
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        failure_safe_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Failure Safe Message
+      type: object
+      required:
+      - id
+      - job_id
+      - external_node_id
+      - parent_external_node_id
+      - display_name
+      - status
+      - model_key
+      - task_summary
+      - result_summary
+      - cited_evidence_keys
+      - tool_labels
+      - model_call_count
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - started_at
+      - completed_at
+      - failure_safe_message
+      title: RecursiveAgentNodeOut
+      description: Safe visualisation record for one agent in a job's tree.
+    RecursiveCitationIn:
+      properties:
+        evidence_key:
+          type: string
+          maxLength: 60
+          minLength: 1
+          title: Evidence Key
+        locator:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Locator
+        claim:
+          type: string
+          maxLength: 4000
+          title: Claim
+          default: ''
+        support_type:
+          type: string
+          enum:
+          - supports
+          - contradicts
+          - context
+          - uncertain
+          title: Support Type
+          default: context
+      type: object
+      required:
+      - evidence_key
+      title: RecursiveCitationIn
+    RecursiveCompletionIn:
+      properties:
+        schema_version:
+          type: string
+          const: '1.0'
+          title: Schema Version
+          default: '1.0'
+        request_sha256:
+          type: string
+          maxLength: 64
+          minLength: 64
+          pattern: ^[a-f0-9]{64}$
+          title: Request Sha256
+        final_text:
+          type: string
+          maxLength: 60000
+          minLength: 1
+          title: Final Text
+        citations:
+          items:
+            $ref: '#/components/schemas/RecursiveCitationIn'
+          type: array
+          maxItems: 200
+          title: Citations
+        limitations:
+          items:
+            type: string
+          type: array
+          maxItems: 50
+          title: Limitations
+        usage:
+          $ref: '#/components/schemas/RecursiveUsageIn'
+        runtime:
+          $ref: '#/components/schemas/RecursiveRuntimeIn'
+        nodes:
+          items:
+            $ref: '#/components/schemas/RecursiveResultNodeIn'
+          type: array
+          maxItems: 200
+          title: Nodes
+      type: object
+      required:
+      - request_sha256
+      - final_text
+      title: RecursiveCompletionIn
+    RecursiveEnrollIn:
+      properties:
+        adapter_version:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Adapter Version
+        prime_agent_version:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Prime Agent Version
+        sandbox_mode:
+          anyOf:
+          - type: string
+            enum:
+            - docker
+            - rootless
+            - process
+          - type: 'null'
+          title: Sandbox Mode
+        capabilities:
+          $ref: '#/components/schemas/RecursiveWorkerCapabilitiesIn'
+        model_catalog:
+          items:
+            $ref: '#/components/schemas/RecursiveWorkerModelIn'
+          type: array
+          maxItems: 200
+          title: Model Catalog
+        enrollment_token:
+          type: string
+          maxLength: 200
+          minLength: 8
+          title: Enrollment Token
+        display_name:
+          type: string
+          maxLength: 200
+          title: Display Name
+          default: ''
+      type: object
+      required:
+      - enrollment_token
+      title: RecursiveEnrollIn
+    RecursiveEnrolledOut:
+      properties:
+        worker_id:
+          type: string
+          format: uuid
+          title: Worker Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        display_name:
+          type: string
+          title: Display Name
+        worker_token:
+          type: string
+          title: Worker Token
+        heartbeat_interval_seconds:
+          type: integer
+          title: Heartbeat Interval Seconds
+        lease_poll_interval_seconds:
+          type: integer
+          title: Lease Poll Interval Seconds
+      type: object
+      required:
+      - worker_id
+      - workspace_id
+      - display_name
+      - worker_token
+      - heartbeat_interval_seconds
+      - lease_poll_interval_seconds
+      title: RecursiveEnrolledOut
+      description: The one-time response that hands a worker its long-lived credential.
+    RecursiveEventBatchIn:
+      properties:
+        schema_version:
+          type: string
+          const: '1.0'
+          title: Schema Version
+          default: '1.0'
+        events:
+          items:
+            $ref: '#/components/schemas/RecursiveWorkerEventIn'
+          type: array
+          title: Events
+      type: object
+      title: RecursiveEventBatchIn
+    RecursiveEventBatchOut:
+      properties:
+        accepted:
+          type: integer
+          title: Accepted
+        duplicates:
+          type: integer
+          title: Duplicates
+        rejected:
+          type: integer
+          title: Rejected
+      type: object
+      required:
+      - accepted
+      - duplicates
+      - rejected
+      title: RecursiveEventBatchOut
+    RecursiveEventNodeIn:
+      properties:
+        external_node_id:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: External Node Id
+        parent_external_node_id:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Parent External Node Id
+        display_name:
+          type: string
+          maxLength: 200
+          title: Display Name
+          default: ''
+      type: object
+      required:
+      - external_node_id
+      title: RecursiveEventNodeIn
+    RecursiveEventPayloadIn:
+      properties:
+        task_summary:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Task Summary
+        result_summary:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Result Summary
+        model_key:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Model Key
+        tool_label:
+          anyOf:
+          - type: string
+            enum:
+            - Python
+            - Frozen evidence search
+          - type: 'null'
+          title: Tool Label
+        node_status:
+          anyOf:
+          - type: string
+            enum:
+            - queued
+            - running
+            - completed
+            - failed
+            - cancelled
+          - type: 'null'
+          title: Node Status
+        failure_category:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Failure Category
+        failure_safe_message:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Failure Safe Message
+        usage:
+          anyOf:
+          - $ref: '#/components/schemas/RecursiveUsageIn'
+          - type: 'null'
+      type: object
+      title: RecursiveEventPayloadIn
+      description: 'The only payload fields a worker event may carry into the run
+        stream.
+
+
+        Anything not named here is dropped. That direction is deliberate: the
+
+        events a coordinator emits are full of reasoning deltas, scratchpads, shell
+
+        output and host paths, none of which may reach a browser or an export.'
+    RecursiveExecutionConfigIn:
+      properties:
+        schema_version:
+          type: string
+          const: '1.0'
+          title: Schema Version
+          default: '1.0'
+        capability_profile:
+          type: string
+          const: research_read_only
+          title: Capability Profile
+          default: research_read_only
+        requested_worker_id:
+          type: string
+          format: uuid
+          title: Requested Worker Id
+        coordinator_model_key:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Coordinator Model Key
+        child_model_key:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Child Model Key
+        max_children:
+          type: integer
+          maximum: 8.0
+          minimum: 1.0
+          title: Max Children
+          default: 3
+        max_depth:
+          type: integer
+          maximum: 2.0
+          minimum: 1.0
+          title: Max Depth
+          default: 1
+        max_agent_turns:
+          type: integer
+          maximum: 20.0
+          minimum: 1.0
+          title: Max Agent Turns
+          default: 8
+        max_tokens:
+          type: integer
+          minimum: 1.0
+          title: Max Tokens
+          default: 32000
+        max_runtime_seconds:
+          type: integer
+          maximum: 3600.0
+          minimum: 60.0
+          title: Max Runtime Seconds
+          default: 900
+        max_cost_usd:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Max Cost Usd
+          default: 2.0
+        allow_python:
+          type: boolean
+          const: true
+          title: Allow Python
+          default: true
+        allow_evidence_search:
+          type: boolean
+          const: true
+          title: Allow Evidence Search
+          default: true
+        allow_web:
+          type: boolean
+          const: false
+          title: Allow Web
+          default: false
+        allowed_skill_ids:
+          items:
+            type: string
+            const: vls_evidence
+          type: array
+          title: Allowed Skill Ids
+      type: object
+      required:
+      - requested_worker_id
+      - coordinator_model_key
+      title: RecursiveExecutionConfigIn
+      description: 'Per-participant settings for the optional Recursive Agent runtime.
+
+
+        Bounds here are the schema ceiling. Deployment and workspace policy is
+
+        applied separately at draft validation, which may only narrow these.
+
+        Capabilities the product does not support are pinned to a literal rather
+
+        than defaulted, so a client cannot request web access or extra skills.'
+    RecursiveExecutionEstimateOut:
+      properties:
+        recursive_turn_count:
+          type: integer
+          title: Recursive Turn Count
+        max_agent_turns:
+          type: integer
+          title: Max Agent Turns
+        max_children_per_turn:
+          type: integer
+          title: Max Children Per Turn
+        max_depth:
+          type: integer
+          title: Max Depth
+        max_tokens:
+          type: integer
+          title: Max Tokens
+        max_runtime_seconds:
+          type: integer
+          title: Max Runtime Seconds
+        max_cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Cost Usd
+        pricing_complete:
+          type: boolean
+          title: Pricing Complete
+        workers_online:
+          type: boolean
+          title: Workers Online
+      type: object
+      required:
+      - recursive_turn_count
+      - max_agent_turns
+      - max_children_per_turn
+      - max_depth
+      - max_tokens
+      - max_runtime_seconds
+      - max_cost_usd
+      - pricing_complete
+      - workers_online
+      title: RecursiveExecutionEstimateOut
+      description: 'Bounded maxima for the recursive part of a meeting.
+
+
+        These are ceilings, not predictions. A recursive participant decides its
+
+        own fan-out inside the limits, so presenting a single expected call count
+
+        would be a number the product cannot stand behind.'
+    RecursiveFailIn:
+      properties:
+        failure_code:
+          type: string
+          enum:
+          - worker_error
+          - model_error
+          - sandbox_error
+          - timeout
+          - limit_exceeded
+          - invalid_result
+          - cancelled
+          - paused
+          title: Failure Code
+        safe_message:
+          type: string
+          maxLength: 300
+          title: Safe Message
+          default: ''
+        retryable:
+          type: boolean
+          title: Retryable
+          default: true
+        usage:
+          $ref: '#/components/schemas/RecursiveUsageIn'
+      type: object
+      required:
+      - failure_code
+      title: RecursiveFailIn
+    RecursiveHeartbeatIn:
+      properties:
+        adapter_version:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Adapter Version
+        prime_agent_version:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Prime Agent Version
+        sandbox_mode:
+          anyOf:
+          - type: string
+            enum:
+            - docker
+            - rootless
+            - process
+          - type: 'null'
+          title: Sandbox Mode
+        capabilities:
+          $ref: '#/components/schemas/RecursiveWorkerCapabilitiesIn'
+        model_catalog:
+          items:
+            $ref: '#/components/schemas/RecursiveWorkerModelIn'
+          type: array
+          maxItems: 200
+          title: Model Catalog
+        active_job_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 64
+          title: Active Job Ids
+        capacity:
+          $ref: '#/components/schemas/RecursiveWorkerCapacityIn'
+        health:
+          $ref: '#/components/schemas/RecursiveWorkerHealthIn'
+      type: object
+      title: RecursiveHeartbeatIn
+    RecursiveHeartbeatOut:
+      properties:
+        worker_id:
+          type: string
+          format: uuid
+          title: Worker Id
+        status:
+          type: string
+          title: Status
+        heartbeat_interval_seconds:
+          type: integer
+          title: Heartbeat Interval Seconds
+        lease_poll_interval_seconds:
+          type: integer
+          title: Lease Poll Interval Seconds
+        job_controls:
+          items:
+            $ref: '#/components/schemas/RecursiveJobControlOut'
+          type: array
+          title: Job Controls
+      type: object
+      required:
+      - worker_id
+      - status
+      - heartbeat_interval_seconds
+      - lease_poll_interval_seconds
+      title: RecursiveHeartbeatOut
+    RecursiveJobAckOut:
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          title: Job Id
+        status:
+          type: string
+          title: Status
+        accepted:
+          type: boolean
+          title: Accepted
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Detail
+      type: object
+      required:
+      - job_id
+      - status
+      - accepted
+      title: RecursiveJobAckOut
+    RecursiveJobControlOut:
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          title: Job Id
+        cancel_requested:
+          type: boolean
+          title: Cancel Requested
+          default: false
+        pause_requested:
+          type: boolean
+          title: Pause Requested
+          default: false
+      type: object
+      required:
+      - job_id
+      title: RecursiveJobControlOut
+      description: 'How the server answers "what should I do with this job right now?".
+
+
+        Cancellation and pause reach a running worker only through its own polling:
+
+        this deployment never opens a connection to the operator''s machine.'
+    RecursiveJobLimitsOut:
+      properties:
+        max_children:
+          type: integer
+          title: Max Children
+        max_depth:
+          type: integer
+          title: Max Depth
+        max_agent_turns:
+          type: integer
+          title: Max Agent Turns
+        max_tokens:
+          type: integer
+          title: Max Tokens
+        max_runtime_seconds:
+          type: integer
+          title: Max Runtime Seconds
+        max_cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Cost Usd
+      type: object
+      required:
+      - max_children
+      - max_depth
+      - max_agent_turns
+      - max_tokens
+      - max_runtime_seconds
+      - max_cost_usd
+      title: RecursiveJobLimitsOut
+    RecursiveLeaseOut:
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          title: Job Id
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        attempt:
+          type: integer
+          title: Attempt
+        request_sha256:
+          type: string
+          title: Request Sha256
+        capability_profile:
+          type: string
+          title: Capability Profile
+        model_key:
+          type: string
+          title: Model Key
+        child_model_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Child Model Key
+        limits:
+          $ref: '#/components/schemas/RecursiveJobLimitsOut'
+        allowed_skill_ids:
+          items:
+            type: string
+          type: array
+          title: Allowed Skill Ids
+        lease_expires_at:
+          type: string
+          format: date-time
+          title: Lease Expires At
+        heartbeat_interval_seconds:
+          type: integer
+          title: Heartbeat Interval Seconds
+        bundle_url:
+          type: string
+          title: Bundle Url
+      type: object
+      required:
+      - job_id
+      - run_id
+      - attempt
+      - request_sha256
+      - capability_profile
+      - model_key
+      - child_model_key
+      - limits
+      - allowed_skill_ids
+      - lease_expires_at
+      - heartbeat_interval_seconds
+      - bundle_url
+      title: RecursiveLeaseOut
+      description: 'What a worker learns when it wins a job.
+
+
+        Deliberately free of evidence content: the bundle is fetched separately so
+
+        a lease response stays small and the evidence transfer is a distinct,
+
+        lease-checked request.'
+    RecursiveLeaseRequestIn:
+      properties:
+        available_slots:
+          type: integer
+          maximum: 64.0
+          minimum: 0.0
+          title: Available Slots
+          default: 1
+        supported_profiles:
+          items:
+            type: string
+          type: array
+          maxItems: 16
+          title: Supported Profiles
+        model_keys:
+          items:
+            type: string
+          type: array
+          maxItems: 200
+          title: Model Keys
+      type: object
+      title: RecursiveLeaseRequestIn
+    RecursiveModelPricingOut:
+      properties:
+        input_usd_per_1m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Input Usd Per 1M
+        cached_input_usd_per_1m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cached Input Usd Per 1M
+        output_usd_per_1m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Output Usd Per 1M
+      type: object
+      title: RecursiveModelPricingOut
+    RecursiveResultNodeIn:
+      properties:
+        external_node_id:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: External Node Id
+        parent_external_node_id:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Parent External Node Id
+        display_name:
+          type: string
+          maxLength: 200
+          title: Display Name
+          default: ''
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+          - cancelled
+          title: Status
+          default: completed
+        model_key:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Model Key
+        task_summary:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Task Summary
+        result_summary:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Result Summary
+        cited_evidence_keys:
+          items:
+            type: string
+          type: array
+          maxItems: 200
+          title: Cited Evidence Keys
+        tool_labels:
+          items:
+            type: string
+            enum:
+            - Python
+            - Frozen evidence search
+          type: array
+          maxItems: 16
+          title: Tool Labels
+        failure_safe_message:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Failure Safe Message
+        usage:
+          $ref: '#/components/schemas/RecursiveUsageIn'
+      type: object
+      required:
+      - external_node_id
+      title: RecursiveResultNodeIn
+    RecursiveRuntimeIn:
+      properties:
+        adapter_version:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Adapter Version
+        prime_agent_version:
+          anyOf:
+          - type: string
+            maxLength: 60
+          - type: 'null'
+          title: Prime Agent Version
+        model_key:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Model Key
+        child_model_key:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Child Model Key
+        elapsed_ms:
+          type: integer
+          maximum: 1000000000.0
+          minimum: 0.0
+          title: Elapsed Ms
+          default: 0
+        is_simulation:
+          type: boolean
+          title: Is Simulation
+          default: false
+        session_reference_hash:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+          title: Session Reference Hash
+      type: object
+      title: RecursiveRuntimeIn
+    RecursiveTreeOut:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        jobs:
+          items:
+            $ref: '#/components/schemas/RecursiveAgentJobDetailOut'
+          type: array
+          title: Jobs
+      type: object
+      required:
+      - run_id
+      title: RecursiveTreeOut
+    RecursiveUsageIn:
+      properties:
+        model_call_count:
+          type: integer
+          maximum: 100000.0
+          minimum: 0.0
+          title: Model Call Count
+          default: 0
+        input_tokens:
+          type: integer
+          maximum: 1000000000.0
+          minimum: 0.0
+          title: Input Tokens
+          default: 0
+        cached_input_tokens:
+          type: integer
+          maximum: 1000000000.0
+          minimum: 0.0
+          title: Cached Input Tokens
+          default: 0
+        output_tokens:
+          type: integer
+          maximum: 1000000000.0
+          minimum: 0.0
+          title: Output Tokens
+          default: 0
+        cost_usd:
+          type: number
+          maximum: 1000000.0
+          minimum: 0.0
+          title: Cost Usd
+          default: 0.0
+        pricing_complete:
+          type: boolean
+          title: Pricing Complete
+          default: true
+      type: object
+      title: RecursiveUsageIn
+    RecursiveWorkerCapabilitiesIn:
+      properties:
+        profiles:
+          items:
+            type: string
+          type: array
+          maxItems: 16
+          title: Profiles
+        max_depth:
+          anyOf:
+          - type: integer
+            maximum: 8.0
+            minimum: 0.0
+          - type: 'null'
+          title: Max Depth
+        max_children:
+          anyOf:
+          - type: integer
+            maximum: 64.0
+            minimum: 0.0
+          - type: 'null'
+          title: Max Children
+        python:
+          type: boolean
+          title: Python
+          default: false
+        web:
+          type: boolean
+          title: Web
+          default: false
+      type: object
+      title: RecursiveWorkerCapabilitiesIn
+    RecursiveWorkerCapabilitiesOut:
+      properties:
+        sandbox_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sandbox Mode
+        supports_recursive_agents:
+          type: boolean
+          title: Supports Recursive Agents
+          default: false
+        supports_python:
+          type: boolean
+          title: Supports Python
+          default: false
+        supports_evidence_search:
+          type: boolean
+          title: Supports Evidence Search
+          default: false
+        allow_web:
+          type: boolean
+          title: Allow Web
+          default: false
+        max_children:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Children
+        max_depth:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Depth
+      type: object
+      title: RecursiveWorkerCapabilitiesOut
+      description: A worker's self-reported capability snapshot.
+    RecursiveWorkerCapacityIn:
+      properties:
+        max_concurrent_jobs:
+          type: integer
+          maximum: 64.0
+          minimum: 0.0
+          title: Max Concurrent Jobs
+          default: 1
+        available_slots:
+          type: integer
+          maximum: 64.0
+          minimum: 0.0
+          title: Available Slots
+          default: 1
+      type: object
+      title: RecursiveWorkerCapacityIn
+    RecursiveWorkerEnrollmentCreatedOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        requested_display_name:
+          type: string
+          title: Requested Display Name
+        token_prefix:
+          type: string
+          title: Token Prefix
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        consumed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Consumed At
+        consumed_worker_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Consumed Worker Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        enrollment_token:
+          type: string
+          title: Enrollment Token
+      type: object
+      required:
+      - id
+      - workspace_id
+      - requested_display_name
+      - token_prefix
+      - expires_at
+      - created_at
+      - enrollment_token
+      title: RecursiveWorkerEnrollmentCreatedOut
+      description: 'The one-time response to minting an enrollment token.
+
+
+        enrollment_token is the only moment the raw value exists outside the
+
+        operator''s machine: the server stores nothing but its keyed hash, so it
+
+        cannot be shown again. This type must never be used for a list or detail
+
+        response -- use RecursiveWorkerEnrollmentOut for those.'
+    RecursiveWorkerEnrollmentIn:
+      properties:
+        display_name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Display Name
+      type: object
+      required:
+      - display_name
+      title: RecursiveWorkerEnrollmentIn
+      description: 'What the admin supplies when minting an enrollment token.
+
+
+        A declared model rather than a bare dict: the operator only ever names the
+
+        machine here, and the generated client should say so.'
+    RecursiveWorkerEventIn:
+      properties:
+        external_event_id:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: External Event Id
+        worker_sequence:
+          type: integer
+          maximum: 1000000000.0
+          minimum: 0.0
+          title: Worker Sequence
+        occurred_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Occurred At
+        type:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Type
+        node:
+          anyOf:
+          - $ref: '#/components/schemas/RecursiveEventNodeIn'
+          - type: 'null'
+        payload:
+          $ref: '#/components/schemas/RecursiveEventPayloadIn'
+      type: object
+      required:
+      - external_event_id
+      - worker_sequence
+      - type
+      title: RecursiveWorkerEventIn
+    RecursiveWorkerHealthIn:
+      properties:
+        prime_agent:
+          type: string
+          enum:
+          - ok
+          - degraded
+          - error
+          title: Prime Agent
+          default: ok
+        sandbox:
+          type: string
+          enum:
+          - ok
+          - degraded
+          - error
+          title: Sandbox
+          default: ok
+        models:
+          type: string
+          enum:
+          - ok
+          - degraded
+          - error
+          title: Models
+          default: ok
+        safe_message:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Safe Message
+      type: object
+      title: RecursiveWorkerHealthIn
+    RecursiveWorkerModelIn:
+      properties:
+        model_key:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Model Key
+        display_name:
+          type: string
+          maxLength: 200
+          title: Display Name
+          default: ''
+        provider_kind:
+          type: string
+          maxLength: 60
+          title: Provider Kind
+          default: unknown
+        context_window:
+          anyOf:
+          - type: integer
+            maximum: 100000000.0
+            minimum: 0.0
+          - type: 'null'
+          title: Context Window
+        supports_recursive_agents:
+          type: boolean
+          title: Supports Recursive Agents
+          default: false
+        supports_tools:
+          type: boolean
+          title: Supports Tools
+          default: false
+        pricing:
+          $ref: '#/components/schemas/RecursiveModelPricingOut'
+      type: object
+      required:
+      - model_key
+      title: RecursiveWorkerModelIn
+      description: 'One entry of the worker''s self-reported catalogue.
+
+
+        Non-secret descriptive metadata only. There is deliberately no field for a
+
+        base URL, an API key or a filesystem path: the worker owns its own model
+
+        credentials and this deployment must never learn them.'
+    RecursiveWorkerModelOut:
+      properties:
+        model_key:
+          type: string
+          title: Model Key
+        display_name:
+          type: string
+          title: Display Name
+        provider_kind:
+          type: string
+          title: Provider Kind
+        context_window:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Context Window
+        supports_recursive_agents:
+          type: boolean
+          title: Supports Recursive Agents
+          default: false
+        supports_tools:
+          type: boolean
+          title: Supports Tools
+          default: false
+        pricing:
+          $ref: '#/components/schemas/RecursiveModelPricingOut'
+      type: object
+      required:
+      - model_key
+      - display_name
+      - provider_kind
+      title: RecursiveWorkerModelOut
+      description: One entry of a worker's self-reported, non-secret model catalogue.
+    RecursiveWorkerOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        display_name:
+          type: string
+          title: Display Name
+        status:
+          type: string
+          title: Status
+        enabled:
+          type: boolean
+          title: Enabled
+        token_prefix:
+          type: string
+          title: Token Prefix
+        adapter_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Adapter Version
+        prime_agent_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prime Agent Version
+        sandbox_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sandbox Mode
+        capabilities:
+          $ref: '#/components/schemas/RecursiveWorkerCapabilitiesOut'
+        model_catalog:
+          items:
+            $ref: '#/components/schemas/RecursiveWorkerModelOut'
+          type: array
+          title: Model Catalog
+        last_seen_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Seen At
+        last_error_safe_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Error Safe Message
+        enrolled_at:
+          type: string
+          format: date-time
+          title: Enrolled At
+        disabled_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Disabled At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - workspace_id
+      - display_name
+      - status
+      - enabled
+      - token_prefix
+      - adapter_version
+      - prime_agent_version
+      - sandbox_mode
+      - capabilities
+      - model_catalog
+      - last_seen_at
+      - last_error_safe_message
+      - enrolled_at
+      - disabled_at
+      - revoked_at
+      - created_at
+      - updated_at
+      title: RecursiveWorkerOut
     RunCitationOut:
       properties:
         id:
@@ -2954,6 +5090,14 @@ components:
         tool_call_count:
           type: integer
           title: Tool Call Count
+        recursive_job_count:
+          type: integer
+          title: Recursive Job Count
+          default: 0
+        recursive_agent_node_count:
+          type: integer
+          title: Recursive Agent Node Count
+          default: 0
         input_tokens:
           type: integer
           title: Input Tokens
@@ -3163,6 +5307,10 @@ components:
         status:
           type: string
           title: Status
+        execution_mode:
+          type: string
+          title: Execution Mode
+          default: standard
         response_text:
           anyOf:
           - type: string
@@ -3401,6 +5549,10 @@ components:
           additionalProperties: true
           type: object
           title: Budget
+        recursive_execution:
+          anyOf:
+          - $ref: '#/components/schemas/RecursiveExecutionEstimateOut'
+          - type: 'null'
       type: object
       required:
       - valid

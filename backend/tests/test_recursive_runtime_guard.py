@@ -140,10 +140,11 @@ def test_recursive_draft_is_refused_by_validate_and_launch():
 
 
 async def test_validate_refuses_recursive_with_the_feature_enabled(sessionmaker, monkeypatch):
-    """The same refusal when the flag is on: enabling it does not build a broker.
+    """With the flag on, an unknown worker is still a refusal.
 
-    Covers the branch the HTTP test above cannot reach without restarting the
-    server, and proves neither branch touches the empty provider columns.
+    Turning the feature on does not make any worker id acceptable. Covers the
+    branch the HTTP test above cannot reach without restarting the server, and
+    proves neither branch touches the empty provider columns.
     """
     async with sessionmaker() as db:
         provider = (
@@ -196,14 +197,15 @@ async def test_validate_refuses_recursive_with_the_feature_enabled(sessionmaker,
         assert not any("Provider is missing" in m for m in messages), messages
 
 
-async def test_engine_refuses_a_definition_it_cannot_execute(sessionmaker):
-    """Backstop: if a recursive definition ever existed, name what is unsupported.
+async def test_engine_loads_a_recursive_definition_without_a_provider(sessionmaker):
+    """Context loading must skip provider resolution for a recursive participant.
 
-    Launch prevents this, so the engine should never see one -- but an
-    AssertionError deep inside provider loading would be a far worse way to
-    find out than a message naming the runtime. Built for real against the
-    database (so the runtime CHECK constraint has to accept it too) and rolled
-    back afterwards.
+    The broker executes that turn, so there is nothing to resolve -- but the
+    empty provider columns are still right there to be dereferenced. Built for
+    real against the database (so the runtime CHECK constraint has to accept it
+    too) and rolled back afterwards. An unrecognised mode must still raise,
+    because falling through to a standard completion would run a different
+    experiment than the one that was configured.
     """
     from app.engine import _load_context
     from app.models import Run
@@ -257,8 +259,38 @@ async def test_engine_refuses_a_definition_it_cannot_execute(sessionmaker):
             db.expire_all()
             reloaded = await db.get(Run, run_id)
 
-            with pytest.raises(RuntimeError, match="recursive_rlm"):
-                await _load_context(db, reloaded)
+            ctx = await _load_context(db, reloaded)
+            recursive = [a for a in ctx.def_agents if a.execution_mode == "recursive_rlm"]
+            assert recursive, "the rewritten participant did not survive loading"
+            # No provider may have been fabricated for it. A fallback here is
+            # the exact failure this test exists to catch: the meeting would
+            # run, look normal, and be a different experiment.
+            for agent in recursive:
+                assert agent.provider_config_id is None
+                assert agent.provider_model_id is None
+                assert agent.recursive_worker_id is not None
+
+            # Every remaining provider entry belongs to a standard participant.
+            standard_config_ids = {
+                a.provider_config_id for a in ctx.def_agents if a.execution_mode == "standard"
+            }
+            assert set(ctx.provider_configs) <= standard_config_ids
+
+            # An unrecognised mode is still a hard stop rather than a fallback.
+            await db.execute(
+                text(
+                    "UPDATE meeting_definition_agents SET "
+                    "  execution_mode = 'recursive_rlm', "
+                    "  provider_config_id = NULL, provider_model_id = NULL, "
+                    "  recursive_worker_id = :wid, recursive_model_key = 'ollama/qwen2.5:32b' "
+                    "WHERE meeting_definition_id = :d"
+                ),
+                {"wid": worker_id, "d": definition_id},
+            )
+            db.expire_all()
+            reloaded = await db.get(Run, run_id)
+            ctx = await _load_context(db, reloaded)
+            assert not ctx.provider_configs, "an all-recursive meeting resolved a provider"
         finally:
             await savepoint.rollback()
             await db.rollback()

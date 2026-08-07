@@ -223,20 +223,27 @@ async def test_database_enums_match_model_declarations(sessionmaker):
 
 
 async def test_existing_rows_were_backfilled_as_standard(sessionmaker):
-    """Every row that predates this migration keeps provider-backed behaviour."""
+    """Every row that predates this migration keeps provider-backed behaviour.
+
+    Stated as an invariant rather than a census, because recursive rows are
+    legitimate once the feature is in use: what the backfill promised is that a
+    row marked ``standard`` still names the provider and model that will answer
+    for it. A ``standard`` row with either one missing would be a turn nobody
+    can attribute, which is exactly what the migration had to rule out.
+    """
     async with sessionmaker() as session:
         for table in ("meeting_definition_agents", "run_turns"):
             stray = (
                 await session.execute(
                     text(
                         f"SELECT count(*) FROM {table} "
-                        "WHERE execution_mode <> 'standard' "
-                        "  OR provider_config_id IS NULL "
-                        "  OR provider_model_id IS NULL"
+                        "WHERE execution_mode = 'standard' "
+                        "  AND (provider_config_id IS NULL "
+                        "       OR provider_model_id IS NULL)"
                     )
                 )
             ).scalar()
-            assert stray == 0, f"{table} has rows that are no longer provider-backed"
+            assert stray == 0, f"{table} has standard rows that are not provider-backed"
 
 
 async def test_new_tables_carry_their_integrity_constraints(sessionmaker):

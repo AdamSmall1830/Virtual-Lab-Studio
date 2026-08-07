@@ -16,6 +16,8 @@ export interface RunOut {
   current_round: number;
   provider_call_count: number;
   tool_call_count: number;
+  recursive_job_count?: number;
+  recursive_agent_node_count?: number;
   input_tokens: number;
   output_tokens: number;
   actual_cost_usd: number;

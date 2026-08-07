@@ -9,4 +9,5 @@
 - [Run lease fencing](run-lease-fencing.md) — heartbeat long provider calls; owner-conditional renewal; the fence must commit in the same transaction as the writes it guards.
 - [Terminal artifacts vs. requeue](terminal-artifacts-and-requeue.md) — un-terminalling a run races the later summary/manifest write; both sides must take the run row lock, and a stale summary gets reused.
 - [Output legitimacy](output-legitimacy.md) — no app-authored judgements or confidence defaults in a research record; validation gates, prompts don't enforce; blind-safe warnings always sent.
+- [External-worker broker](external-worker-broker.md) — parked runs hold no lease so the parking fence must be idempotent; terminal jobs keep their worker identity.
 - [Evidence, provenance & exports](evidence-provenance.md) — evidence frozen into definition at launch; object-storage Client needs explicit bucket_id; blinded comparison identity is server-side, revealed only after the caller submits.

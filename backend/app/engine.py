@@ -199,10 +199,13 @@ async def _load_context(db: AsyncSession, run: Run) -> RunContext:
             av = await db.get(AgentVersion, da.agent_version_id)
             assert av is not None
             agent_versions[da.agent_version_id] = av
+        if da.execution_mode == "recursive_rlm":
+            # An external worker owns this turn, so there is no provider
+            # configuration to load. Its columns are legitimately empty.
+            continue
         if da.execution_mode != "standard":
-            # Launch refuses these, so a definition containing one should not
-            # exist. Say plainly what is unsupported instead of tripping over
-            # the empty provider columns two frames later, and never quietly
+            # Say plainly what is unsupported instead of tripping over the
+            # empty provider columns two frames later, and never quietly
             # execute the turn on a provider the researcher did not choose.
             raise RuntimeError(
                 f"Participant at position {da.position} uses the "
@@ -1189,7 +1192,13 @@ async def execute_run(
             upstream_agents: dict[int, Agent] = {}
             for da in ctx.def_agents:
                 av = ctx.agent_versions[da.agent_version_id]
-                pm = ctx.provider_models[da.provider_model_id]
+                # A recursive participant names its model by the key its own
+                # worker advertises; there is no ProviderModel row for it.
+                model_key = (
+                    da.recursive_model_key or ""
+                    if da.execution_mode == "recursive_rlm"
+                    else ctx.provider_models[da.provider_model_id].model_key
+                )
                 title = (
                     await db.execute(
                         text(
@@ -1199,7 +1208,7 @@ async def execute_run(
                         {"vid": str(da.agent_version_id)},
                     )
                 ).scalar_one()
-                upstream_agents[da.position] = _upstream_agent(av, title, pm.model_key)
+                upstream_agents[da.position] = _upstream_agent(av, title, model_key)
 
             demo = get_demo_provider()
             scripted = demo.matches_scenario(ctx.project_slug, d.meeting_type, rounds)
@@ -1262,9 +1271,48 @@ async def execute_run(
 
                 da = next(a for a in ctx.def_agents if a.position == planned.agent_position)
                 av = ctx.agent_versions[da.agent_version_id]
+                agent = upstream_agents[da.position]
+
+                if da.execution_mode == "recursive_rlm":
+                    # This turn belongs to a worker on the researcher's own
+                    # machine. Hand it over, release the lease and stop: the
+                    # completion requeues the run and the replay path above
+                    # rebuilds the transcript on the next pass. Imported here
+                    # rather than at module scope because the broker builds its
+                    # request contract with this module's hashing helpers.
+                    from .recursive.broker import dispatch_or_resume_recursive_turn
+
+                    prompt = _turn_prompt(ctx, planned, upstream_agents, rounds)
+                    if await dispatch_or_resume_recursive_turn(
+                        db,
+                        run=run,
+                        definition=d,
+                        planned=planned,
+                        da=da,
+                        av=av,
+                        agent_title=agent.title,
+                        messages=list(messages),
+                        prompt=prompt,
+                        worker_id=worker_id,
+                    ):
+                        return
+                    # The worker finished between the replay scan at the top of
+                    # execute_run and now. Fold the result in and carry on.
+                    done = (
+                        await db.execute(
+                            select(RunTurn).where(
+                                RunTurn.run_id == run.id,
+                                RunTurn.sequence == planned.call_index,
+                            )
+                        )
+                    ).scalar_one()
+                    messages.append({"role": "user", "content": prompt})
+                    messages.append({"role": "assistant", "content": done.response_text or ""})
+                    current_round = planned.round_number
+                    continue
+
                 pc = ctx.provider_configs[da.provider_config_id]
                 pm = ctx.provider_models[da.provider_model_id]
-                agent = upstream_agents[da.position]
 
                 prompt = _turn_prompt(ctx, planned, upstream_agents, rounds)
                 messages.append({"role": "user", "content": prompt})

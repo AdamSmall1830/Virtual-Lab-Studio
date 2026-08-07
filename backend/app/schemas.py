@@ -304,6 +304,10 @@ class ValidationEstimateOut(BaseModel):
     estimated_cost_usd: float | None
     pricing_complete: bool
     budget: dict[str, Any]
+    # Present only when the meeting has a recursive participant. The existing
+    # fields above keep their meaning for the standard turns so a client that
+    # predates the feature reads the same numbers it always did.
+    recursive_execution: "RecursiveExecutionEstimateOut | None" = None
 
 
 class LaunchOut(BaseModel):
@@ -430,6 +434,16 @@ class RecursiveWorkerOut(ORMModel):
     updated_at: datetime
 
 
+class RecursiveWorkerEnrollmentIn(BaseModel):
+    """What the admin supplies when minting an enrollment token.
+
+    A declared model rather than a bare dict: the operator only ever names the
+    machine here, and the generated client should say so.
+    """
+
+    display_name: str = Field(min_length=1, max_length=200)
+
+
 class RecursiveWorkerEnrollmentOut(ORMModel):
     """An enrollment record as it can be listed or audited.
 
@@ -523,6 +537,330 @@ class RecursiveAgentJobOut(ORMModel):
 class RecursiveAgentJobDetailOut(BaseModel):
     job: RecursiveAgentJobOut
     nodes: list[RecursiveAgentNodeOut] = Field(default_factory=list)
+
+
+# --- Worker-facing request shapes ------------------------------------------
+# Everything below arrives from a machine outside this deployment, so each
+# model is a hard boundary: bounded lengths, bounded collections, and no free
+# dictionaries. Where a worker may legitimately send fields a newer bridge
+# version knows about, extra keys are dropped rather than rejected -- an
+# unrecognised key is far more likely to be a reasoning delta or a host path
+# than something worth storing, and rejecting the batch would only wedge the
+# worker.
+WorkerInputModel = ConfigDict(extra="ignore")
+
+# Enough for an agent's full meeting response without becoming an exfiltration
+# channel for an entire scraped corpus.
+MAX_FINAL_TEXT_CHARS = 60_000
+
+
+class RecursiveWorkerModelIn(BaseModel):
+    """One entry of the worker's self-reported catalogue.
+
+    Non-secret descriptive metadata only. There is deliberately no field for a
+    base URL, an API key or a filesystem path: the worker owns its own model
+    credentials and this deployment must never learn them.
+    """
+
+    model_config = WorkerInputModel
+
+    model_key: str = Field(min_length=1, max_length=300)
+    display_name: str = Field(default="", max_length=200)
+    provider_kind: str = Field(default="unknown", max_length=60)
+    context_window: int | None = Field(default=None, ge=0, le=100_000_000)
+    supports_recursive_agents: bool = False
+    supports_tools: bool = False
+    pricing: RecursiveModelPricingOut = Field(default_factory=RecursiveModelPricingOut)
+
+
+class RecursiveWorkerCapabilitiesIn(BaseModel):
+    model_config = WorkerInputModel
+
+    profiles: list[str] = Field(default_factory=list, max_length=16)
+    max_depth: int | None = Field(default=None, ge=0, le=8)
+    max_children: int | None = Field(default=None, ge=0, le=64)
+    python: bool = False
+    web: bool = False
+
+
+class RecursiveWorkerReportIn(BaseModel):
+    """Fields a worker may refresh about itself on enroll and heartbeat."""
+
+    model_config = WorkerInputModel
+
+    adapter_version: str | None = Field(default=None, max_length=60)
+    prime_agent_version: str | None = Field(default=None, max_length=60)
+    sandbox_mode: Literal["docker", "rootless", "process"] | None = None
+    capabilities: RecursiveWorkerCapabilitiesIn = Field(
+        default_factory=RecursiveWorkerCapabilitiesIn
+    )
+    model_catalog: list[RecursiveWorkerModelIn] = Field(default_factory=list, max_length=200)
+
+
+class RecursiveEnrollIn(RecursiveWorkerReportIn):
+    enrollment_token: str = Field(min_length=8, max_length=200)
+    display_name: str = Field(default="", max_length=200)
+
+
+class RecursiveEnrolledOut(BaseModel):
+    """The one-time response that hands a worker its long-lived credential."""
+
+    worker_id: uuid.UUID
+    workspace_id: uuid.UUID
+    display_name: str
+    worker_token: str
+    heartbeat_interval_seconds: int
+    lease_poll_interval_seconds: int
+
+
+class RecursiveWorkerHealthIn(BaseModel):
+    model_config = WorkerInputModel
+
+    prime_agent: Literal["ok", "degraded", "error"] = "ok"
+    sandbox: Literal["ok", "degraded", "error"] = "ok"
+    models: Literal["ok", "degraded", "error"] = "ok"
+    safe_message: str | None = Field(default=None, max_length=300)
+
+
+class RecursiveWorkerCapacityIn(BaseModel):
+    model_config = WorkerInputModel
+
+    max_concurrent_jobs: int = Field(default=1, ge=0, le=64)
+    available_slots: int = Field(default=1, ge=0, le=64)
+
+
+class RecursiveHeartbeatIn(RecursiveWorkerReportIn):
+    active_job_ids: list[uuid.UUID] = Field(default_factory=list, max_length=64)
+    capacity: RecursiveWorkerCapacityIn = Field(default_factory=RecursiveWorkerCapacityIn)
+    health: RecursiveWorkerHealthIn = Field(default_factory=RecursiveWorkerHealthIn)
+
+
+class RecursiveJobControlOut(BaseModel):
+    """How the server answers "what should I do with this job right now?".
+
+    Cancellation and pause reach a running worker only through its own polling:
+    this deployment never opens a connection to the operator's machine.
+    """
+
+    job_id: uuid.UUID
+    cancel_requested: bool = False
+    pause_requested: bool = False
+
+
+class RecursiveHeartbeatOut(BaseModel):
+    worker_id: uuid.UUID
+    status: str
+    heartbeat_interval_seconds: int
+    lease_poll_interval_seconds: int
+    job_controls: list[RecursiveJobControlOut] = Field(default_factory=list)
+
+
+class RecursiveLeaseRequestIn(BaseModel):
+    model_config = WorkerInputModel
+
+    available_slots: int = Field(default=1, ge=0, le=64)
+    supported_profiles: list[str] = Field(default_factory=list, max_length=16)
+    model_keys: list[str] = Field(default_factory=list, max_length=200)
+
+
+class RecursiveJobLimitsOut(BaseModel):
+    max_children: int
+    max_depth: int
+    max_agent_turns: int
+    max_tokens: int
+    max_runtime_seconds: int
+    max_cost_usd: float | None
+
+
+class RecursiveLeaseOut(BaseModel):
+    """What a worker learns when it wins a job.
+
+    Deliberately free of evidence content: the bundle is fetched separately so
+    a lease response stays small and the evidence transfer is a distinct,
+    lease-checked request.
+    """
+
+    job_id: uuid.UUID
+    run_id: uuid.UUID
+    attempt: int
+    request_sha256: str
+    capability_profile: str
+    model_key: str
+    child_model_key: str | None
+    limits: RecursiveJobLimitsOut
+    allowed_skill_ids: list[str]
+    lease_expires_at: datetime
+    heartbeat_interval_seconds: int
+    bundle_url: str
+
+
+class RecursiveEventNodeIn(BaseModel):
+    model_config = WorkerInputModel
+
+    external_node_id: str = Field(min_length=1, max_length=120)
+    parent_external_node_id: str | None = Field(default=None, max_length=120)
+    display_name: str = Field(default="", max_length=200)
+
+
+class RecursiveUsageIn(BaseModel):
+    model_config = WorkerInputModel
+
+    model_call_count: int = Field(default=0, ge=0, le=100_000)
+    input_tokens: int = Field(default=0, ge=0, le=1_000_000_000)
+    cached_input_tokens: int = Field(default=0, ge=0, le=1_000_000_000)
+    output_tokens: int = Field(default=0, ge=0, le=1_000_000_000)
+    cost_usd: float = Field(default=0.0, ge=0, le=1_000_000)
+    pricing_complete: bool = True
+
+
+class RecursiveEventPayloadIn(BaseModel):
+    """The only payload fields a worker event may carry into the run stream.
+
+    Anything not named here is dropped. That direction is deliberate: the
+    events a coordinator emits are full of reasoning deltas, scratchpads, shell
+    output and host paths, none of which may reach a browser or an export.
+    """
+
+    model_config = WorkerInputModel
+
+    task_summary: str | None = Field(default=None, max_length=1_000)
+    result_summary: str | None = Field(default=None, max_length=2_000)
+    model_key: str | None = Field(default=None, max_length=300)
+    tool_label: Literal["Python", "Frozen evidence search"] | None = None
+    node_status: Literal["queued", "running", "completed", "failed", "cancelled"] | None = None
+    failure_category: str | None = Field(default=None, max_length=120)
+    failure_safe_message: str | None = Field(default=None, max_length=300)
+    usage: RecursiveUsageIn | None = None
+
+
+class RecursiveWorkerEventIn(BaseModel):
+    model_config = WorkerInputModel
+
+    external_event_id: str = Field(min_length=1, max_length=200)
+    worker_sequence: int = Field(ge=0, le=1_000_000_000)
+    occurred_at: datetime | None = None
+    type: str = Field(min_length=1, max_length=80)
+    node: RecursiveEventNodeIn | None = None
+    payload: RecursiveEventPayloadIn = Field(default_factory=RecursiveEventPayloadIn)
+
+
+class RecursiveEventBatchIn(BaseModel):
+    model_config = WorkerInputModel
+
+    schema_version: Literal["1.0"] = "1.0"
+    events: list[RecursiveWorkerEventIn] = Field(default_factory=list)
+
+
+class RecursiveEventBatchOut(BaseModel):
+    accepted: int
+    duplicates: int
+    rejected: int
+
+
+class RecursiveCitationIn(BaseModel):
+    model_config = WorkerInputModel
+
+    evidence_key: str = Field(min_length=1, max_length=60)
+    locator: str | None = Field(default=None, max_length=300)
+    claim: str = Field(default="", max_length=4_000)
+    support_type: Literal["supports", "contradicts", "context", "uncertain"] = "context"
+
+
+class RecursiveResultNodeIn(BaseModel):
+    model_config = WorkerInputModel
+
+    external_node_id: str = Field(min_length=1, max_length=120)
+    parent_external_node_id: str | None = Field(default=None, max_length=120)
+    display_name: str = Field(default="", max_length=200)
+    status: Literal["queued", "running", "completed", "failed", "cancelled"] = "completed"
+    model_key: str | None = Field(default=None, max_length=300)
+    task_summary: str | None = Field(default=None, max_length=1_000)
+    result_summary: str | None = Field(default=None, max_length=2_000)
+    cited_evidence_keys: list[str] = Field(default_factory=list, max_length=200)
+    tool_labels: list[Literal["Python", "Frozen evidence search"]] = Field(
+        default_factory=list, max_length=16
+    )
+    failure_safe_message: str | None = Field(default=None, max_length=300)
+    usage: RecursiveUsageIn = Field(default_factory=RecursiveUsageIn)
+
+
+class RecursiveRuntimeIn(BaseModel):
+    model_config = WorkerInputModel
+
+    adapter_version: str | None = Field(default=None, max_length=60)
+    prime_agent_version: str | None = Field(default=None, max_length=60)
+    model_key: str | None = Field(default=None, max_length=300)
+    child_model_key: str | None = Field(default=None, max_length=300)
+    elapsed_ms: int = Field(default=0, ge=0, le=1_000_000_000)
+    is_simulation: bool = False
+    # A hash, never a path: enough to correlate with the operator's own logs
+    # without telling this deployment anything about their filesystem.
+    session_reference_hash: str | None = Field(default=None, max_length=64)
+
+
+class RecursiveCompletionIn(BaseModel):
+    model_config = WorkerInputModel
+
+    schema_version: Literal["1.0"] = "1.0"
+    request_sha256: str = Field(min_length=64, max_length=64, pattern=r"^[a-f0-9]{64}$")
+    final_text: str = Field(min_length=1, max_length=MAX_FINAL_TEXT_CHARS)
+    citations: list[RecursiveCitationIn] = Field(default_factory=list, max_length=200)
+    limitations: list[str] = Field(default_factory=list, max_length=50)
+    usage: RecursiveUsageIn = Field(default_factory=RecursiveUsageIn)
+    runtime: RecursiveRuntimeIn = Field(default_factory=RecursiveRuntimeIn)
+    nodes: list[RecursiveResultNodeIn] = Field(default_factory=list, max_length=200)
+
+
+class RecursiveFailIn(BaseModel):
+    model_config = WorkerInputModel
+
+    # A closed vocabulary rather than free text: a failure reason is rendered
+    # to the researcher and stored in the provenance record, so it must not be
+    # able to carry a stack trace, a host path or a provider error body.
+    failure_code: Literal[
+        "worker_error",
+        "model_error",
+        "sandbox_error",
+        "timeout",
+        "limit_exceeded",
+        "invalid_result",
+        "cancelled",
+        "paused",
+    ]
+    safe_message: str = Field(default="", max_length=300)
+    retryable: bool = True
+    usage: RecursiveUsageIn = Field(default_factory=RecursiveUsageIn)
+
+
+class RecursiveJobAckOut(BaseModel):
+    job_id: uuid.UUID
+    status: str
+    accepted: bool
+    detail: str | None = None
+
+
+class RecursiveTreeOut(BaseModel):
+    run_id: uuid.UUID
+    jobs: list[RecursiveAgentJobDetailOut] = Field(default_factory=list)
+
+
+class RecursiveExecutionEstimateOut(BaseModel):
+    """Bounded maxima for the recursive part of a meeting.
+
+    These are ceilings, not predictions. A recursive participant decides its
+    own fan-out inside the limits, so presenting a single expected call count
+    would be a number the product cannot stand behind.
+    """
+
+    recursive_turn_count: int
+    max_agent_turns: int
+    max_children_per_turn: int
+    max_depth: int
+    max_tokens: int
+    max_runtime_seconds: int
+    max_cost_usd: float | None
+    pricing_complete: bool
+    workers_online: bool
 
 
 class RunEventOut(ORMModel):

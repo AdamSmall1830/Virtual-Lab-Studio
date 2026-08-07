@@ -4,15 +4,19 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { DraftAgentInExecutionMode } from './draftAgentInExecutionMode';
 import type { DraftAgentInRoleType } from './draftAgentInRoleType';
+import type { RecursiveExecutionConfigIn } from './recursiveExecutionConfigIn';
 
 export interface DraftAgentIn {
   /** @minimum 0 */
   position: number;
   role_type: DraftAgentInRoleType;
   agent_version_id: string;
-  provider_config_id: string;
-  provider_model_id: string;
+  execution_mode?: DraftAgentInExecutionMode;
+  provider_config_id?: string | null;
+  provider_model_id?: string | null;
+  recursive_execution?: RecursiveExecutionConfigIn | null;
   temperature_override?: number | null;
   tool_definition_ids?: string[];
 }

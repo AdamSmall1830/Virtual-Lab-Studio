@@ -31,6 +31,7 @@ from ..models import (
     Project,
     ProviderConfig,
     ProviderModel,
+    RecursiveWorker,
     Run,
     RunEvent,
     RunIntervention,
@@ -57,6 +58,8 @@ from ..providers import (
 )
 from ..secretbox import decrypt_secret, encrypt_secret
 from ..provenance import ensure_manifest_safe
+from ..recursive import broker as recursive_broker
+from ..recursive import policy as recursive_policy
 from ..schemas import (
     AgentProfileOut,
     AgentVersionOut,
@@ -77,6 +80,7 @@ from ..schemas import (
     ProviderModelOut,
     ProviderTestOut,
     ProviderUpdateIn,
+    RecursiveExecutionEstimateOut,
     RunEventOut,
     RunOut,
     RunSummaryOut,
@@ -705,20 +709,51 @@ async def _validate_draft(
         profile = await db.get(AgentProfile, av.agent_profile_id)
         if profile is not None and profile.workspace_id is not None and profile.workspace_id != workspace_id:
             errors.append({"field": "agents", "message": "Agent version belongs to another workspace."})
-        if a.execution_mode != "standard":
-            # The schema accepts a recursive participant, but no broker or
-            # worker exists to execute one yet. Refuse the draft with a plain
-            # explanation rather than letting launch dereference the provider
-            # columns it deliberately left empty. Nothing here may fall back to
-            # a standard completion: that would silently run a different
-            # experiment than the one the researcher configured.
-            errors.append({
+        if a.execution_mode == "recursive_rlm":
+            # Nothing in this branch may fall back to a standard completion:
+            # that would silently run a different experiment than the one the
+            # researcher configured. Every problem is an error, not a warning.
+            if not settings.recursive_agents_enabled:
+                errors.append({
+                    "field": "agents",
+                    "message": "The recursive agent runtime is not enabled for this deployment.",
+                })
+                continue
+            config = a.recursive_execution
+            assert config is not None  # guaranteed by DraftAgentIn
+            worker = await db.get(RecursiveWorker, config.requested_worker_id)
+            if worker is not None and worker.workspace_id != workspace_id:
+                # Do not confirm that a worker in another workspace exists.
+                worker = None
+            for message in recursive_policy.check_worker_eligibility(config, settings, worker):
+                errors.append({"field": "agents", "message": message})
+            _limits, limit_errors = recursive_policy.resolve_limits(config, settings, worker)
+            for message in limit_errors:
+                errors.append({"field": "agents", "message": message})
+            if worker is not None and not recursive_policy.pricing_is_complete(
+                worker,
+                [k for k in (config.coordinator_model_key, config.child_model_key) if k],
+            ):
+                warnings.append({
+                    "field": "agents",
+                    "message": (
+                        f"Worker '{worker.display_name}' reports no pricing for the selected "
+                        "models, so the cost estimate for this participant is incomplete."
+                    ),
+                })
+            warnings.append({
                 "field": "agents",
                 "message": (
-                    "The recursive agent runtime is not enabled for this deployment."
-                    if not settings.recursive_agents_enabled
-                    else "The recursive agent runtime cannot run meetings yet."
+                    "A recursive participant runs on your own machine and is a beta feature. "
+                    "Its turn is executed by an external worker, and the meeting record labels "
+                    "it accordingly."
                 ),
+            })
+            continue
+        if a.execution_mode != "standard":
+            errors.append({
+                "field": "agents",
+                "message": f"Unsupported execution mode '{a.execution_mode}'.",
             })
             continue
         pc = await db.get(ProviderConfig, a.provider_config_id)
@@ -825,6 +860,11 @@ async def validate_draft(
                 calls = body.rounds + 1 if a.role_type == "lead" else body.rounds
             else:
                 calls = body.rounds + 1 if a.role_type == "expert" else body.rounds
+            if a.execution_mode == "recursive_rlm":
+                # Recursive turns are bounded, not predicted, and are reported
+                # separately below. Folding a ceiling into this figure would
+                # present a worst case as an expectation.
+                continue
             pc = await db.get(ProviderConfig, a.provider_config_id)
             pm = await db.get(ProviderModel, a.provider_model_id)
             if pc is None or pm is None or pc.provider_type == "demo":
@@ -847,6 +887,59 @@ async def validate_draft(
         base_calls=base_calls, max_calls=base_calls,
         estimated_input_tokens=est_in, estimated_output_tokens=est_out,
         estimated_cost_usd=est_cost, pricing_complete=pricing_complete, budget=body.budget,
+        recursive_execution=await _recursive_estimate(db, body),
+    )
+
+
+async def _recursive_estimate(
+    db: AsyncSession, body: MeetingDraftIn
+) -> RecursiveExecutionEstimateOut | None:
+    """Ceilings for the recursive part of a meeting, or None if it has none.
+
+    Presented as maxima rather than an expected figure: a recursive
+    participant chooses its own fan-out inside these bounds, so any single
+    predicted number would be one the product cannot stand behind.
+    """
+    settings = get_settings()
+    recursive_agents = [a for a in body.agents if a.execution_mode == "recursive_rlm"]
+    if not recursive_agents:
+        return None
+
+    turns = 0
+    for a in recursive_agents:
+        if body.meeting_type == "team":
+            turns += body.rounds + 1 if a.role_type == "lead" else body.rounds
+        else:
+            turns += body.rounds + 1 if a.role_type == "expert" else body.rounds
+
+    configs = [a.recursive_execution for a in recursive_agents if a.recursive_execution]
+    pricing_complete = True
+    workers_online = bool(configs)
+    for a in recursive_agents:
+        config = a.recursive_execution
+        if config is None:
+            continue
+        worker = await db.get(RecursiveWorker, config.requested_worker_id)
+        if worker is None or not recursive_policy.worker_is_online(worker, settings):
+            workers_online = False
+            pricing_complete = False
+            continue
+        if not recursive_policy.pricing_is_complete(
+            worker, [k for k in (config.coordinator_model_key, config.child_model_key) if k]
+        ):
+            pricing_complete = False
+
+    costs = [c.max_cost_usd for c in configs if c.max_cost_usd is not None]
+    return RecursiveExecutionEstimateOut(
+        recursive_turn_count=turns,
+        max_agent_turns=max(c.max_agent_turns for c in configs) * turns,
+        max_children_per_turn=max(c.max_children for c in configs),
+        max_depth=max(c.max_depth for c in configs),
+        max_tokens=max(c.max_tokens for c in configs) * turns,
+        max_runtime_seconds=max(c.max_runtime_seconds for c in configs) * turns,
+        max_cost_usd=round(max(costs) * turns, 4) if costs else None,
+        pricing_complete=pricing_complete,
+        workers_online=workers_online,
     )
 
 
@@ -872,6 +965,61 @@ async def launch_draft(
     demo_mode = True
     for a in sorted(body.agents, key=lambda x: x.position):
         av = await db.get(AgentVersion, a.agent_version_id)
+        if a.execution_mode == "recursive_rlm":
+            config = a.recursive_execution
+            assert config is not None  # guaranteed by DraftAgentIn
+            worker = await db.get(RecursiveWorker, config.requested_worker_id)
+            if worker is None or worker.workspace_id != draft.workspace_id:
+                # _validate_draft checked this a moment ago; re-checked because
+                # a worker can be revoked between the two reads.
+                raise problem(
+                    422, "invalid_draft", "The selected recursive worker is no longer available."
+                )
+            limits, limit_errors = recursive_policy.resolve_limits(config, settings, worker)
+            if limit_errors:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "invalid_draft",
+                        "message": "Draft failed validation",
+                        "field_errors": [
+                            {"field": "agents", "message": m} for m in limit_errors
+                        ],
+                    },
+                )
+            # A recursive turn runs on the operator's real hardware, so the run
+            # is not a demo -- unless the worker itself is the simulator, in
+            # which case the label must stay.
+            if worker.adapter_version != "simulated":
+                demo_mode = False
+            # Only non-secret settings are frozen: model keys, limits and the
+            # capability snapshot. No credential, host path or address.
+            agents_snapshot.append({
+                "position": a.position, "role_type": a.role_type,
+                "agent_version_id": str(a.agent_version_id),
+                "system_prompt_sha256": av.system_prompt_sha256,
+                "execution_mode": "recursive_rlm",
+                "recursive_worker_id": str(worker.id),
+                "recursive_worker_display_name": worker.display_name,
+                "recursive_model_key": config.coordinator_model_key,
+                "recursive_execution_config": {
+                    "schema_version": config.schema_version,
+                    "capability_profile": config.capability_profile,
+                    "coordinator_model_key": config.coordinator_model_key,
+                    "child_model_key": config.child_model_key,
+                    "allow_python": config.allow_python,
+                    "allow_evidence_search": config.allow_evidence_search,
+                    "allow_web": config.allow_web,
+                    "allowed_skill_ids": list(config.allowed_skill_ids),
+                    "worker_sandbox_mode": worker.sandbox_mode,
+                    "worker_adapter_version": worker.adapter_version,
+                    "worker_prime_agent_version": worker.prime_agent_version,
+                    **limits.as_dict(),
+                },
+                "temperature_override": a.temperature_override,
+                "tool_definition_ids": [str(t) for t in a.tool_definition_ids],
+            })
+            continue
         pc = await db.get(ProviderConfig, a.provider_config_id)
         pm = await db.get(ProviderModel, a.provider_model_id)
         if pc.provider_type != "demo":
@@ -886,6 +1034,7 @@ async def launch_draft(
             "position": a.position, "role_type": a.role_type,
             "agent_version_id": str(a.agent_version_id),
             "system_prompt_sha256": av.system_prompt_sha256,
+            "execution_mode": "standard",
             "provider_config_id": str(a.provider_config_id),
             "provider_type": pc.provider_type,
             "provider_model_id": str(a.provider_model_id),
@@ -963,12 +1112,25 @@ async def launch_draft(
                 position=position,
             ))
         for snap in agents_snapshot:
+            recursive = snap["execution_mode"] == "recursive_rlm"
             db.add(MeetingDefinitionAgent(
                 meeting_definition_id=definition.id, position=snap["position"],
                 role_type=snap["role_type"],
                 agent_version_id=uuid.UUID(snap["agent_version_id"]),
-                provider_config_id=uuid.UUID(snap["provider_config_id"]),
-                provider_model_id=uuid.UUID(snap["provider_model_id"]),
+                execution_mode=snap["execution_mode"],
+                provider_config_id=(
+                    None if recursive else uuid.UUID(snap["provider_config_id"])
+                ),
+                provider_model_id=(
+                    None if recursive else uuid.UUID(snap["provider_model_id"])
+                ),
+                recursive_worker_id=(
+                    uuid.UUID(snap["recursive_worker_id"]) if recursive else None
+                ),
+                recursive_model_key=snap["recursive_model_key"] if recursive else None,
+                recursive_execution_config=(
+                    snap["recursive_execution_config"] if recursive else {}
+                ),
                 temperature_override=snap["temperature_override"],
                 tool_definition_ids=snap["tool_definition_ids"],
             ))
@@ -1133,6 +1295,27 @@ async def _request_control(
 @router.post("/runs/{run_id}/pause", response_model=RunOut)
 async def pause_run(run_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     run = await _get_run(db, run_id, user, "researcher")
+    if run.status == "waiting_external":
+        # A parked run is inside no engine loop, so nothing is polling for the
+        # request. Whether the pause is immediate depends on who holds the turn.
+        job = await recursive_broker.active_job_for_run(db, run.id, for_update=True)
+        if job is None or job.status == "queued":
+            result = await _request_control(
+                db, run, user, "pause", "run.pause_requested", {"waiting_external"}, "paused",
+            )
+            if job is not None:
+                job.leased_worker_id = None
+                job.lease_expires_at = None
+                job.heartbeat_at = None
+            run.control_requested = None
+            await db.commit()
+            return result
+        # A worker is mid-turn. It learns on its next heartbeat and stops at the
+        # next safe boundary; the run stays parked until then, so the pause is
+        # honest about not having taken effect yet.
+        return await _request_control(
+            db, run, user, "pause", "run.pause_requested", {"waiting_external"}, None,
+        )
     return await _request_control(
         db, run, user, "pause", "run.pause_requested",
         {"queued", "leased", "running"}, "pausing" if run.status == "running" else None,
@@ -1142,8 +1325,27 @@ async def pause_run(run_id: uuid.UUID, user: User = Depends(get_current_user), d
 @router.post("/runs/{run_id}/resume", response_model=RunOut)
 async def resume_run(run_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     run = await _get_run(db, run_id, user, "researcher")
+    if run.status == "paused":
+        job = await recursive_broker.active_job_for_run(db, run.id, for_update=True)
+        if job is not None:
+            # Paused at a recursive boundary: re-park rather than requeue, so
+            # the turn goes back to a worker instead of being restarted by the
+            # standard engine.
+            result = await _request_control(
+                db, run, user, "resume", "run.resume_requested",
+                {"paused"}, "waiting_external",
+            )
+            run.control_requested = None
+            job.queue_available_at = func.now()
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.resumed",
+                payload={"job_id": str(job.id)}, actor_user_id=user.id,
+            )
+            return result
     return await _request_control(
-        db, run, user, "resume", "run.resumed" if False else "run.resume_requested",
+        db, run, user, "resume", "run.resume_requested",
         {"paused", "pausing"}, None,
     )
 
@@ -1240,8 +1442,31 @@ async def retry_run(run_id: uuid.UUID, user: User = Depends(get_current_user), d
 @router.post("/runs/{run_id}/cancel", response_model=RunOut)
 async def cancel_run(run_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     run = await _get_run(db, run_id, user, "researcher")
-    if run.status == "queued":
-        # Cancel directly; the worker has not picked it up. This is a terminal
+    immediate = run.status == "queued"
+    if run.status == "waiting_external":
+        job = await recursive_broker.active_job_for_run(db, run.id, for_update=True)
+        if job is not None and job.status != "queued":
+            # A worker holds the turn. Flag it and let the worker (or the
+            # sweeper, once its lease expires) settle the job; cancelling the
+            # run out from under it would orphan work already in flight.
+            await recursive_broker.request_cancellation(db, run)
+            return await _request_control(
+                db, run, user, "cancel", "run.cancellation_requested",
+                {"waiting_external"}, None,
+            )
+        if job is not None:
+            from datetime import datetime as _dt, timezone as _tz
+
+            job.status = "cancelled"
+            job.completed_at = _dt.now(_tz.utc)
+            job.cancellation_requested_at = job.cancellation_requested_at or _dt.now(_tz.utc)
+            job.failure_code = "cancelled"
+            job.failure_safe_message = (
+                "The meeting was cancelled before a worker started this turn."
+            )
+        immediate = True
+    if immediate:
+        # Cancel directly; nothing has picked it up. This is a terminal
         # transition, so set terminal metadata and generate a provenance
         # manifest here (the worker never runs for this path).
         from datetime import datetime, timezone

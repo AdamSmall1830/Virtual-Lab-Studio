@@ -129,13 +129,70 @@ export const DraftAgentInRoleType = {
   merger: 'merger',
 } as const;
 
+export type DraftAgentInExecutionMode = typeof DraftAgentInExecutionMode[keyof typeof DraftAgentInExecutionMode];
+
+
+export const DraftAgentInExecutionMode = {
+  standard: 'standard',
+  recursive_rlm: 'recursive_rlm',
+} as const;
+
+/**
+ * Per-participant settings for the optional Recursive Agent runtime.
+ *
+ * Bounds here are the schema ceiling. Deployment and workspace policy is
+ * applied separately at draft validation, which may only narrow these.
+ * Capabilities the product does not support are pinned to a literal rather
+ * than defaulted, so a client cannot request web access or extra skills.
+ */
+export interface RecursiveExecutionConfigIn {
+  schema_version?: '1.0';
+  capability_profile?: 'research_read_only';
+  requested_worker_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  coordinator_model_key: string;
+  child_model_key?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 8
+     */
+  max_children?: number;
+  /**
+     * @minimum 1
+     * @maximum 2
+     */
+  max_depth?: number;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  max_agent_turns?: number;
+  /** @minimum 1 */
+  max_tokens?: number;
+  /**
+     * @minimum 60
+     * @maximum 3600
+     */
+  max_runtime_seconds?: number;
+  max_cost_usd?: number | null;
+  allow_python?: true;
+  allow_evidence_search?: true;
+  allow_web?: false;
+  allowed_skill_ids?: 'vls_evidence'[];
+}
+
 export interface DraftAgentIn {
   /** @minimum 0 */
   position: number;
   role_type: DraftAgentInRoleType;
   agent_version_id: string;
-  provider_config_id: string;
-  provider_model_id: string;
+  execution_mode?: DraftAgentInExecutionMode;
+  provider_config_id?: string | null;
+  provider_model_id?: string | null;
+  recursive_execution?: RecursiveExecutionConfigIn | null;
   temperature_override?: number | null;
   tool_definition_ids?: string[];
 }
@@ -528,6 +585,620 @@ export interface ProviderUpdateIn {
   models?: ProviderModelIn[] | null;
 }
 
+export interface RecursiveAgentJobOut {
+  id: string;
+  run_id: string;
+  run_turn_id: string;
+  agent_version_id: string;
+  requested_worker_id: string | null;
+  leased_worker_id: string | null;
+  status: string;
+  attempt_count: number;
+  max_attempts: number;
+  request_sha256: string;
+  result_sha256: string | null;
+  model_key: string;
+  child_model_key: string | null;
+  capability_profile: string;
+  max_children: number;
+  max_depth: number;
+  max_agent_turns: number;
+  max_tokens: number;
+  max_runtime_seconds: number;
+  max_cost_usd: number | null;
+  model_call_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  lease_expires_at: string | null;
+  heartbeat_at: string | null;
+  cancellation_requested_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  failure_code: string | null;
+  failure_safe_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Safe visualisation record for one agent in a job's tree.
+ */
+export interface RecursiveAgentNodeOut {
+  id: string;
+  job_id: string;
+  external_node_id: string;
+  parent_external_node_id: string | null;
+  display_name: string;
+  status: string;
+  model_key: string | null;
+  task_summary: string | null;
+  result_summary: string | null;
+  cited_evidence_keys: string[];
+  tool_labels: string[];
+  model_call_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  started_at: string | null;
+  completed_at: string | null;
+  failure_safe_message: string | null;
+}
+
+export interface RecursiveAgentJobDetailOut {
+  job: RecursiveAgentJobOut;
+  nodes?: RecursiveAgentNodeOut[];
+}
+
+export type RecursiveCitationInSupportType = typeof RecursiveCitationInSupportType[keyof typeof RecursiveCitationInSupportType];
+
+
+export const RecursiveCitationInSupportType = {
+  supports: 'supports',
+  contradicts: 'contradicts',
+  context: 'context',
+  uncertain: 'uncertain',
+} as const;
+
+export interface RecursiveCitationIn {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  evidence_key: string;
+  locator?: string | null;
+  /** @maxLength 4000 */
+  claim?: string;
+  support_type?: RecursiveCitationInSupportType;
+}
+
+export interface RecursiveUsageIn {
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  model_call_count?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  input_tokens?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  cached_input_tokens?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  output_tokens?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  cost_usd?: number;
+  pricing_complete?: boolean;
+}
+
+export interface RecursiveRuntimeIn {
+  adapter_version?: string | null;
+  prime_agent_version?: string | null;
+  model_key?: string | null;
+  child_model_key?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  elapsed_ms?: number;
+  is_simulation?: boolean;
+  session_reference_hash?: string | null;
+}
+
+export type RecursiveResultNodeInStatus = typeof RecursiveResultNodeInStatus[keyof typeof RecursiveResultNodeInStatus];
+
+
+export const RecursiveResultNodeInStatus = {
+  queued: 'queued',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export type RecursiveResultNodeInToolLabelsItem = typeof RecursiveResultNodeInToolLabelsItem[keyof typeof RecursiveResultNodeInToolLabelsItem];
+
+
+export const RecursiveResultNodeInToolLabelsItem = {
+  Python: 'Python',
+  Frozen_evidence_search: 'Frozen evidence search',
+} as const;
+
+export interface RecursiveResultNodeIn {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  external_node_id: string;
+  parent_external_node_id?: string | null;
+  /** @maxLength 200 */
+  display_name?: string;
+  status?: RecursiveResultNodeInStatus;
+  model_key?: string | null;
+  task_summary?: string | null;
+  result_summary?: string | null;
+  /** @maxItems 200 */
+  cited_evidence_keys?: string[];
+  /** @maxItems 16 */
+  tool_labels?: RecursiveResultNodeInToolLabelsItem[];
+  failure_safe_message?: string | null;
+  usage?: RecursiveUsageIn;
+}
+
+export interface RecursiveCompletionIn {
+  schema_version?: '1.0';
+  /**
+     * @minLength 64
+     * @maxLength 64
+     * @pattern ^[a-f0-9]{64}$
+     */
+  request_sha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 60000
+     */
+  final_text: string;
+  /** @maxItems 200 */
+  citations?: RecursiveCitationIn[];
+  /** @maxItems 50 */
+  limitations?: string[];
+  usage?: RecursiveUsageIn;
+  runtime?: RecursiveRuntimeIn;
+  /** @maxItems 200 */
+  nodes?: RecursiveResultNodeIn[];
+}
+
+export type RecursiveEnrollInSandboxMode = typeof RecursiveEnrollInSandboxMode[keyof typeof RecursiveEnrollInSandboxMode] | null;
+
+
+export const RecursiveEnrollInSandboxMode = {
+  docker: 'docker',
+  rootless: 'rootless',
+  process: 'process',
+} as const;
+
+export interface RecursiveWorkerCapabilitiesIn {
+  /** @maxItems 16 */
+  profiles?: string[];
+  max_depth?: number | null;
+  max_children?: number | null;
+  python?: boolean;
+  web?: boolean;
+}
+
+export interface RecursiveModelPricingOut {
+  input_usd_per_1m?: number | null;
+  cached_input_usd_per_1m?: number | null;
+  output_usd_per_1m?: number | null;
+}
+
+/**
+ * One entry of the worker's self-reported catalogue.
+ *
+ * Non-secret descriptive metadata only. There is deliberately no field for a
+ * base URL, an API key or a filesystem path: the worker owns its own model
+ * credentials and this deployment must never learn them.
+ */
+export interface RecursiveWorkerModelIn {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  model_key: string;
+  /** @maxLength 200 */
+  display_name?: string;
+  /** @maxLength 60 */
+  provider_kind?: string;
+  context_window?: number | null;
+  supports_recursive_agents?: boolean;
+  supports_tools?: boolean;
+  pricing?: RecursiveModelPricingOut;
+}
+
+export interface RecursiveEnrollIn {
+  adapter_version?: string | null;
+  prime_agent_version?: string | null;
+  sandbox_mode?: RecursiveEnrollInSandboxMode;
+  capabilities?: RecursiveWorkerCapabilitiesIn;
+  /** @maxItems 200 */
+  model_catalog?: RecursiveWorkerModelIn[];
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  enrollment_token: string;
+  /** @maxLength 200 */
+  display_name?: string;
+}
+
+/**
+ * The one-time response that hands a worker its long-lived credential.
+ */
+export interface RecursiveEnrolledOut {
+  worker_id: string;
+  workspace_id: string;
+  display_name: string;
+  worker_token: string;
+  heartbeat_interval_seconds: number;
+  lease_poll_interval_seconds: number;
+}
+
+export interface RecursiveEventNodeIn {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  external_node_id: string;
+  parent_external_node_id?: string | null;
+  /** @maxLength 200 */
+  display_name?: string;
+}
+
+export type RecursiveEventPayloadInToolLabel = typeof RecursiveEventPayloadInToolLabel[keyof typeof RecursiveEventPayloadInToolLabel] | null;
+
+
+export const RecursiveEventPayloadInToolLabel = {
+  Python: 'Python',
+  Frozen_evidence_search: 'Frozen evidence search',
+} as const;
+
+export type RecursiveEventPayloadInNodeStatus = typeof RecursiveEventPayloadInNodeStatus[keyof typeof RecursiveEventPayloadInNodeStatus] | null;
+
+
+export const RecursiveEventPayloadInNodeStatus = {
+  queued: 'queued',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * The only payload fields a worker event may carry into the run stream.
+ *
+ * Anything not named here is dropped. That direction is deliberate: the
+ * events a coordinator emits are full of reasoning deltas, scratchpads, shell
+ * output and host paths, none of which may reach a browser or an export.
+ */
+export interface RecursiveEventPayloadIn {
+  task_summary?: string | null;
+  result_summary?: string | null;
+  model_key?: string | null;
+  tool_label?: RecursiveEventPayloadInToolLabel;
+  node_status?: RecursiveEventPayloadInNodeStatus;
+  failure_category?: string | null;
+  failure_safe_message?: string | null;
+  usage?: RecursiveUsageIn | null;
+}
+
+export interface RecursiveWorkerEventIn {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  external_event_id: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  worker_sequence: number;
+  occurred_at?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  type: string;
+  node?: RecursiveEventNodeIn | null;
+  payload?: RecursiveEventPayloadIn;
+}
+
+export interface RecursiveEventBatchIn {
+  schema_version?: '1.0';
+  events?: RecursiveWorkerEventIn[];
+}
+
+export interface RecursiveEventBatchOut {
+  accepted: number;
+  duplicates: number;
+  rejected: number;
+}
+
+/**
+ * Bounded maxima for the recursive part of a meeting.
+ *
+ * These are ceilings, not predictions. A recursive participant decides its
+ * own fan-out inside the limits, so presenting a single expected call count
+ * would be a number the product cannot stand behind.
+ */
+export interface RecursiveExecutionEstimateOut {
+  recursive_turn_count: number;
+  max_agent_turns: number;
+  max_children_per_turn: number;
+  max_depth: number;
+  max_tokens: number;
+  max_runtime_seconds: number;
+  max_cost_usd: number | null;
+  pricing_complete: boolean;
+  workers_online: boolean;
+}
+
+export type RecursiveFailInFailureCode = typeof RecursiveFailInFailureCode[keyof typeof RecursiveFailInFailureCode];
+
+
+export const RecursiveFailInFailureCode = {
+  worker_error: 'worker_error',
+  model_error: 'model_error',
+  sandbox_error: 'sandbox_error',
+  timeout: 'timeout',
+  limit_exceeded: 'limit_exceeded',
+  invalid_result: 'invalid_result',
+  cancelled: 'cancelled',
+  paused: 'paused',
+} as const;
+
+export interface RecursiveFailIn {
+  failure_code: RecursiveFailInFailureCode;
+  /** @maxLength 300 */
+  safe_message?: string;
+  retryable?: boolean;
+  usage?: RecursiveUsageIn;
+}
+
+export type RecursiveHeartbeatInSandboxMode = typeof RecursiveHeartbeatInSandboxMode[keyof typeof RecursiveHeartbeatInSandboxMode] | null;
+
+
+export const RecursiveHeartbeatInSandboxMode = {
+  docker: 'docker',
+  rootless: 'rootless',
+  process: 'process',
+} as const;
+
+export interface RecursiveWorkerCapacityIn {
+  /**
+     * @minimum 0
+     * @maximum 64
+     */
+  max_concurrent_jobs?: number;
+  /**
+     * @minimum 0
+     * @maximum 64
+     */
+  available_slots?: number;
+}
+
+export type RecursiveWorkerHealthInPrimeAgent = typeof RecursiveWorkerHealthInPrimeAgent[keyof typeof RecursiveWorkerHealthInPrimeAgent];
+
+
+export const RecursiveWorkerHealthInPrimeAgent = {
+  ok: 'ok',
+  degraded: 'degraded',
+  error: 'error',
+} as const;
+
+export type RecursiveWorkerHealthInSandbox = typeof RecursiveWorkerHealthInSandbox[keyof typeof RecursiveWorkerHealthInSandbox];
+
+
+export const RecursiveWorkerHealthInSandbox = {
+  ok: 'ok',
+  degraded: 'degraded',
+  error: 'error',
+} as const;
+
+export type RecursiveWorkerHealthInModels = typeof RecursiveWorkerHealthInModels[keyof typeof RecursiveWorkerHealthInModels];
+
+
+export const RecursiveWorkerHealthInModels = {
+  ok: 'ok',
+  degraded: 'degraded',
+  error: 'error',
+} as const;
+
+export interface RecursiveWorkerHealthIn {
+  prime_agent?: RecursiveWorkerHealthInPrimeAgent;
+  sandbox?: RecursiveWorkerHealthInSandbox;
+  models?: RecursiveWorkerHealthInModels;
+  safe_message?: string | null;
+}
+
+export interface RecursiveHeartbeatIn {
+  adapter_version?: string | null;
+  prime_agent_version?: string | null;
+  sandbox_mode?: RecursiveHeartbeatInSandboxMode;
+  capabilities?: RecursiveWorkerCapabilitiesIn;
+  /** @maxItems 200 */
+  model_catalog?: RecursiveWorkerModelIn[];
+  /** @maxItems 64 */
+  active_job_ids?: string[];
+  capacity?: RecursiveWorkerCapacityIn;
+  health?: RecursiveWorkerHealthIn;
+}
+
+/**
+ * How the server answers "what should I do with this job right now?".
+ *
+ * Cancellation and pause reach a running worker only through its own polling:
+ * this deployment never opens a connection to the operator's machine.
+ */
+export interface RecursiveJobControlOut {
+  job_id: string;
+  cancel_requested?: boolean;
+  pause_requested?: boolean;
+}
+
+export interface RecursiveHeartbeatOut {
+  worker_id: string;
+  status: string;
+  heartbeat_interval_seconds: number;
+  lease_poll_interval_seconds: number;
+  job_controls?: RecursiveJobControlOut[];
+}
+
+export interface RecursiveJobAckOut {
+  job_id: string;
+  status: string;
+  accepted: boolean;
+  detail?: string | null;
+}
+
+export interface RecursiveJobLimitsOut {
+  max_children: number;
+  max_depth: number;
+  max_agent_turns: number;
+  max_tokens: number;
+  max_runtime_seconds: number;
+  max_cost_usd: number | null;
+}
+
+/**
+ * What a worker learns when it wins a job.
+ *
+ * Deliberately free of evidence content: the bundle is fetched separately so
+ * a lease response stays small and the evidence transfer is a distinct,
+ * lease-checked request.
+ */
+export interface RecursiveLeaseOut {
+  job_id: string;
+  run_id: string;
+  attempt: number;
+  request_sha256: string;
+  capability_profile: string;
+  model_key: string;
+  child_model_key: string | null;
+  limits: RecursiveJobLimitsOut;
+  allowed_skill_ids: string[];
+  lease_expires_at: string;
+  heartbeat_interval_seconds: number;
+  bundle_url: string;
+}
+
+export interface RecursiveLeaseRequestIn {
+  /**
+     * @minimum 0
+     * @maximum 64
+     */
+  available_slots?: number;
+  /** @maxItems 16 */
+  supported_profiles?: string[];
+  /** @maxItems 200 */
+  model_keys?: string[];
+}
+
+export interface RecursiveTreeOut {
+  run_id: string;
+  jobs?: RecursiveAgentJobDetailOut[];
+}
+
+/**
+ * A worker's self-reported capability snapshot.
+ */
+export interface RecursiveWorkerCapabilitiesOut {
+  sandbox_mode?: string | null;
+  supports_recursive_agents?: boolean;
+  supports_python?: boolean;
+  supports_evidence_search?: boolean;
+  allow_web?: boolean;
+  max_children?: number | null;
+  max_depth?: number | null;
+}
+
+/**
+ * The one-time response to minting an enrollment token.
+ *
+ * enrollment_token is the only moment the raw value exists outside the
+ * operator's machine: the server stores nothing but its keyed hash, so it
+ * cannot be shown again. This type must never be used for a list or detail
+ * response -- use RecursiveWorkerEnrollmentOut for those.
+ */
+export interface RecursiveWorkerEnrollmentCreatedOut {
+  id: string;
+  workspace_id: string;
+  requested_display_name: string;
+  token_prefix: string;
+  expires_at: string;
+  consumed_at?: string | null;
+  consumed_worker_id?: string | null;
+  created_at: string;
+  enrollment_token: string;
+}
+
+/**
+ * What the admin supplies when minting an enrollment token.
+ *
+ * A declared model rather than a bare dict: the operator only ever names the
+ * machine here, and the generated client should say so.
+ */
+export interface RecursiveWorkerEnrollmentIn {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  display_name: string;
+}
+
+/**
+ * One entry of a worker's self-reported, non-secret model catalogue.
+ */
+export interface RecursiveWorkerModelOut {
+  model_key: string;
+  display_name: string;
+  provider_kind: string;
+  context_window?: number | null;
+  supports_recursive_agents?: boolean;
+  supports_tools?: boolean;
+  pricing?: RecursiveModelPricingOut;
+}
+
+export interface RecursiveWorkerOut {
+  id: string;
+  workspace_id: string;
+  display_name: string;
+  status: string;
+  enabled: boolean;
+  token_prefix: string;
+  adapter_version: string | null;
+  prime_agent_version: string | null;
+  sandbox_mode: string | null;
+  capabilities: RecursiveWorkerCapabilitiesOut;
+  model_catalog: RecursiveWorkerModelOut[];
+  last_seen_at: string | null;
+  last_error_safe_message: string | null;
+  enrolled_at: string;
+  disabled_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RunCitationOut {
   id: string;
   run_id: string;
@@ -574,6 +1245,8 @@ export interface RunOut {
   current_round: number;
   provider_call_count: number;
   tool_call_count: number;
+  recursive_job_count?: number;
+  recursive_agent_node_count?: number;
   input_tokens: number;
   output_tokens: number;
   actual_cost_usd: number;
@@ -641,6 +1314,7 @@ export interface RunTurnOut {
   agent_version_id: string;
   role_type: string;
   status: string;
+  execution_mode?: string;
   response_text: string | null;
   finish_reason: string | null;
   input_tokens: number;
@@ -691,5 +1365,6 @@ export interface ValidationEstimateOut {
   estimated_cost_usd: number | null;
   pricing_complete: boolean;
   budget: ValidationEstimateOutBudget;
+  recursive_execution?: RecursiveExecutionEstimateOut | null;
 }
 

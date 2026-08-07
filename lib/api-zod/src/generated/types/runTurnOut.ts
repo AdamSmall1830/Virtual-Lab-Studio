@@ -14,6 +14,7 @@ export interface RunTurnOut {
   agent_version_id: string;
   role_type: string;
   status: string;
+  execution_mode?: string;
   response_text: string | null;
   finish_reason: string | null;
   input_tokens: number;

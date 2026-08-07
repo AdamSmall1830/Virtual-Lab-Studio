@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from .config import get_settings
 from .engine import execute_run
 from .events import append_event
+from .recursive import fake_worker
+from .recursive.broker import sweep_recursive_jobs
 
 logger = logging.getLogger("vls.worker")
 
@@ -65,6 +67,21 @@ async def worker_loop(sessionmaker: async_sessionmaker[AsyncSession], stop: asyn
             claimed: uuid.UUID | None = None
             async with sessionmaker() as db:
                 await _recover_expired_leases(db)
+                # Deliberately not gated on the recursive feature flag. Turning
+                # the flag off while a meeting is parked on an external worker
+                # must not strand that meeting: the sweeper still has to bring
+                # it to a terminal state.
+                try:
+                    await sweep_recursive_jobs(db)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Recursive job sweep failed")
+                    await db.rollback()
+                # Development-only simulator. Gated inside tick(), which is a
+                # no-op unless the deployment explicitly allows a fake worker.
+                try:
+                    await fake_worker.tick(sessionmaker)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Simulated recursive worker failed")
                 row = (
                     await db.execute(
                         text("SELECT id, workspace_id FROM claim_next_run(:wid, :secs)"),
