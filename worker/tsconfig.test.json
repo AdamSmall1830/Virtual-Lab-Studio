@@ -1,0 +1,13 @@
+{
+  // The tests compile into their own tree so that `dist/` stays exactly what
+  // ships: the worker, and nothing that imports a fake studio or a fake model.
+  // The runner image copies only `src/`, so keeping tests out of the main
+  // project is also what lets the Docker build succeed.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist-test",
+    "tsBuildInfoFile": "dist-test/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

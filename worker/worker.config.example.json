@@ -1,0 +1,50 @@
+{
+  "_comment": [
+    "Virtual Lab Studio bridge worker configuration.",
+    "Copy this file to worker.config.json and replace every <REPLACE_ME>.",
+    "The worker refuses to start while any placeholder remains, so an",
+    "unconfigured machine fails immediately instead of failing every job.",
+    "Never put a credential in this file. Model API keys are named here by",
+    "environment variable; the worker's own token lives in workerTokenFile."
+  ],
+
+  "serverUrl": "<REPLACE_ME: https://your-virtual-lab-studio.example.com>",
+  "displayName": "<REPLACE_ME: a name you will recognise in the studio, e.g. Lab desktop (RTX 3090)>",
+
+  "concurrency": 1,
+
+  "agentRuntime": "auto",
+
+  "workspaceRoot": ".vls/jobs",
+  "workerTokenFile": ".vls/worker-token",
+
+  "sandbox": {
+    "kind": "container",
+    "engine": "docker",
+    "image": "vls-bridge-runner:0.1.0",
+    "network": "proxy",
+    "memory": "4g",
+    "cpus": "2",
+    "pidsLimit": 256,
+    "maxRuntimeSecondsCeiling": 3600,
+    "allowUnsafeProcessRunner": false
+  },
+
+  "models": [
+    {
+      "modelKey": "<REPLACE_ME: the name researchers will pick, e.g. local-qwen3-32b>",
+      "displayName": "<REPLACE_ME: Qwen3 32B (local)>",
+      "baseUrl": "<REPLACE_ME: http://127.0.0.1:11434/v1>",
+      "providerModelId": "<REPLACE_ME: the id your server uses, e.g. qwen3:32b>",
+      "apiKeyEnv": null,
+      "contextWindow": 32768,
+      "maxTokens": 8192,
+      "supportsTools": true,
+      "pricing": {
+        "input_per_million_usd": 0,
+        "output_per_million_usd": 0,
+        "currency": "USD"
+      }
+    }
+  ]
+}
