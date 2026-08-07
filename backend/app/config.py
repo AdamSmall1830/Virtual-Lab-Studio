@@ -2,6 +2,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -37,6 +38,76 @@ class Settings(BaseSettings):
     # Comma-separated emails allowed to use the zero-key Replit AI option
     # (billed to the workspace owner's Replit credits). Empty = nobody.
     replit_ai_allowed_emails: str = ""
+
+    # --- Optional Recursive Agent (Beta) -------------------------------
+    # A participant may optionally be executed by an external worker the user
+    # runs on their own machine instead of by a direct provider completion.
+    # Every flag here is off or conservative by default: the feature cannot
+    # switch itself on, and no code path may silently substitute a standard
+    # completion when recursive execution is unavailable.
+    recursive_agents_enabled: bool = False
+    # Deterministic in-process simulator used to exercise the broker without
+    # real hardware. Gated further by recursive_fake_worker_enabled so it can
+    # never be reachable in a Replit deployment.
+    recursive_agents_allow_fake_worker: bool = False
+    # Keyed-hash pepper for worker credentials. Never stored alongside the
+    # hashes it protects; required before the feature may be enabled.
+    recursive_worker_token_pepper: str = ""
+    recursive_worker_offline_after_seconds: int = 90
+    recursive_worker_enrollment_ttl_seconds: int = 900
+    recursive_job_lease_seconds: int = 60
+    recursive_job_max_attempts: int = 3
+    recursive_job_event_batch_max: int = 100
+    recursive_job_event_body_max_bytes: int = 262_144
+    recursive_job_result_body_max_bytes: int = 1_048_576
+    # Per-job budget ceilings. "default_" seeds a new participant config;
+    # "hard_" is the deployment policy limit a workspace cannot exceed.
+    recursive_job_default_max_runtime_seconds: int = 900
+    recursive_job_hard_max_runtime_seconds: int = 3600
+    recursive_job_default_max_tokens: int = 32_000
+    recursive_job_hard_max_tokens: int = 200_000
+    recursive_job_default_max_children: int = 3
+    recursive_job_hard_max_children: int = 8
+    recursive_job_default_max_depth: int = 1
+    recursive_job_hard_max_depth: int = 2
+    recursive_job_default_max_agent_turns: int = 8
+    recursive_job_hard_max_agent_turns: int = 20
+    recursive_job_default_max_cost_usd: float = 2.0
+    recursive_job_hard_max_cost_usd: float = 25.0
+
+    # Shortest pepper we will accept. Worker credentials are the only thing
+    # standing between a stranger and a job bundle of frozen evidence.
+    RECURSIVE_PEPPER_MIN_LENGTH: ClassVar[int] = 32
+
+    @property
+    def recursive_fake_worker_enabled(self) -> bool:
+        """Deterministic simulator gate.
+
+        Requires the feature, its own opt-in flag, and that we are not in a
+        Replit deployment. The deployment check is the hard failsafe, mirroring
+        dev_login_enabled: a simulated recursive result must never be reachable
+        in a live deployment, where it could be mistaken for real analysis.
+        """
+        return (
+            self.recursive_agents_enabled
+            and self.recursive_agents_allow_fake_worker
+            and not self.is_deployment
+        )
+
+    def require_recursive_ready(self) -> None:
+        """Refuse to run with the feature on but its credential secret unset.
+
+        Fail loudly rather than quietly disabling the feature: an operator who
+        set RECURSIVE_AGENTS_ENABLED expects it on, and hashing worker
+        credentials with an empty pepper would look like it worked.
+        """
+        if not self.recursive_agents_enabled:
+            return
+        if len(self.recursive_worker_token_pepper) < self.RECURSIVE_PEPPER_MIN_LENGTH:
+            raise ValueError(
+                "RECURSIVE_AGENTS_ENABLED requires RECURSIVE_WORKER_TOKEN_PEPPER "
+                f"(pepper) of at least {self.RECURSIVE_PEPPER_MIN_LENGTH} characters"
+            )
 
     def replit_ai_email_allowed(self, email: str | None) -> bool:
         allowed = {
@@ -100,4 +171,8 @@ def get_settings() -> Settings:
         raise RuntimeError("SESSION_SECRET is required")
     if not settings.is_development and settings.session_secret in {"dev", "changeme", "secret"}:
         raise RuntimeError("Refusing to start production with a weak SESSION_SECRET")
+    try:
+        settings.require_recursive_ready()
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
     return settings

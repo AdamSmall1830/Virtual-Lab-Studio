@@ -696,6 +696,7 @@ async def _validate_draft(
     if len(set(positions)) != len(positions):
         errors.append({"field": "agents", "message": "Agent positions must be unique."})
 
+    settings = get_settings()
     for a in body.agents:
         av = await db.get(AgentVersion, a.agent_version_id)
         if av is None:
@@ -704,6 +705,22 @@ async def _validate_draft(
         profile = await db.get(AgentProfile, av.agent_profile_id)
         if profile is not None and profile.workspace_id is not None and profile.workspace_id != workspace_id:
             errors.append({"field": "agents", "message": "Agent version belongs to another workspace."})
+        if a.execution_mode != "standard":
+            # The schema accepts a recursive participant, but no broker or
+            # worker exists to execute one yet. Refuse the draft with a plain
+            # explanation rather than letting launch dereference the provider
+            # columns it deliberately left empty. Nothing here may fall back to
+            # a standard completion: that would silently run a different
+            # experiment than the one the researcher configured.
+            errors.append({
+                "field": "agents",
+                "message": (
+                    "The recursive agent runtime is not enabled for this deployment."
+                    if not settings.recursive_agents_enabled
+                    else "The recursive agent runtime cannot run meetings yet."
+                ),
+            })
+            continue
         pc = await db.get(ProviderConfig, a.provider_config_id)
         if pc is None or pc.workspace_id != workspace_id or not pc.is_enabled:
             errors.append({"field": "agents", "message": "Provider is missing, disabled, or not in this workspace."})
@@ -847,7 +864,9 @@ async def launch_draft(
     if errors:
         raise HTTPException(status_code=422, detail={"code": "invalid_draft", "message": "Draft failed validation", "field_errors": errors})
 
-    # Freeze the definition (immutable snapshot).
+    # Freeze the definition (immutable snapshot). _validate_draft has already
+    # rejected any participant whose runtime cannot execute, so every agent
+    # below is provider-backed.
     settings = get_settings()
     agents_snapshot = []
     demo_mode = True

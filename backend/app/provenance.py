@@ -183,7 +183,17 @@ async def build_manifest(db: AsyncSession, run: Run) -> dict[str, Any]:
                 "SELECT id, provider_type, endpoint_fingerprint FROM provider_configs "
                 "WHERE id = ANY(:ids)"
             ),
-            {"ids": list({str(a.provider_config_id) for a in def_agents})},
+            # A participant executed by an external worker has no provider
+            # config; skip it rather than querying for the string "None".
+            {
+                "ids": list(
+                    {
+                        str(a.provider_config_id)
+                        for a in def_agents
+                        if a.provider_config_id is not None
+                    }
+                )
+            },
         )
     ).mappings().all()
 

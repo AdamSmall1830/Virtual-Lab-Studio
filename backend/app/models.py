@@ -38,12 +38,26 @@ _ENUM_VALUES: dict[str, tuple[str, ...]] = {
         "note", "pmc_article", "web_reference", "prior_run",
     ),
     "evidence_processing_status": ("pending", "processing", "ready", "failed", "quarantined"),
+    # NOTE: pg_enum() below declares members explicitly (create_type=False)
+    # rather than reflecting them, so every value added to a PostgreSQL enum
+    # must be added here in the same change or inserts fail at runtime.
     "run_status": (
         "draft", "queued", "leased", "running", "pausing", "paused",
         "cancelling", "completed", "failed", "cancelled", "budget_stopped",
+        "waiting_external",
     ),
     "run_role_type": ("lead", "member", "expert", "critic", "merger"),
-    "turn_status": ("pending", "streaming", "completed", "failed", "cancelled"),
+    "turn_status": (
+        "pending", "streaming", "completed", "failed", "cancelled",
+        "waiting_external",
+    ),
+    "agent_execution_mode": ("standard", "recursive_rlm"),
+    "recursive_worker_status": ("offline", "online", "degraded", "disabled", "revoked"),
+    "recursive_job_status": (
+        "queued", "leased", "running", "cancellation_requested",
+        "completed", "failed", "cancelled",
+    ),
+    "recursive_node_status": ("queued", "running", "completed", "failed", "cancelled"),
     "tool_call_status": ("requested", "approved", "running", "completed", "failed", "denied", "cancelled"),
     "review_status": ("unreviewed", "in_review", "approved", "changes_requested", "rejected"),
     "export_status": ("queued", "running", "completed", "failed", "expired"),
@@ -341,10 +355,27 @@ class MeetingDefinitionAgent(Base):
     position: Mapped[int] = mapped_column(Integer, primary_key=True)
     role_type: Mapped[str] = mapped_column(pg_enum("run_role_type"), nullable=False)
     agent_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_versions.id"), nullable=False)
-    provider_config_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_configs.id"), nullable=False)
-    provider_model_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_models.id"), nullable=False)
+    # Provider columns are nullable because a recursive participant is executed
+    # by an external worker and has no provider config or model. The database
+    # CHECK constraint (see the migration) requires them for standard
+    # participants, so nullability here does not weaken the standard path.
+    provider_config_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_configs.id"))
+    provider_model_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_models.id"))
     temperature_override: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
     tool_definition_ids: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
+    execution_mode: Mapped[str] = mapped_column(
+        pg_enum("agent_execution_mode"), server_default=text("'standard'"), nullable=False
+    )
+    recursive_worker_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recursive_workers.id")
+    )
+    recursive_model_key: Mapped[str | None] = mapped_column(Text)
+    # Frozen at launch into the immutable definition and its hash. Carries only
+    # non-secret settings: model keys, limits and capability snapshots — never a
+    # worker credential, host path or private address.
+    recursive_execution_config: Mapped[dict] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb"), nullable=False
+    )
 
 
 class MeetingDefinitionEvidence(Base):
@@ -385,6 +416,11 @@ class Run(Base):
     control_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     provider_call_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
     tool_call_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    # Recursive work counted alongside native work, never instead of it: these
+    # are additional detail, while provider_call_count above stays the total
+    # model-call figure so a recursive turn never reads as zero calls.
+    recursive_job_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    recursive_agent_node_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
     input_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
     cached_input_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
     output_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
@@ -411,8 +447,14 @@ class RunTurn(Base):
     agent_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_versions.id"), nullable=False)
     role_type: Mapped[str] = mapped_column(pg_enum("run_role_type"), nullable=False)
     status: Mapped[str] = mapped_column(pg_enum("turn_status"), server_default=text("'pending'"), nullable=False)
-    provider_config_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_configs.id"), nullable=False)
-    provider_model_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_models.id"), nullable=False)
+    execution_mode: Mapped[str] = mapped_column(
+        pg_enum("agent_execution_mode"), server_default=text("'standard'"), nullable=False
+    )
+    # Nullable for the same reason as on the participant snapshot: a recursive
+    # turn is produced by an external worker, not a provider completion. The
+    # CHECK constraint still requires both for a standard turn.
+    provider_config_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_configs.id"))
+    provider_model_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("provider_models.id"))
     provider_request_id: Mapped[str | None] = mapped_column(Text)
     system_prompt_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     request_payload_sha256: Mapped[str | None] = mapped_column(CHAR(64))
@@ -608,4 +650,208 @@ class AuditEvent(Base):
     ip_hash: Mapped[str | None] = mapped_column(Text)
     user_agent_hash: Mapped[str | None] = mapped_column(Text)
     metadata_json: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, server_default=text("'{}'::jsonb"), nullable=False)
+    created_at: Mapped[datetime] = ts_default()
+
+
+# ---------------------------------------------------------------------------
+# Optional Recursive Agent (Beta)
+#
+# A participant may optionally be executed by an external worker the user runs
+# on their own machine. The worker never receives database credentials and
+# never imports this application; it authenticates with its own bearer
+# credential over outbound HTTPS. Nothing below stores a raw credential, and
+# nothing below stores a node's private reasoning transcript.
+# ---------------------------------------------------------------------------
+
+
+class RecursiveWorker(Base):
+    """An external machine enrolled to execute recursive participant turns.
+
+    Workspace-scoped by requirement: the application's authorization model has
+    no platform-administrator role, so a deployment-wide worker would have no
+    one able to own, audit or revoke it.
+    """
+
+    __tablename__ = "recursive_workers"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False
+    )
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        pg_enum("recursive_worker_status"), server_default=text("'offline'"), nullable=False
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
+    # Non-secret lookup handle plus the keyed hash of the credential. The raw
+    # credential is shown to the operator once at enrollment and never stored.
+    token_prefix: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    adapter_version: Mapped[str | None] = mapped_column(Text)
+    prime_agent_version: Mapped[str | None] = mapped_column(Text)
+    sandbox_mode: Mapped[str | None] = mapped_column(Text)
+    capabilities: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    # Self-reported, non-secret model metadata only. Must never carry API keys,
+    # provider headers, filesystem paths or private network addresses.
+    model_catalog: Mapped[list] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error_safe_message: Mapped[str | None] = mapped_column(Text)
+    enrolled_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    enrolled_at: Mapped[datetime] = ts_default()
+    disabled_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class RecursiveWorkerEnrollment(Base):
+    """A one-time token exchanged for a worker's long-lived credential."""
+
+    __tablename__ = "recursive_worker_enrollments"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False
+    )
+    token_prefix: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consumed_worker_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recursive_workers.id")
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = ts_default()
+
+
+class RecursiveAgentJob(Base):
+    """One recursive participant turn delegated to a worker.
+
+    Exactly one logical job per run turn: retries reuse this row and increment
+    attempt_count rather than creating a second participant turn.
+    """
+
+    __tablename__ = "recursive_agent_jobs"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False
+    )
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), nullable=False)
+    run_turn_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("run_turns.id"), nullable=False, unique=True
+    )
+    meeting_definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("meeting_definitions.id"), nullable=False
+    )
+    agent_version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_versions.id"), nullable=False
+    )
+    requested_worker_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recursive_workers.id")
+    )
+    leased_worker_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recursive_workers.id")
+    )
+    status: Mapped[str] = mapped_column(
+        pg_enum("recursive_job_status"), server_default=text("'queued'"), nullable=False
+    )
+    priority: Mapped[int] = mapped_column(Integer, server_default=text("100"), nullable=False)
+    queue_available_at: Mapped[datetime] = ts_default()
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    max_attempts: Mapped[int] = mapped_column(Integer, server_default=text("3"), nullable=False)
+    cancellation_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Canonical request the worker executes, plus its hash. Completion is
+    # rejected unless the worker echoes this hash back, so a result can never
+    # be attached to a request it did not run.
+    request_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    request_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    result_sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    model_key: Mapped[str] = mapped_column(Text, nullable=False)
+    child_model_key: Mapped[str | None] = mapped_column(Text)
+    capability_profile: Mapped[str] = mapped_column(Text, nullable=False)
+    max_children: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_depth: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_agent_turns: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    max_runtime_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(16, 6))
+    model_call_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    input_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    cached_input_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    output_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    cost_usd: Mapped[Decimal] = mapped_column(Numeric(16, 6), server_default=text("0"), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_code: Mapped[str | None] = mapped_column(Text)
+    failure_safe_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class RecursiveAgentNode(Base):
+    """Safe visualisation record for one agent in a job's coordinator tree.
+
+    Deliberately not a reasoning transcript: summaries, labels, timings and
+    usage only, so the live tree and the exported record stay free of hidden
+    chain-of-thought.
+    """
+
+    __tablename__ = "recursive_agent_nodes"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recursive_agent_jobs.id"), nullable=False
+    )
+    external_node_id: Mapped[str] = mapped_column(Text, nullable=False)
+    parent_external_node_id: Mapped[str | None] = mapped_column(Text)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(pg_enum("recursive_node_status"), nullable=False)
+    model_key: Mapped[str | None] = mapped_column(Text)
+    task_summary: Mapped[str | None] = mapped_column(Text)
+    result_summary: Mapped[str | None] = mapped_column(Text)
+    cited_evidence_keys: Mapped[list] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    tool_labels: Mapped[list] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    model_call_count: Mapped[int] = mapped_column(Integer, server_default=text("0"), nullable=False)
+    input_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    cached_input_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    output_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
+    cost_usd: Mapped[Decimal] = mapped_column(Numeric(16, 6), server_default=text("0"), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_safe_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class RecursiveJobEvent(Base):
+    """Idempotency record for worker-submitted events.
+
+    run_events remains the user-facing stream; this table only absorbs the
+    duplicates a worker produces when it retries an HTTP request it never saw
+    the response to.
+    """
+
+    __tablename__ = "recursive_job_events"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recursive_agent_jobs.id"), nullable=False
+    )
+    worker_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    external_event_id: Mapped[str] = mapped_column(Text, nullable=False)
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    payload_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     created_at: Mapped[datetime] = ts_default()

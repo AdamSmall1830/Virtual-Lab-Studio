@@ -199,6 +199,15 @@ async def _load_context(db: AsyncSession, run: Run) -> RunContext:
             av = await db.get(AgentVersion, da.agent_version_id)
             assert av is not None
             agent_versions[da.agent_version_id] = av
+        if da.execution_mode != "standard":
+            # Launch refuses these, so a definition containing one should not
+            # exist. Say plainly what is unsupported instead of tripping over
+            # the empty provider columns two frames later, and never quietly
+            # execute the turn on a provider the researcher did not choose.
+            raise RuntimeError(
+                f"Participant at position {da.position} uses the "
+                f"'{da.execution_mode}' runtime, which this engine cannot execute."
+            )
         if da.provider_config_id not in provider_configs:
             pc = await db.get(ProviderConfig, da.provider_config_id)
             assert pc is not None

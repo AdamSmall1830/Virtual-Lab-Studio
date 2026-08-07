@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ORMModel(BaseModel):
@@ -187,14 +187,84 @@ class ProviderEnvironmentOut(BaseModel):
     replit_ai_available: bool
 
 
+class RecursiveExecutionConfigIn(BaseModel):
+    """Per-participant settings for the optional Recursive Agent runtime.
+
+    Bounds here are the schema ceiling. Deployment and workspace policy is
+    applied separately at draft validation, which may only narrow these.
+    Capabilities the product does not support are pinned to a literal rather
+    than defaulted, so a client cannot request web access or extra skills.
+    """
+
+    schema_version: Literal["1.0"] = "1.0"
+    capability_profile: Literal["research_read_only"] = "research_read_only"
+    requested_worker_id: uuid.UUID
+    coordinator_model_key: str = Field(min_length=1, max_length=300)
+    child_model_key: str | None = Field(default=None, max_length=300)
+    max_children: int = Field(default=3, ge=1, le=8)
+    max_depth: int = Field(default=1, ge=1, le=2)
+    max_agent_turns: int = Field(default=8, ge=1, le=20)
+    max_tokens: int = Field(default=32_000, ge=1)
+    max_runtime_seconds: int = Field(default=900, ge=60, le=3600)
+    max_cost_usd: float | None = Field(default=2.0, ge=0)
+    allow_python: Literal[True] = True
+    allow_evidence_search: Literal[True] = True
+    allow_web: Literal[False] = False
+    allowed_skill_ids: list[Literal["vls_evidence"]] = Field(
+        default_factory=lambda: ["vls_evidence"]
+    )
+
+
 class DraftAgentIn(BaseModel):
     position: int = Field(ge=0)
     role_type: Literal["lead", "member", "expert", "critic", "merger"]
     agent_version_id: uuid.UUID
-    provider_config_id: uuid.UUID
-    provider_model_id: uuid.UUID
+    # Defaults to the standard runtime so a draft written before the recursive
+    # feature existed keeps validating and behaving identically.
+    execution_mode: Literal["standard", "recursive_rlm"] = "standard"
+    provider_config_id: uuid.UUID | None = None
+    provider_model_id: uuid.UUID | None = None
+    recursive_execution: RecursiveExecutionConfigIn | None = None
     temperature_override: float | None = Field(default=None, ge=0, le=2)
-    tool_definition_ids: list[uuid.UUID] = []
+    tool_definition_ids: list[uuid.UUID] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_runtime(self) -> "DraftAgentIn":
+        """Require exactly one runtime's fields.
+
+        The provider columns became nullable so a recursive participant can
+        exist; this keeps the standard path as strict as it was before, and
+        mirrors the database CHECK constraint so a mixed payload is refused
+        here with a readable message rather than at insert time.
+        """
+        if self.execution_mode == "standard":
+            missing = [
+                name
+                for name, value in (
+                    ("provider_config_id", self.provider_config_id),
+                    ("provider_model_id", self.provider_model_id),
+                )
+                if value is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"standard participant requires {' and '.join(missing)}"
+                )
+            if self.recursive_execution is not None:
+                raise ValueError(
+                    "standard participant must not carry recursive_execution"
+                )
+        else:
+            if self.recursive_execution is None:
+                raise ValueError(
+                    "recursive participant requires recursive_execution"
+                )
+            if self.provider_config_id is not None or self.provider_model_id is not None:
+                raise ValueError(
+                    "recursive participant must not carry provider_config_id "
+                    "or provider_model_id"
+                )
+        return self
 
 
 class MeetingDraftIn(BaseModel):
@@ -251,8 +321,12 @@ class RunOut(ORMModel):
     review_status: str
     demo_mode: bool
     current_round: int
+    # Total model calls, including calls reported by recursive jobs. Recursive
+    # work is never shown as zero calls merely because it ran elsewhere.
     provider_call_count: int
     tool_call_count: int
+    recursive_job_count: int = 0
+    recursive_agent_node_count: int = 0
     input_tokens: int
     output_tokens: int
     actual_cost_usd: float
@@ -273,6 +347,7 @@ class RunTurnOut(ORMModel):
     agent_version_id: uuid.UUID
     role_type: str
     status: str
+    execution_mode: str = "standard"
     response_text: str | None
     finish_reason: str | None
     input_tokens: int
@@ -281,6 +356,173 @@ class RunTurnOut(ORMModel):
     latency_ms: int | None
     started_at: datetime | None
     completed_at: datetime | None
+
+
+# --- Optional Recursive Agent (Beta) ---------------------------------------
+# Output shapes for workers, enrollment, jobs and the safe agent tree. None of
+# these carry a credential, host path, private address or model reasoning.
+
+
+# Worker-reported metadata is stored as JSONB, so it is whatever the operator's
+# machine chose to send. These models are the allow-list that data passes
+# through on the way back out: extra="ignore" means a stray key holding an API
+# key, a filesystem path or a private address is dropped rather than echoed to
+# every workspace member. The ingest path must validate against these same
+# models before storing, so a read can never fail on malformed catalogue data.
+StrictJsonModel = ConfigDict(extra="ignore")
+
+
+class RecursiveModelPricingOut(BaseModel):
+    model_config = StrictJsonModel
+
+    input_usd_per_1m: float | None = None
+    cached_input_usd_per_1m: float | None = None
+    output_usd_per_1m: float | None = None
+
+
+class RecursiveWorkerModelOut(BaseModel):
+    """One entry of a worker's self-reported, non-secret model catalogue."""
+
+    model_config = StrictJsonModel
+
+    model_key: str
+    display_name: str
+    provider_kind: str
+    context_window: int | None = None
+    supports_recursive_agents: bool = False
+    supports_tools: bool = False
+    pricing: RecursiveModelPricingOut = Field(default_factory=RecursiveModelPricingOut)
+
+
+class RecursiveWorkerCapabilitiesOut(BaseModel):
+    """A worker's self-reported capability snapshot."""
+
+    model_config = StrictJsonModel
+
+    sandbox_mode: str | None = None
+    supports_recursive_agents: bool = False
+    supports_python: bool = False
+    supports_evidence_search: bool = False
+    allow_web: bool = False
+    max_children: int | None = None
+    max_depth: int | None = None
+
+
+class RecursiveWorkerOut(ORMModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    display_name: str
+    status: str
+    enabled: bool
+    # Non-secret lookup handle only; the credential itself is never returned.
+    token_prefix: str
+    adapter_version: str | None
+    prime_agent_version: str | None
+    sandbox_mode: str | None
+    capabilities: RecursiveWorkerCapabilitiesOut
+    model_catalog: list[RecursiveWorkerModelOut]
+    last_seen_at: datetime | None
+    last_error_safe_message: str | None
+    enrolled_at: datetime
+    disabled_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RecursiveWorkerEnrollmentOut(ORMModel):
+    """An enrollment record as it can be listed or audited.
+
+    Deliberately carries no token. Only RecursiveWorkerEnrollmentCreatedOut
+    does, and only as the immediate response to minting one.
+    """
+
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    requested_display_name: str
+    token_prefix: str
+    expires_at: datetime
+    consumed_at: datetime | None
+    consumed_worker_id: uuid.UUID | None
+    created_at: datetime
+
+
+class RecursiveWorkerEnrollmentCreatedOut(RecursiveWorkerEnrollmentOut):
+    """The one-time response to minting an enrollment token.
+
+    enrollment_token is the only moment the raw value exists outside the
+    operator's machine: the server stores nothing but its keyed hash, so it
+    cannot be shown again. This type must never be used for a list or detail
+    response -- use RecursiveWorkerEnrollmentOut for those.
+    """
+
+    consumed_at: datetime | None = None
+    consumed_worker_id: uuid.UUID | None = None
+    enrollment_token: str
+
+
+class RecursiveAgentNodeOut(ORMModel):
+    """Safe visualisation record for one agent in a job's tree."""
+
+    id: uuid.UUID
+    job_id: uuid.UUID
+    external_node_id: str
+    parent_external_node_id: str | None
+    display_name: str
+    status: str
+    model_key: str | None
+    task_summary: str | None
+    result_summary: str | None
+    cited_evidence_keys: list[str]
+    tool_labels: list[str]
+    model_call_count: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    started_at: datetime | None
+    completed_at: datetime | None
+    failure_safe_message: str | None
+
+
+class RecursiveAgentJobOut(ORMModel):
+    id: uuid.UUID
+    run_id: uuid.UUID
+    run_turn_id: uuid.UUID
+    agent_version_id: uuid.UUID
+    requested_worker_id: uuid.UUID | None
+    leased_worker_id: uuid.UUID | None
+    status: str
+    attempt_count: int
+    max_attempts: int
+    request_sha256: str
+    result_sha256: str | None
+    model_key: str
+    child_model_key: str | None
+    capability_profile: str
+    max_children: int
+    max_depth: int
+    max_agent_turns: int
+    max_tokens: int
+    max_runtime_seconds: int
+    max_cost_usd: float | None
+    model_call_count: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    lease_expires_at: datetime | None
+    heartbeat_at: datetime | None
+    cancellation_requested_at: datetime | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    failure_code: str | None
+    failure_safe_message: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RecursiveAgentJobDetailOut(BaseModel):
+    job: RecursiveAgentJobOut
+    nodes: list[RecursiveAgentNodeOut] = Field(default_factory=list)
 
 
 class RunEventOut(ORMModel):

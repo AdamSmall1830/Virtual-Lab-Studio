@@ -19,10 +19,13 @@ CREATE TYPE evidence_source_kind AS ENUM (
 CREATE TYPE evidence_processing_status AS ENUM ('pending', 'processing', 'ready', 'failed', 'quarantined');
 CREATE TYPE run_status AS ENUM (
   'draft', 'queued', 'leased', 'running', 'pausing', 'paused',
-  'cancelling', 'completed', 'failed', 'cancelled', 'budget_stopped'
+  'cancelling', 'completed', 'failed', 'cancelled', 'budget_stopped',
+  'waiting_external'
 );
 CREATE TYPE run_role_type AS ENUM ('lead', 'member', 'expert', 'critic', 'merger');
-CREATE TYPE turn_status AS ENUM ('pending', 'streaming', 'completed', 'failed', 'cancelled');
+CREATE TYPE turn_status AS ENUM (
+  'pending', 'streaming', 'completed', 'failed', 'cancelled', 'waiting_external'
+);
 CREATE TYPE tool_call_status AS ENUM ('requested', 'approved', 'running', 'completed', 'failed', 'denied', 'cancelled');
 CREATE TYPE review_status AS ENUM ('unreviewed', 'in_review', 'approved', 'changes_requested', 'rejected');
 CREATE TYPE export_status AS ENUM ('queued', 'running', 'completed', 'failed', 'expired');
@@ -30,6 +33,17 @@ CREATE TYPE evaluation_visibility AS ENUM ('identified', 'blinded');
 CREATE TYPE notebook_entry_kind AS ENUM ('note', 'decision', 'hypothesis', 'protocol', 'result', 'follow_up');
 CREATE TYPE intervention_kind AS ENUM ('pause', 'resume', 'cancel', 'instruction', 'evidence_addition', 'approval');
 CREATE TYPE citation_support_type AS ENUM ('supports', 'contradicts', 'context', 'uncertain');
+
+-- Optional Recursive Agent (Beta). A participant may be executed by an
+-- external worker the user runs on their own machine instead of by a direct
+-- provider completion.
+CREATE TYPE agent_execution_mode AS ENUM ('standard', 'recursive_rlm');
+CREATE TYPE recursive_worker_status AS ENUM ('offline', 'online', 'degraded', 'disabled', 'revoked');
+CREATE TYPE recursive_job_status AS ENUM (
+  'queued', 'leased', 'running', 'cancellation_requested',
+  'completed', 'failed', 'cancelled'
+);
+CREATE TYPE recursive_node_status AS ENUM ('queued', 'running', 'completed', 'failed', 'cancelled');
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
@@ -349,6 +363,57 @@ CREATE TABLE evidence_chunks (
 CREATE INDEX evidence_chunks_workspace_idx ON evidence_chunks (workspace_id, evidence_source_id);
 CREATE INDEX evidence_chunks_search_idx ON evidence_chunks USING gin (to_tsvector('english', content_text));
 
+-- An external machine enrolled to execute recursive participant turns.
+-- Workspace-scoped by requirement: the authorization model has no platform
+-- administrator, so a deployment-wide worker would have no one able to own,
+-- audit or revoke it. Only the keyed hash of a credential is ever stored.
+CREATE TABLE recursive_workers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  display_name text NOT NULL,
+  status recursive_worker_status NOT NULL DEFAULT 'offline',
+  enabled boolean NOT NULL DEFAULT true,
+  token_prefix text NOT NULL UNIQUE,
+  token_hash text NOT NULL,
+  adapter_version text,
+  prime_agent_version text,
+  sandbox_mode text,
+  capabilities jsonb NOT NULL DEFAULT '{}'::jsonb,
+  -- Self-reported, non-secret model metadata only. Never API keys, provider
+  -- headers, filesystem paths or private network addresses.
+  model_catalog jsonb NOT NULL DEFAULT '[]'::jsonb,
+  last_seen_at timestamptz,
+  last_error_safe_message text,
+  enrolled_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  enrolled_at timestamptz NOT NULL DEFAULT now(),
+  disabled_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  disabled_at timestamptz,
+  revoked_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  revoked_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX recursive_workers_workspace_idx ON recursive_workers (workspace_id, status, enabled);
+CREATE TRIGGER recursive_workers_set_updated_at
+  BEFORE UPDATE ON recursive_workers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- One-time enrollment tokens. The raw token is shown to the operator once;
+-- after enrollment the worker holds a separate long-lived credential.
+CREATE TABLE recursive_worker_enrollments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  token_prefix text NOT NULL UNIQUE,
+  token_hash text NOT NULL,
+  requested_display_name text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  consumed_at timestamptz,
+  consumed_worker_id uuid REFERENCES recursive_workers(id) ON DELETE SET NULL,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX recursive_worker_enrollments_workspace_idx
+  ON recursive_worker_enrollments (workspace_id, expires_at DESC);
+
 CREATE TABLE meeting_drafts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -396,12 +461,41 @@ CREATE TABLE meeting_definition_agents (
   position integer NOT NULL CHECK (position >= 0),
   role_type run_role_type NOT NULL,
   agent_version_id uuid NOT NULL REFERENCES agent_versions(id) ON DELETE RESTRICT,
-  provider_config_id uuid NOT NULL REFERENCES provider_configs(id) ON DELETE RESTRICT,
-  provider_model_id uuid NOT NULL REFERENCES provider_models(id) ON DELETE RESTRICT,
+  -- Provider columns are nullable because a recursive participant is executed
+  -- by an external worker and has no provider config or model. The runtime
+  -- CHECK below re-imposes the requirement for the standard runtime.
+  provider_config_id uuid REFERENCES provider_configs(id) ON DELETE RESTRICT,
+  provider_model_id uuid REFERENCES provider_models(id) ON DELETE RESTRICT,
   temperature_override numeric(4,3) CHECK (temperature_override BETWEEN 0 AND 2),
   tool_definition_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
-  PRIMARY KEY (meeting_definition_id, position)
+  execution_mode agent_execution_mode NOT NULL DEFAULT 'standard',
+  recursive_worker_id uuid REFERENCES recursive_workers(id) ON DELETE RESTRICT,
+  recursive_model_key text,
+  -- Frozen into definition_json and definition_sha256 at launch. Non-secret
+  -- settings only: model keys, limits and capability snapshots.
+  recursive_execution_config jsonb NOT NULL DEFAULT '{}'::jsonb,
+  PRIMARY KEY (meeting_definition_id, position),
+  -- Mutually exclusive runtimes, so the row states truthfully which one
+  -- executes the turn and neither can carry the other's fields.
+  CONSTRAINT meeting_definition_agents_runtime_check CHECK (
+    (
+      execution_mode = 'standard'
+      AND provider_config_id IS NOT NULL
+      AND provider_model_id IS NOT NULL
+      AND recursive_worker_id IS NULL
+      AND recursive_model_key IS NULL
+    )
+    OR (
+      execution_mode = 'recursive_rlm'
+      AND provider_config_id IS NULL
+      AND provider_model_id IS NULL
+      AND recursive_worker_id IS NOT NULL
+      AND recursive_model_key IS NOT NULL
+    )
+  )
 );
+CREATE INDEX meeting_definition_agents_recursive_worker_idx
+  ON meeting_definition_agents (recursive_worker_id) WHERE recursive_worker_id IS NOT NULL;
 CREATE UNIQUE INDEX meeting_definition_single_lead_idx
   ON meeting_definition_agents (meeting_definition_id)
   WHERE role_type = 'lead';
@@ -445,6 +539,11 @@ CREATE TABLE runs (
   control_requested_at timestamptz,
   provider_call_count integer NOT NULL DEFAULT 0,
   tool_call_count integer NOT NULL DEFAULT 0,
+  -- Recursive work counted alongside native work, never instead of it:
+  -- provider_call_count stays the total model-call figure so a recursive turn
+  -- never reads as zero calls merely because it ran on another machine.
+  recursive_job_count integer NOT NULL DEFAULT 0,
+  recursive_agent_node_count integer NOT NULL DEFAULT 0,
   input_tokens bigint NOT NULL DEFAULT 0,
   cached_input_tokens bigint NOT NULL DEFAULT 0,
   output_tokens bigint NOT NULL DEFAULT 0,
@@ -489,8 +588,12 @@ CREATE TABLE run_turns (
   agent_version_id uuid NOT NULL REFERENCES agent_versions(id) ON DELETE RESTRICT,
   role_type run_role_type NOT NULL,
   status turn_status NOT NULL DEFAULT 'pending',
-  provider_config_id uuid NOT NULL REFERENCES provider_configs(id) ON DELETE RESTRICT,
-  provider_model_id uuid NOT NULL REFERENCES provider_models(id) ON DELETE RESTRICT,
+  execution_mode agent_execution_mode NOT NULL DEFAULT 'standard',
+  -- Nullable for the same reason as on meeting_definition_agents: a recursive
+  -- turn is produced by an external worker, not a provider completion, and it
+  -- exists in the transcript from dispatch onward.
+  provider_config_id uuid REFERENCES provider_configs(id) ON DELETE RESTRICT,
+  provider_model_id uuid REFERENCES provider_models(id) ON DELETE RESTRICT,
   provider_request_id text,
   system_prompt_sha256 char(64) NOT NULL CHECK (system_prompt_sha256 ~ '^[a-f0-9]{64}$'),
   request_payload_sha256 char(64) CHECK (request_payload_sha256 IS NULL OR request_payload_sha256 ~ '^[a-f0-9]{64}$'),
@@ -507,10 +610,140 @@ CREATE TABLE run_turns (
   started_at timestamptz,
   completed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (run_id, sequence)
+  UNIQUE (run_id, sequence),
+  CONSTRAINT run_turns_runtime_check CHECK (
+    (
+      execution_mode = 'standard'
+      AND provider_config_id IS NOT NULL
+      AND provider_model_id IS NOT NULL
+    )
+    OR (
+      execution_mode = 'recursive_rlm'
+      AND provider_config_id IS NULL
+      AND provider_model_id IS NULL
+    )
+  )
 );
 CREATE INDEX run_turns_run_sequence_idx ON run_turns (run_id, sequence);
 CREATE INDEX run_turns_workspace_idx ON run_turns (workspace_id, created_at DESC);
+
+-- One recursive participant turn delegated to an external worker. Exactly one
+-- logical job per run turn: a retry reuses this row and increments
+-- attempt_count rather than producing a second participant turn.
+-- The BETWEEN bounds are the absolute schema ceiling; the deployment policy
+-- limits in backend/app/config.py must stay within them.
+CREATE TABLE recursive_agent_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+  run_turn_id uuid NOT NULL UNIQUE REFERENCES run_turns(id) ON DELETE CASCADE,
+  meeting_definition_id uuid NOT NULL REFERENCES meeting_definitions(id) ON DELETE RESTRICT,
+  agent_version_id uuid NOT NULL REFERENCES agent_versions(id) ON DELETE RESTRICT,
+  requested_worker_id uuid REFERENCES recursive_workers(id) ON DELETE RESTRICT,
+  leased_worker_id uuid REFERENCES recursive_workers(id) ON DELETE RESTRICT,
+  status recursive_job_status NOT NULL DEFAULT 'queued',
+  priority integer NOT NULL DEFAULT 100,
+  queue_available_at timestamptz NOT NULL DEFAULT now(),
+  lease_expires_at timestamptz,
+  heartbeat_at timestamptz,
+  attempt_count integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 3 CHECK (max_attempts > 0),
+  cancellation_requested_at timestamptz,
+  -- Canonical request the worker executes, plus its hash. A completion is
+  -- rejected unless the worker echoes this hash back, so a result can never be
+  -- attached to a request it did not run.
+  request_json jsonb NOT NULL,
+  request_sha256 char(64) NOT NULL CHECK (request_sha256 ~ '^[a-f0-9]{64}$'),
+  result_json jsonb,
+  result_sha256 char(64) CHECK (result_sha256 IS NULL OR result_sha256 ~ '^[a-f0-9]{64}$'),
+  model_key text NOT NULL,
+  child_model_key text,
+  capability_profile text NOT NULL,
+  max_children integer NOT NULL,
+  max_depth integer NOT NULL,
+  max_agent_turns integer NOT NULL,
+  max_tokens bigint NOT NULL,
+  max_runtime_seconds integer NOT NULL,
+  max_cost_usd numeric(16,6),
+  model_call_count integer NOT NULL DEFAULT 0,
+  input_tokens bigint NOT NULL DEFAULT 0,
+  cached_input_tokens bigint NOT NULL DEFAULT 0,
+  output_tokens bigint NOT NULL DEFAULT 0,
+  cost_usd numeric(16,6) NOT NULL DEFAULT 0,
+  started_at timestamptz,
+  completed_at timestamptz,
+  failure_code text,
+  failure_safe_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (max_children BETWEEN 1 AND 8),
+  CHECK (max_depth BETWEEN 1 AND 2),
+  CHECK (max_agent_turns > 0),
+  CHECK (max_tokens > 0),
+  CHECK (max_runtime_seconds > 0),
+  CHECK (max_cost_usd IS NULL OR max_cost_usd >= 0)
+);
+CREATE INDEX recursive_agent_jobs_queue_idx
+  ON recursive_agent_jobs (status, queue_available_at, priority, created_at);
+CREATE INDEX recursive_agent_jobs_requested_worker_idx
+  ON recursive_agent_jobs (requested_worker_id, status);
+CREATE INDEX recursive_agent_jobs_leased_worker_idx
+  ON recursive_agent_jobs (leased_worker_id, status);
+CREATE INDEX recursive_agent_jobs_lease_idx ON recursive_agent_jobs (status, lease_expires_at);
+CREATE INDEX recursive_agent_jobs_run_idx ON recursive_agent_jobs (run_id);
+CREATE INDEX recursive_agent_jobs_workspace_created_idx
+  ON recursive_agent_jobs (workspace_id, created_at DESC);
+CREATE TRIGGER recursive_agent_jobs_set_updated_at
+  BEFORE UPDATE ON recursive_agent_jobs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Safe visualisation record for one agent in a job's coordinator tree.
+-- Deliberately not a reasoning transcript: summaries, labels, timings and
+-- usage only, so the live tree and the exported record stay free of hidden
+-- chain-of-thought.
+CREATE TABLE recursive_agent_nodes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  job_id uuid NOT NULL REFERENCES recursive_agent_jobs(id) ON DELETE CASCADE,
+  external_node_id text NOT NULL,
+  parent_external_node_id text,
+  display_name text NOT NULL,
+  status recursive_node_status NOT NULL,
+  model_key text,
+  task_summary text,
+  result_summary text,
+  cited_evidence_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
+  tool_labels jsonb NOT NULL DEFAULT '[]'::jsonb,
+  model_call_count integer NOT NULL DEFAULT 0,
+  input_tokens bigint NOT NULL DEFAULT 0,
+  cached_input_tokens bigint NOT NULL DEFAULT 0,
+  output_tokens bigint NOT NULL DEFAULT 0,
+  cost_usd numeric(16,6) NOT NULL DEFAULT 0,
+  started_at timestamptz,
+  completed_at timestamptz,
+  failure_safe_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (job_id, external_node_id),
+  CHECK (parent_external_node_id IS NULL OR parent_external_node_id <> external_node_id)
+);
+CREATE INDEX recursive_agent_nodes_job_idx ON recursive_agent_nodes (job_id, created_at);
+CREATE TRIGGER recursive_agent_nodes_set_updated_at
+  BEFORE UPDATE ON recursive_agent_nodes FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Idempotency record for worker-submitted events. run_events remains the
+-- user-facing stream; this table only absorbs the duplicates a worker produces
+-- when it retries a request whose response it never saw.
+CREATE TABLE recursive_job_events (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  job_id uuid NOT NULL REFERENCES recursive_agent_jobs(id) ON DELETE CASCADE,
+  worker_sequence bigint NOT NULL CHECK (worker_sequence >= 0),
+  external_event_id text NOT NULL,
+  event_type text NOT NULL,
+  payload_sha256 char(64) NOT NULL CHECK (payload_sha256 ~ '^[a-f0-9]{64}$'),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (job_id, worker_sequence),
+  UNIQUE (job_id, external_event_id)
+);
 
 CREATE TABLE tool_calls (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

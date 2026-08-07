@@ -2,6 +2,7 @@
 - [Orval zod codegen quirks](orval-zod-codegen.md) — lib/api-zod needs zod v4 (not catalog v3); avoid query params in openapi.yaml (Params name collision).
 - [Frontend data layer](frontend-demo-data-layer.md) — artifacts/web is fully API-backed (demo store removed, studio deleted); openapi.yaml is generated from FastAPI, not hand-written.
 - [Backend Python runtime](backend-python-runtime.md) — FastAPI in backend/ with backend/.venv; api-server workflow shells out to uvicorn; ENUM values must be listed even with create_type=False.
+- [Schema contract & migrations](schema-contract-and-migrations.md) — specs SQL is the schema and models are a thin mapping; migrations must be idempotent and proven against a scratch DB.
 - [Clerk auth bridge](clerk-auth-bridge.md) — Clerk JWT verified server-side then bridged into the app's own session cookie; per-user workspace provisioning is idempotent by deterministic slug.
 - [Real model providers](real-providers.md) — OpenAI-compatible adapters built per config; AES-GCM secrets from SESSION_SECRET; pricing in ProviderModel.capabilities; demo_mode drives truthful labeling.
 - [Recurring env failures](replit-env-recurring.md) — post-merge port-bind failures, stale generated client types, and how a dead backend masquerades as a disabled feature.
