@@ -803,6 +803,172 @@ def _real_summary(
     }
 
 
+def _md(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _summary_markdown(
+    title: str, disclosure_line: str, summary_json: dict[str, Any], final_text: str
+) -> str:
+    """Render the whole structured record as the readable document.
+
+    Every field the record holds is rendered here. This markdown is what exports
+    carry and what a reader is most likely to quote, so a finding that lives only
+    in ``summary_json`` is in practice invisible — the disagreements the team
+    registered and the confidence the model stated matter most precisely when
+    someone is deciding how much weight to give the result.
+
+    Sections are omitted when empty rather than rendered as empty headings, so a
+    sparse record reads as sparse instead of broken.
+    """
+    out: list[str] = [f"# {title}", "", f"> {disclosure_line}", ""]
+
+    def heading(text: str) -> None:
+        out.extend([f"## {text}", ""])
+
+    def bullets(items: list[str]) -> None:
+        out.extend(f"- {item}" for item in items)
+        out.append("")
+
+    if exec_summary := _md(summary_json.get("executive_summary")):
+        heading("Executive summary")
+        out.extend([exec_summary, ""])
+
+    rec = summary_json.get("recommendation") or {}
+    if decision := _md(rec.get("decision")):
+        heading("Recommendation")
+        out.extend([f"**{decision}**", ""])
+        if rationale := _md(rec.get("rationale")):
+            out.extend([rationale, ""])
+        if conditions := [_md(c) for c in (rec.get("conditions") or []) if _md(c)]:
+            out.extend(["**Required conditions**", ""])
+            bullets(conditions)
+
+    if question_answers := (summary_json.get("question_answers") or []):
+        heading("Agenda questions")
+        for qa in question_answers:
+            out.extend([f"### {_md(qa.get('question'))}", "", _md(qa.get("answer")), ""])
+            meta: list[str] = []
+            confidence = qa.get("confidence")
+            if isinstance(confidence, (int, float)):
+                meta.append(f"Stated confidence {float(confidence):.2f}")
+            if ids := [_md(i) for i in (qa.get("evidence_ids") or []) if _md(i)]:
+                meta.append("Evidence " + ", ".join(f"`{i}`" for i in ids))
+            if meta:
+                out.extend([f"_{' · '.join(meta)}_", ""])
+            if open_issue := _md(qa.get("open_issue")):
+                out.extend([f"_Open issue: {open_issue}_", ""])
+
+    if disagreements := (summary_json.get("disagreements") or []):
+        heading("Disagreements")
+        for item in disagreements:
+            status = _md(item.get("resolution_status")).replace("_", " ")
+            out.append(f"### {_md(item.get('topic'))}")
+            out.append("")
+            if status:
+                out.extend([f"_Resolution: {status}_", ""])
+            for position in item.get("positions") or []:
+                out.append(
+                    f"- **{_md(position.get('agent_title'))}** — {_md(position.get('position'))}"
+                )
+            out.append("")
+
+    if assumptions := (summary_json.get("assumptions") or []):
+        heading("Assumptions")
+        for item in assumptions:
+            line = f"- {_md(item.get('assumption'))}"
+            if impact := _md(item.get("impact")):
+                line += f" _(impact: {impact})_"
+            out.append(line)
+            if validation := _md(item.get("validation")):
+                out.append(f"  - How to validate: {validation}")
+        out.append("")
+
+    if risks := (summary_json.get("risks_and_limitations") or []):
+        heading("Risks and limitations")
+        for item in risks:
+            qualifiers = " · ".join(
+                q for q in (
+                    f"severity: {_md(item.get('severity'))}" if _md(item.get("severity")) else "",
+                    f"likelihood: {_md(item.get('likelihood'))}" if _md(item.get("likelihood")) else "",
+                ) if q
+            )
+            line = f"- {_md(item.get('risk'))}"
+            if qualifiers:
+                line += f" _({qualifiers})_"
+            out.append(line)
+            if mitigation := _md(item.get("mitigation")):
+                out.append(f"  - Mitigation: {mitigation}")
+        out.append("")
+
+    if next_steps := (summary_json.get("next_steps") or []):
+        heading("Next steps")
+        for item in next_steps:
+            qualifiers = " · ".join(
+                q for q in (
+                    _md(item.get("owner_role")),
+                    f"priority: {_md(item.get('priority'))}" if _md(item.get("priority")) else "",
+                ) if q
+            )
+            line = f"- {_md(item.get('action'))}"
+            if qualifiers:
+                line += f" _({qualifiers})_"
+            out.append(line)
+            if criterion := _md(item.get("acceptance_criterion")):
+                out.append(f"  - Done when: {criterion}")
+        out.append("")
+
+    if evidence := (summary_json.get("evidence") or []):
+        heading("Evidence cited")
+        for item in evidence:
+            line = f"- `{_md(item.get('evidence_id'))}` — {_md(item.get('claim'))}"
+            if support := _md(item.get("support_type")):
+                line += f" _({support})_"
+            out.append(line)
+            if locator := _md(item.get("locator")):
+                out.append(f"  - Locator: {locator}")
+        out.append("")
+
+    if contributions := (summary_json.get("role_contributions") or []):
+        heading("Team member contributions")
+        for item in contributions:
+            out.extend([f"### {_md(item.get('agent_title'))}", "", _md(item.get("contribution")), ""])
+
+    confidence_obj = summary_json.get("confidence") or {}
+    overall = confidence_obj.get("overall")
+    if isinstance(overall, (int, float)):
+        heading("Confidence")
+        out.extend([f"**{float(overall):.2f}** — as stated by the model that held the meeting.", ""])
+        if basis := _md(confidence_obj.get("basis")):
+            out.extend([f"**Basis.** {basis}", ""])
+        if uncertainty := _md(confidence_obj.get("uncertainty")):
+            out.extend([f"**Remaining uncertainty.** {uncertainty}", ""])
+
+    disclosure = summary_json.get("disclosure") or {}
+    if limitations := [_md(x) for x in (disclosure.get("limitations") or []) if _md(x)]:
+        heading("Disclosure")
+        bullets(limitations)
+        if disclosure.get("human_review_required"):
+            out.extend(["Human expert review is required before this result is relied on.", ""])
+
+    if final := final_text.strip():
+        heading("Final synthesis (verbatim)")
+        out.extend([final, ""])
+
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _accumulate_wall_seconds(run: Run, attempt_started_at: datetime) -> Decimal:
+    """Wall time is the sum of every attempt, not only the most recent one.
+
+    A run that was resumed after a failure would otherwise report just the time
+    its final attempt took, understating the work behind the result and
+    contradicting the created/finished span shown beside it.
+    """
+    elapsed = (datetime.now(UTC) - attempt_started_at).total_seconds()
+    return Decimal(str(round(float(run.wall_seconds or 0) + elapsed, 3)))
+
+
 async def _run_structured_synthesis(
     db: AsyncSession,
     sessionmaker: async_sessionmaker[AsyncSession],
@@ -944,7 +1110,7 @@ async def execute_run(
             )
             return
 
-        started_at = datetime.now(UTC)
+        attempt_started_at = datetime.now(UTC)
         try:
             await append_event(
                 db, workspace_id=run.workspace_id, run_id=run.id,
@@ -972,7 +1138,10 @@ async def execute_run(
                 providers_by_config[pc_id] = build_provider(pc_row, decrypted, pricing)
 
             run.status = "running"
-            run.started_at = started_at
+            # Keep the first attempt's start time. A resumed run already began
+            # earlier, and overwriting this loses when the work actually started.
+            if run.started_at is None:
+                run.started_at = attempt_started_at
             await db.commit()
             await append_event(
                 db, workspace_id=run.workspace_id, run_id=run.id,
@@ -1329,10 +1498,8 @@ async def execute_run(
                 validation_errors = validate_summary(summary_json)
                 validation_status = "valid" if not validation_errors else "invalid"
                 final_text = messages[-1]["content"] if messages else ""
-                summary_markdown = (
-                    f"# {d.title}\n\n> {disclosure_line}\n\n"
-                    f"## Executive summary\n\n{summary_json.get('executive_summary', '')}\n\n"
-                    f"## Final synthesis\n\n{final_text}\n"
+                summary_markdown = _summary_markdown(
+                    d.title, disclosure_line, summary_json, final_text
                 )
                 db.add(RunSummary(
                     run_id=run.id,
@@ -1356,7 +1523,7 @@ async def execute_run(
 
             run.status = "completed"
             run.completed_at = datetime.now(UTC)
-            run.wall_seconds = Decimal(str(round((run.completed_at - started_at).total_seconds(), 3)))
+            run.wall_seconds = _accumulate_wall_seconds(run, attempt_started_at)
             run.lease_owner = None
             run.lease_expires_at = None
             await db.commit()
@@ -1414,6 +1581,7 @@ async def execute_run(
             run.status = "cancelled"
             run.control_requested = None
             run.completed_at = datetime.now(UTC)
+            run.wall_seconds = _accumulate_wall_seconds(run, attempt_started_at)
             run.lease_owner = None
             run.lease_expires_at = None
             await db.commit()
@@ -1437,6 +1605,7 @@ async def execute_run(
             run.failure_code = "budget_exceeded"
             run.failure_safe_message = f"Budget limit reached: {exc.reason}"
             run.completed_at = datetime.now(UTC)
+            run.wall_seconds = _accumulate_wall_seconds(run, attempt_started_at)
             run.lease_owner = None
             run.lease_expires_at = None
             await db.commit()
@@ -1466,6 +1635,7 @@ async def execute_run(
             run.failure_code = getattr(exc, "code", "provider_configuration_error")
             run.failure_safe_message = getattr(exc, "safe_message", str(exc))
             run.completed_at = datetime.now(UTC)
+            run.wall_seconds = _accumulate_wall_seconds(run, attempt_started_at)
             run.lease_owner = None
             run.lease_expires_at = None
             await db.commit()
@@ -1490,6 +1660,7 @@ async def execute_run(
             run.failure_code = type(exc).__name__
             run.failure_safe_message = "Run failed due to an internal error."
             run.completed_at = datetime.now(UTC)
+            run.wall_seconds = _accumulate_wall_seconds(run, attempt_started_at)
             run.lease_owner = None
             run.lease_expires_at = None
             await db.commit()

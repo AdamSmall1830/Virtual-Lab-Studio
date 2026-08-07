@@ -1252,10 +1252,18 @@ export const CreateExportApiV1RunsRunIdExportsPostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const createExportApiV1RunsRunIdExportsPostBodyFormatDefault = `repro_zip`;
+
+export const CreateExportApiV1RunsRunIdExportsPostBody = zod.object({
+  "format": zod.enum(['repro_zip', 'report_pdf']).default(createExportApiV1RunsRunIdExportsPostBodyFormatDefault),
+  "sections": zod.array(zod.enum(['meeting_brief', 'question_answers_detail', 'transcript', 'final_synthesis', 'evidence', 'citations', 'agents', 'usage', 'interventions', 'reviews', 'provenance'])).optional()
+})
+
 export const CreateExportApiV1RunsRunIdExportsPostResponse = zod.object({
   "id": zod.uuid(),
   "run_id": zod.union([zod.uuid(),zod.null()]),
   "format": zod.string(),
+  "options": zod.record(zod.string(), zod.unknown()),
   "status": zod.string(),
   "byte_size": zod.union([zod.int(),zod.null()]),
   "sha256": zod.union([zod.string(),zod.null()]),
@@ -1277,6 +1285,7 @@ export const ListExportsApiV1RunsRunIdExportsGetResponseItem = zod.object({
   "id": zod.uuid(),
   "run_id": zod.union([zod.uuid(),zod.null()]),
   "format": zod.string(),
+  "options": zod.record(zod.string(), zod.unknown()),
   "status": zod.string(),
   "byte_size": zod.union([zod.int(),zod.null()]),
   "sha256": zod.union([zod.string(),zod.null()]),

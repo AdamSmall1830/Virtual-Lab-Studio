@@ -209,10 +209,43 @@ export interface EvidenceSourceOut {
   created_at: string;
 }
 
+export type ExportCreateInFormat = typeof ExportCreateInFormat[keyof typeof ExportCreateInFormat];
+
+
+export const ExportCreateInFormat = {
+  repro_zip: 'repro_zip',
+  report_pdf: 'report_pdf',
+} as const;
+
+export type ExportCreateInSectionsItem = typeof ExportCreateInSectionsItem[keyof typeof ExportCreateInSectionsItem];
+
+
+export const ExportCreateInSectionsItem = {
+  meeting_brief: 'meeting_brief',
+  question_answers_detail: 'question_answers_detail',
+  transcript: 'transcript',
+  final_synthesis: 'final_synthesis',
+  evidence: 'evidence',
+  citations: 'citations',
+  agents: 'agents',
+  usage: 'usage',
+  interventions: 'interventions',
+  reviews: 'reviews',
+  provenance: 'provenance',
+} as const;
+
+export interface ExportCreateIn {
+  format?: ExportCreateInFormat;
+  sections?: ExportCreateInSectionsItem[];
+}
+
+export type ExportJobOutOptions = { [key: string]: unknown };
+
 export interface ExportJobOut {
   id: string;
   run_id: string | null;
   format: string;
+  options: ExportJobOutOptions;
   status: string;
   byte_size: number | null;
   sha256: string | null;

@@ -27,6 +27,7 @@ import {
   useRunExports,
   getRunExportsQueryKey,
   exportDownloadUrl,
+  ExportCreateInFormat,
   type RunOut,
   type RunSummaryOut,
   type RunReviewIn,
@@ -34,6 +35,8 @@ import {
 } from '@/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { DemoBadge } from '@/components/demo-badge';
+import { PdfReportButton } from '@/components/pdf-report-button';
+import { describeSections } from '@/lib/report-sections';
 import { formatRunCost, isUnpricedRun, UNPRICED_COST_HINT } from '@/lib/cost';
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'budget_stopped']);
@@ -43,6 +46,10 @@ const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'budget_stopped'])
 // budget, so it would stop again at the very next checkpoint.
 const RESUMABLE = new Set(['failed', 'cancelled']);
 const EXPORT_PENDING = new Set(['queued', 'running']);
+const EXPORT_FORMAT_LABEL: Record<string, string> = {
+  repro_zip: 'Reproducibility packet (ZIP)',
+  report_pdf: 'Readable report (PDF)',
+};
 
 function runTitle(run: RunOut): string {
   return `Run ${run.id.slice(0, 8)}`;
@@ -331,6 +338,52 @@ export function SummaryValidationBanner({ summary }: { summary: RunSummaryOut })
   );
 }
 
+const TONE: Record<string, string> = {
+  critical: 'bg-destructive/15 text-destructive border-destructive/30',
+  high: 'bg-destructive/10 text-destructive border-destructive/25',
+  medium: 'bg-secondary/10 text-secondary border-secondary/25',
+  low: 'bg-muted text-muted-foreground border-border',
+  now: 'bg-destructive/10 text-destructive border-destructive/25',
+  next: 'bg-secondary/10 text-secondary border-secondary/25',
+  later: 'bg-muted text-muted-foreground border-border',
+  resolved: 'bg-accent/10 text-accent border-accent/25',
+  unresolved: 'bg-destructive/10 text-destructive border-destructive/25',
+  needs_evidence: 'bg-secondary/10 text-secondary border-secondary/25',
+};
+
+function Chip({ children }: { children: React.ReactNode }) {
+  const key = String(children ?? '').toLowerCase().replace(/ /g, '_');
+  return (
+    <span
+      className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap ${
+        TONE[key] ?? 'bg-muted text-muted-foreground border-border'
+      }`}
+    >
+      {String(children).replace(/_/g, ' ')}
+    </span>
+  );
+}
+
+function SummarySection({
+  title,
+  testId,
+  children,
+}: {
+  title: string;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <div className="w-full h-px bg-border" />
+      <section data-testid={testId}>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">{title}</h3>
+        {children}
+      </section>
+    </>
+  );
+}
+
 function SummaryTab({ runId }: { runId: string }) {
   const q = useRunSummary(runId, { query: { enabled: Boolean(runId), retry: false, queryKey: getRunSummaryQueryKey(runId) } });
   if (q.isLoading) return <Spinner label="Loading summary…" />;
@@ -341,20 +394,43 @@ function SummaryTab({ runId }: { runId: string }) {
       </EmptyState>
     );
   }
+
   const summary: RunSummaryOut = q.data;
   const sj = (summary.summary_json ?? {}) as Record<string, any>;
   const recommendation = sj.recommendation as Record<string, any> | undefined;
   const contributions = (sj.role_contributions ?? []) as Record<string, any>[];
+  const questionAnswers = (sj.question_answers ?? []) as Record<string, any>[];
+  const disagreements = (sj.disagreements ?? []) as Record<string, any>[];
+  const assumptions = (sj.assumptions ?? []) as Record<string, any>[];
+  const risks = (sj.risks_and_limitations ?? []) as Record<string, any>[];
+  const nextSteps = (sj.next_steps ?? []) as Record<string, any>[];
+  const confidence = sj.confidence as Record<string, any> | undefined;
+  const disclosure = sj.disclosure as Record<string, any> | undefined;
+  const limitations = (disclosure?.limitations ?? []) as string[];
+  const overall = typeof confidence?.overall === 'number' ? (confidence.overall as number) : null;
 
   return (
     <div className="space-y-6">
       <SummaryValidationBanner summary={summary} />
 
       <div className="vls-reading-surface p-8 rounded-xl border border-border shadow-sm space-y-8">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
           <h2 className="text-xl font-display font-semibold">What your team concluded</h2>
+          <div className="ml-auto flex items-center gap-3">
+            {overall !== null && (
+              <span
+                data-testid="text-confidence-overall"
+                title="Confidence stated by the model that held the meeting. It is not a validated measure of correctness."
+                className="text-xs font-mono px-2 py-1 rounded border border-border bg-background text-muted-foreground"
+              >
+                stated confidence {overall.toFixed(2)}
+              </span>
+            )}
+            <PdfReportButton runId={runId} />
+          </div>
         </div>
+
         {sj.executive_summary && (
           <section>
             <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Executive Summary</h3>
@@ -383,9 +459,131 @@ function SummaryTab({ runId }: { runId: string }) {
           </>
         )}
 
+        <SummarySection title="Agenda Questions" testId="section-question-answers">
+          {questionAnswers.length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="text-no-questions">
+              No agenda questions were set for this meeting, so there are no per-question findings.
+              Add questions when you set up a session and the team will answer each one directly.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {questionAnswers.map((qa, i) => (
+                <div key={i} className="border border-border rounded-lg p-4 bg-background">
+                  <div className="font-semibold text-sm mb-2">{qa.question}</div>
+                  <p className="text-sm text-foreground whitespace-pre-wrap mb-3">{qa.answer}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {typeof qa.confidence === 'number' && (
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        stated confidence {qa.confidence.toFixed(2)}
+                      </span>
+                    )}
+                    {Array.isArray(qa.evidence_ids) && qa.evidence_ids.map((id: string) => (
+                      <span key={id} className="text-[10px] font-mono bg-accent/10 text-accent px-1.5 py-0.5 rounded border border-accent/20">
+                        {id}
+                      </span>
+                    ))}
+                  </div>
+                  {qa.open_issue && (
+                    <p className="text-xs text-muted-foreground italic mt-2">Open issue: {qa.open_issue}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </SummarySection>
+
+        {disagreements.length > 0 && (
+          <SummarySection title="Where the Team Disagreed" testId="section-disagreements">
+            <div className="space-y-4">
+              {disagreements.map((d, i) => (
+                <div key={i} className="border border-border rounded-lg p-4 bg-background">
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <span className="font-semibold text-sm">{d.topic}</span>
+                    {d.resolution_status && <Chip>{d.resolution_status}</Chip>}
+                  </div>
+                  <div className="space-y-2">
+                    {(d.positions ?? []).map((p: Record<string, any>, k: number) => (
+                      <div key={k} className="text-sm border-l-2 border-border pl-3">
+                        <span className="font-medium">{p.agent_title}</span>
+                        <span className="text-muted-foreground"> — {p.position}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SummarySection>
+        )}
+
+        {risks.length > 0 && (
+          <SummarySection title="Risks & Limitations" testId="section-risks">
+            <div className="space-y-3">
+              {risks.map((r, i) => (
+                <div key={i} className="border border-border rounded-lg p-4 bg-background">
+                  <div className="flex items-start gap-2 mb-2 flex-wrap">
+                    <span className="text-sm font-medium flex-1 min-w-0">{r.risk}</span>
+                    {r.severity && <Chip>{r.severity}</Chip>}
+                    {r.likelihood && <Chip>{r.likelihood}</Chip>}
+                  </div>
+                  {r.mitigation && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-semibold text-foreground">Mitigation. </span>{r.mitigation}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </SummarySection>
+        )}
+
+        {assumptions.length > 0 && (
+          <SummarySection title="Assumptions" testId="section-assumptions">
+            <div className="space-y-3">
+              {assumptions.map((a, i) => (
+                <div key={i} className="border border-border rounded-lg p-4 bg-background">
+                  <div className="flex items-start gap-2 mb-2 flex-wrap">
+                    <span className="text-sm font-medium flex-1 min-w-0">{a.assumption}</span>
+                    {a.impact && <Chip>{a.impact}</Chip>}
+                  </div>
+                  {a.validation && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-semibold text-foreground">How to validate. </span>{a.validation}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </SummarySection>
+        )}
+
+        {nextSteps.length > 0 && (
+          <SummarySection title="Next Steps" testId="section-next-steps">
+            <ol className="space-y-3">
+              {nextSteps.map((n, i) => (
+                <li key={i} className="border border-border rounded-lg p-4 bg-background flex gap-3">
+                  <span className="text-xs font-mono text-muted-foreground pt-0.5">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2 mb-1 flex-wrap">
+                      <span className="text-sm font-medium flex-1 min-w-0">{n.action}</span>
+                      {n.priority && <Chip>{n.priority}</Chip>}
+                    </div>
+                    {n.owner_role && (
+                      <div className="text-xs text-muted-foreground mb-1">Owner: {n.owner_role}</div>
+                    )}
+                    {n.acceptance_criterion && (
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">Done when. </span>{n.acceptance_criterion}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </SummarySection>
+        )}
+
         {contributions.length > 0 && (
-          <section>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">Role Contributions</h3>
+          <SummarySection title="Role Contributions" testId="section-role-contributions">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {contributions.map((rc, i) => (
                 <div key={i} className="border border-border rounded-lg p-4 bg-background">
@@ -403,7 +601,44 @@ function SummaryTab({ runId }: { runId: string }) {
                 </div>
               ))}
             </div>
-          </section>
+          </SummarySection>
+        )}
+
+        {(confidence?.basis || confidence?.uncertainty) && (
+          <SummarySection title="Confidence & Uncertainty" testId="section-confidence">
+            <div className="space-y-3 text-sm">
+              {overall !== null && (
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">{overall.toFixed(2)} </span>
+                  as stated by the model that held the meeting. This is the model&rsquo;s own
+                  assessment, not a validated measure of correctness.
+                </p>
+              )}
+              {confidence?.basis && (
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">Basis. </span>{confidence.basis}
+                </p>
+              )}
+              {confidence?.uncertainty && (
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">Remaining uncertainty. </span>{confidence.uncertainty}
+                </p>
+              )}
+            </div>
+          </SummarySection>
+        )}
+
+        {limitations.length > 0 && (
+          <SummarySection title="Disclosure" testId="section-disclosure">
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              {limitations.map((l, i) => <li key={i}>{l}</li>)}
+            </ul>
+            {disclosure?.human_review_required && (
+              <p className="text-sm font-medium text-foreground mt-3">
+                Human expert review is required before this result is relied on.
+              </p>
+            )}
+          </SummarySection>
         )}
       </div>
 
@@ -463,7 +698,13 @@ function CitationsTab({ runId }: { runId: string }) {
   if (q.isLoading) return <Spinner label="Loading citations…" />;
   if (q.isError) return <ErrorState message="Could not load citations." onRetry={() => q.refetch()} />;
   const citations = q.data ?? [];
-  if (citations.length === 0) return <EmptyState icon={Database}>No evidence citations recorded for this run.</EmptyState>;
+  if (citations.length === 0)
+    return (
+      <EmptyState icon={Database}>
+        No evidence citations were recorded for this run. Citations appear only when evidence
+        sources are attached to a meeting before it is launched and the team cites them.
+      </EmptyState>
+    );
 
   return (
     <div className="space-y-4">
@@ -795,34 +1036,51 @@ function ExportsTab({ runId, run }: { runId: string; run: RunOut }) {
   const jobs = exportsQuery.data ?? [];
 
   const requestExport = async () => {
-    await createExport.mutateAsync({ runId });
+    await createExport.mutateAsync({ runId, data: { format: ExportCreateInFormat.repro_zip } });
     await queryClient.invalidateQueries({ queryKey: getRunExportsQueryKey(runId) });
   };
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="vls-glass p-8 rounded-xl text-center border-dashed border-2">
-        <Download className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-        <h2 className="text-xl font-display font-semibold mb-2">Reproducibility Export</h2>
-        <p className="text-muted-foreground mb-6 text-sm">
-          Generate a complete offline packet containing the frozen definition, transcript, summary,
-          evidence, and provenance manifest with SHA-256 hashes.
-        </p>
-        {!isTerminal ? (
-          <p className="text-sm text-warning">Export packets are available once the run finishes.</p>
-        ) : (
-          <button
-            onClick={requestExport}
-            disabled={createExport.isPending}
-            className="bg-primary text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-2 disabled:opacity-50"
-          >
-            {createExport.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Request Export
-          </button>
-        )}
-        {createExport.isError && (
-          <p className="text-sm text-destructive mt-3">Could not start the export. Please try again.</p>
-        )}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="vls-glass p-6 rounded-xl border-dashed border-2 flex flex-col">
+          <Download className="w-8 h-8 text-muted-foreground mb-3 opacity-50" />
+          <h2 className="text-base font-display font-semibold mb-2">Reproducibility packet</h2>
+          <p className="text-muted-foreground mb-5 text-sm flex-1">
+            A complete offline ZIP containing the frozen definition, transcript, summary, evidence,
+            and provenance manifest with SHA-256 hashes. For archiving and independent checking.
+          </p>
+          {!isTerminal ? (
+            <p className="text-sm text-warning">Available once the run finishes.</p>
+          ) : (
+            <button
+              onClick={requestExport}
+              disabled={createExport.isPending}
+              data-testid="button-request-packet"
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-2 disabled:opacity-50 self-start"
+            >
+              {createExport.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Build packet
+            </button>
+          )}
+          {createExport.isError && (
+            <p className="text-sm text-destructive mt-3">Could not start the export. Please try again.</p>
+          )}
+        </div>
+
+        <div className="vls-glass p-6 rounded-xl border-dashed border-2 flex flex-col">
+          <FileText className="w-8 h-8 text-muted-foreground mb-3 opacity-50" />
+          <h2 className="text-base font-display font-semibold mb-2">Readable report</h2>
+          <p className="text-muted-foreground mb-5 text-sm flex-1">
+            A typeset PDF of the conclusions, with whichever appendices you choose. For circulating
+            and reading — every page is marked model-generated.
+          </p>
+          {!isTerminal ? (
+            <p className="text-sm text-warning">Available once the run finishes.</p>
+          ) : (
+            <PdfReportButton runId={runId} prominent className="self-start" />
+          )}
+        </div>
       </div>
 
       {exportsQuery.isLoading ? (
@@ -848,13 +1106,18 @@ function ExportsTab({ runId, run }: { runId: string; run: RunOut }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{job.format}</span>
+                    <span className="font-medium text-sm">{EXPORT_FORMAT_LABEL[job.format] ?? job.format}</span>
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{statusLabel(job.status)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5 font-mono">
                     {format(new Date(job.created_at), 'PPp')}
                     {job.byte_size != null && ` • ${(job.byte_size / 1024).toFixed(1)} KB`}
                   </div>
+                  {job.format === 'report_pdf' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {describeSections(job.options?.sections) ?? 'Conclusions only'}
+                    </p>
+                  )}
                   {job.error_safe_message && (
                     <p className="text-xs text-destructive mt-1">{job.error_safe_message}</p>
                   )}

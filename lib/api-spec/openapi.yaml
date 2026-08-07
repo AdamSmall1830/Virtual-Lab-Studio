@@ -1159,6 +1159,11 @@ paths:
           type: string
           format: uuid
           title: Run Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportCreateIn'
       responses:
         '201':
           description: Successful Response
@@ -2030,6 +2035,34 @@ components:
       - processing_error_safe_message
       - created_at
       title: EvidenceSourceOut
+    ExportCreateIn:
+      properties:
+        format:
+          type: string
+          enum:
+          - repro_zip
+          - report_pdf
+          title: Format
+          default: repro_zip
+        sections:
+          items:
+            type: string
+            enum:
+            - meeting_brief
+            - question_answers_detail
+            - transcript
+            - final_synthesis
+            - evidence
+            - citations
+            - agents
+            - usage
+            - interventions
+            - reviews
+            - provenance
+          type: array
+          title: Sections
+      type: object
+      title: ExportCreateIn
     ExportJobOut:
       properties:
         id:
@@ -2045,6 +2078,10 @@ components:
         format:
           type: string
           title: Format
+        options:
+          additionalProperties: true
+          type: object
+          title: Options
         status:
           type: string
           title: Status
@@ -2083,6 +2120,7 @@ components:
       - id
       - run_id
       - format
+      - options
       - status
       - byte_size
       - sha256

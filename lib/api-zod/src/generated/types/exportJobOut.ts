@@ -4,11 +4,13 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { ExportJobOutOptions } from './exportJobOutOptions';
 
 export interface ExportJobOut {
   id: string;
   run_id: string | null;
   format: string;
+  options: ExportJobOutOptions;
   status: string;
   byte_size: number | null;
   sha256: string | null;

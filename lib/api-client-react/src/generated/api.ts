@@ -31,6 +31,7 @@ import type {
   EvidenceSearchHit,
   EvidenceSearchIn,
   EvidenceSourceOut,
+  ExportCreateIn,
   ExportJobOut,
   HTTPValidationError,
   InterventionIn,
@@ -3316,14 +3317,15 @@ export const getCreateExportApiV1RunsRunIdExportsPostUrl = (runId: string,) => {
 /**
  * @summary Create Export
  */
-export const createExportApiV1RunsRunIdExportsPost = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<ExportJobOut> => {
+export const createExportApiV1RunsRunIdExportsPost = async (runId: string,
+    exportCreateIn?: ExportCreateIn, options?: Parameters<typeof customFetch>[1]): Promise<ExportJobOut> => {
 
   return customFetch<ExportJobOut>(getCreateExportApiV1RunsRunIdExportsPostUrl(runId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(exportCreateIn)
   }
 );}
 
@@ -3332,8 +3334,8 @@ export const createExportApiV1RunsRunIdExportsPost = async (runId: string, optio
 
 
 export const getCreateExportApiV1RunsRunIdExportsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string;data?: BodyType<ExportCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string;data?: BodyType<ExportCreateIn>}, TContext> => {
 
 const mutationKey = ['createExportApiV1RunsRunIdExportsPost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3345,10 +3347,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, {runId: string}> = (props) => {
-          const {runId} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, {runId: string;data?: BodyType<ExportCreateIn>}> = (props) => {
+          const {runId,data} = props ?? {};
 
-          return  createExportApiV1RunsRunIdExportsPost(runId,requestOptions)
+          return  createExportApiV1RunsRunIdExportsPost(runId,data,requestOptions)
         }
 
 
@@ -3359,18 +3361,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateExportApiV1RunsRunIdExportsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>>
-
+    export type CreateExportApiV1RunsRunIdExportsPostMutationBody = BodyType<ExportCreateIn> | undefined
     export type CreateExportApiV1RunsRunIdExportsPostMutationError = ErrorType<HTTPValidationError>
 
     /**
  * @summary Create Export
  */
 export const useCreateExportApiV1RunsRunIdExportsPost = <TError = ErrorType<HTTPValidationError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>, TError,{runId: string;data?: BodyType<ExportCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createExportApiV1RunsRunIdExportsPost>>,
         TError,
-        {runId: string},
+        {runId: string;data?: BodyType<ExportCreateIn>},
         TContext
       > => {
       return useMutation(getCreateExportApiV1RunsRunIdExportsPostMutationOptions(options));

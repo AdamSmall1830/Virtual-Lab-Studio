@@ -406,10 +406,52 @@ class RunReviewOut(ORMModel):
     updated_at: datetime
 
 
+# Optional appendices a PDF report can carry, in the order they are rendered
+# and offered. The conclusions record is always included and is not listed here.
+# app/pdf_report.py asserts its titles cover exactly these ids.
+PDF_REPORT_SECTIONS: tuple[str, ...] = (
+    "meeting_brief",
+    "question_answers_detail",
+    "transcript",
+    "final_synthesis",
+    "evidence",
+    "citations",
+    "agents",
+    "usage",
+    "interventions",
+    "reviews",
+    "provenance",
+)
+
+PdfReportSection = Literal[
+    "meeting_brief",
+    "question_answers_detail",
+    "transcript",
+    "final_synthesis",
+    "evidence",
+    "citations",
+    "agents",
+    "usage",
+    "interventions",
+    "reviews",
+    "provenance",
+]
+
+ExportFormat = Literal["repro_zip", "report_pdf"]
+
+
+class ExportCreateIn(BaseModel):
+    format: ExportFormat = "repro_zip"
+    # Only meaningful for report_pdf; the reproducibility packet is defined by
+    # its schema and always contains everything.
+    sections: list[PdfReportSection] = Field(default_factory=list)
+
+
 class ExportJobOut(ORMModel):
     id: uuid.UUID
     run_id: uuid.UUID | None
     format: str
+    options: dict[str, Any]
     status: str
     byte_size: int | None
     sha256: str | None

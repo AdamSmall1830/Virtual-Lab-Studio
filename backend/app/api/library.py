@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, UploadFile
 from fastapi.responses import FileResponse, Response
 from starlette.background import BackgroundTask
 from sqlalchemy import func, select, text
@@ -29,6 +29,7 @@ from ..evidence import (
     ExtractedSegment,
 )
 from ..exports import build_export_packet
+from ..pdf_report import build_pdf_report
 from ..models import (
     ComparisonEvaluation,
     ComparisonItem,
@@ -57,6 +58,7 @@ from ..schemas import (
     EvidenceSearchHit,
     EvidenceSearchIn,
     EvidenceSourceOut,
+    ExportCreateIn,
     ExportJobOut,
     PmcImportIn,
     PmcSearchIn,
@@ -423,48 +425,67 @@ async def upsert_my_review(
 # reproducibility exports
 # --------------------------------------------------------------------------
 
+EXPORT_MEDIA = {
+    "repro_zip": ("application/zip", "zip", "packet"),
+    "report_pdf": ("application/pdf", "pdf", "report"),
+}
+
+
 @router.post("/runs/{run_id}/exports", response_model=ExportJobOut, status_code=201)
 async def create_export(
-    run_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    run_id: uuid.UUID,
+    body: ExportCreateIn = Body(default_factory=ExportCreateIn),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     run = await _get_run(db, run_id, user, "viewer")
     if run.status not in TERMINAL_STATUSES:
-        raise problem(409, "run_not_finished", "Export packets are available once the run finishes.")
-    # A reproducibility packet must carry a valid manifest — never a null or
-    # invalid one. Generate when absent; validate even when already present.
+        raise problem(409, "run_not_finished", "Exports are available once the run finishes.")
+
     manifest_row = await db.get(RunManifest, run.id)
     if manifest_row is None:
         manifest_row, _err = await ensure_manifest_safe(db, run)
+        if manifest_row is None and _err is None:
+            # Skipped: a retry requeued the run between the check above and
+            # here, so there is nothing final to package yet.
+            raise problem(
+                409, "run_not_finished", "Exports are available once the run finishes."
+            )
+
+    if body.format == "repro_zip":
+        # A reproducibility packet must carry a valid manifest — never a null or
+        # invalid one. The PDF report has no such requirement: it is a readable
+        # document, and it states plainly when the manifest is missing or
+        # unverifiable instead of refusing to exist.
         if manifest_row is None:
-            if _err is None:
-                # Skipped: a retry requeued the run between the check above and
-                # here, so there is nothing final to package yet.
-                raise problem(
-                    409, "run_not_finished",
-                    "Export packets are available once the run finishes.",
-                )
             raise problem(
                 422, "manifest_unavailable",
                 "A valid provenance manifest could not be generated, so the "
                 "reproducibility packet cannot be produced for this run.",
             )
-    if validate_against_schema(manifest_row.manifest_json, "run_manifest.schema.json"):
-        raise problem(
-            422, "manifest_invalid",
-            "The stored provenance manifest fails schema validation, so the "
-            "reproducibility packet cannot be produced for this run.",
-        )
+        if validate_against_schema(manifest_row.manifest_json, "run_manifest.schema.json"):
+            raise problem(
+                422, "manifest_invalid",
+                "The stored provenance manifest fails schema validation, so the "
+                "reproducibility packet cannot be produced for this run.",
+            )
 
+    sections = list(dict.fromkeys(body.sections)) if body.format == "report_pdf" else []
+    _media, extension, _noun = EXPORT_MEDIA[body.format]
     job = ExportJob(
         workspace_id=run.workspace_id, project_id=run.project_id, run_id=run.id,
-        requested_by=user.id, format="repro_zip", status="running",
+        requested_by=user.id, format=body.format, status="running",
+        options={"sections": sections} if body.format == "report_pdf" else {},
         started_at=datetime.now(timezone.utc),
     )
     db.add(job)
     await db.flush()
     try:
-        payload = await build_export_packet(db, run)
-        storage_key = f"exports/{run.workspace_id}/{run.id}/{job.id}.zip"
+        if body.format == "report_pdf":
+            payload = await build_pdf_report(db, run, sections)
+        else:
+            payload = await build_export_packet(db, run)
+        storage_key = f"exports/{run.workspace_id}/{run.id}/{job.id}.{extension}"
         await put_object(storage_key, payload)
         job.status = "completed"
         job.storage_object_key = storage_key
@@ -503,10 +524,11 @@ async def download_export(
         raise problem(404, "not_found", "Export not found")
     await require_workspace_role(db, job.workspace_id, user, "viewer")
     if job.status != "completed" or not job.storage_object_key:
-        raise problem(409, "export_not_ready", "The export packet is not ready.")
-    # File-backed staging: the packet is downloaded straight to disk and
+        raise problem(409, "export_not_ready", "The export is not ready.")
+    media_type, extension, noun = EXPORT_MEDIA.get(job.format, EXPORT_MEDIA["repro_zip"])
+    # File-backed staging: the export is downloaded straight to disk and
     # streamed from there, so response size is never bounded by memory.
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f".{extension}")
     tmp.close()
     try:
         await get_object_to_file(job.storage_object_key, tmp.name)
@@ -518,7 +540,7 @@ async def download_export(
             if digest.hexdigest() != job.sha256:
                 raise problem(
                     500, "export_corrupt",
-                    "The stored export packet failed its integrity check.",
+                    "The stored export failed its integrity check.",
                 )
     except StorageError:
         os.unlink(tmp.name)
@@ -526,10 +548,10 @@ async def download_export(
     except Exception:
         os.unlink(tmp.name)
         raise
-    filename = f"virtual-lab-run-{job.run_id}-packet.zip"
+    filename = f"virtual-lab-run-{job.run_id}-{noun}.{extension}"
     return FileResponse(
         tmp.name,
-        media_type="application/zip",
+        media_type=media_type,
         filename=filename,
         background=BackgroundTask(os.unlink, tmp.name),
     )
