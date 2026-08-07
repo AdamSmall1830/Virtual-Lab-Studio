@@ -196,3 +196,53 @@ def test_wall_seconds_accumulate_across_attempts():
 
     resumed = _accumulate_wall_seconds(SimpleNamespace(wall_seconds=Decimal("100.0")), started)
     assert 109 <= float(resumed) <= 112, "prior attempts must be included"
+
+
+async def test_terminal_finalization_uses_the_full_renderer(sessionmaker):
+    """A run finalized through the terminal path must render the same document
+    the normal completion path would render from the same record — not a
+    one-line "# Run outcome" stub."""
+    from sqlalchemy import text as sql_text
+
+    from app.models import MeetingDefinition, Run
+    from app.providers import get_demo_provider
+    from app.provenance import ensure_terminal_summary
+    from app.seed import seed
+    from app.engine import _summary_markdown
+    from tests.test_seed_and_run import _make_demo_run
+
+    async with sessionmaker() as db:
+        await seed(db)
+        run = await _make_demo_run(db)
+        await db.execute(
+            sql_text(
+                "UPDATE runs SET status = 'failed', failure_code = 'provider_error', "
+                "failure_safe_message = 'The provider rejected the request.' WHERE id = :rid"
+            ),
+            {"rid": str(run.id)},
+        )
+        await db.commit()
+        run = await db.get(Run, run.id)
+        await db.refresh(run)  # raw SQL update above bypassed the ORM cache
+
+        summary = await ensure_terminal_summary(db, run)
+        definition = await db.get(MeetingDefinition, run.meeting_definition_id)
+        md = summary.summary_markdown
+
+        # Identical to what the normal path's renderer produces from the record.
+        assert md == _summary_markdown(
+            definition.title, get_demo_provider().disclosure, summary.summary_json, ""
+        )
+
+        # Every populated section of the record is present, not a stub.
+        assert not md.startswith("# Run outcome")
+        for heading in (
+            "## Executive summary",
+            "## Recommendation",
+            "## Agenda questions",
+            "## Risks and limitations",
+            "## Confidence",
+            "## Disclosure",
+        ):
+            assert heading in md, f"{heading} missing from terminal-run document"
+        assert "The provider rejected the request." in md

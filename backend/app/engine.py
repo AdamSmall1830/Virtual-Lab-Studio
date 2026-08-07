@@ -807,6 +807,23 @@ def _md(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _records(value: Any) -> list[dict[str, Any]]:
+    """Only mapping entries of a list section are renderable records.
+
+    Legacy rows hold hand-written or fuzzed ``summary_json`` where a list
+    section may contain bare strings, numbers, or nested lists; the renderer
+    must skip those rather than crash, or the backfill cannot re-render the
+    rows that need it most.
+    """
+    if not isinstance(value, list):
+        return []
+    return [x for x in value if isinstance(x, dict)]
+
+
+def _record(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def _summary_markdown(
     title: str, disclosure_line: str, summary_json: dict[str, Any], final_text: str
 ) -> str:
@@ -834,7 +851,7 @@ def _summary_markdown(
         heading("Executive summary")
         out.extend([exec_summary, ""])
 
-    rec = summary_json.get("recommendation") or {}
+    rec = _record(summary_json.get("recommendation"))
     if decision := _md(rec.get("decision")):
         heading("Recommendation")
         out.extend([f"**{decision}**", ""])
@@ -844,7 +861,7 @@ def _summary_markdown(
             out.extend(["**Required conditions**", ""])
             bullets(conditions)
 
-    if question_answers := (summary_json.get("question_answers") or []):
+    if question_answers := _records(summary_json.get("question_answers")):
         heading("Agenda questions")
         for qa in question_answers:
             out.extend([f"### {_md(qa.get('question'))}", "", _md(qa.get("answer")), ""])
@@ -852,14 +869,17 @@ def _summary_markdown(
             confidence = qa.get("confidence")
             if isinstance(confidence, (int, float)):
                 meta.append(f"Stated confidence {float(confidence):.2f}")
-            if ids := [_md(i) for i in (qa.get("evidence_ids") or []) if _md(i)]:
+            evidence_ids = qa.get("evidence_ids")
+            if not isinstance(evidence_ids, list):
+                evidence_ids = []
+            if ids := [_md(i) for i in evidence_ids if isinstance(i, str) and _md(i)]:
                 meta.append("Evidence " + ", ".join(f"`{i}`" for i in ids))
             if meta:
                 out.extend([f"_{' · '.join(meta)}_", ""])
             if open_issue := _md(qa.get("open_issue")):
                 out.extend([f"_Open issue: {open_issue}_", ""])
 
-    if disagreements := (summary_json.get("disagreements") or []):
+    if disagreements := _records(summary_json.get("disagreements")):
         heading("Disagreements")
         for item in disagreements:
             status = _md(item.get("resolution_status")).replace("_", " ")
@@ -867,13 +887,13 @@ def _summary_markdown(
             out.append("")
             if status:
                 out.extend([f"_Resolution: {status}_", ""])
-            for position in item.get("positions") or []:
+            for position in _records(item.get("positions")):
                 out.append(
                     f"- **{_md(position.get('agent_title'))}** — {_md(position.get('position'))}"
                 )
             out.append("")
 
-    if assumptions := (summary_json.get("assumptions") or []):
+    if assumptions := _records(summary_json.get("assumptions")):
         heading("Assumptions")
         for item in assumptions:
             line = f"- {_md(item.get('assumption'))}"
@@ -884,7 +904,7 @@ def _summary_markdown(
                 out.append(f"  - How to validate: {validation}")
         out.append("")
 
-    if risks := (summary_json.get("risks_and_limitations") or []):
+    if risks := _records(summary_json.get("risks_and_limitations")):
         heading("Risks and limitations")
         for item in risks:
             qualifiers = " · ".join(
@@ -901,7 +921,7 @@ def _summary_markdown(
                 out.append(f"  - Mitigation: {mitigation}")
         out.append("")
 
-    if next_steps := (summary_json.get("next_steps") or []):
+    if next_steps := _records(summary_json.get("next_steps")):
         heading("Next steps")
         for item in next_steps:
             qualifiers = " · ".join(
@@ -918,7 +938,7 @@ def _summary_markdown(
                 out.append(f"  - Done when: {criterion}")
         out.append("")
 
-    if evidence := (summary_json.get("evidence") or []):
+    if evidence := _records(summary_json.get("evidence")):
         heading("Evidence cited")
         for item in evidence:
             line = f"- `{_md(item.get('evidence_id'))}` — {_md(item.get('claim'))}"
@@ -929,12 +949,12 @@ def _summary_markdown(
                 out.append(f"  - Locator: {locator}")
         out.append("")
 
-    if contributions := (summary_json.get("role_contributions") or []):
+    if contributions := _records(summary_json.get("role_contributions")):
         heading("Team member contributions")
         for item in contributions:
             out.extend([f"### {_md(item.get('agent_title'))}", "", _md(item.get("contribution")), ""])
 
-    confidence_obj = summary_json.get("confidence") or {}
+    confidence_obj = _record(summary_json.get("confidence"))
     overall = confidence_obj.get("overall")
     if isinstance(overall, (int, float)):
         heading("Confidence")
@@ -944,8 +964,11 @@ def _summary_markdown(
         if uncertainty := _md(confidence_obj.get("uncertainty")):
             out.extend([f"**Remaining uncertainty.** {uncertainty}", ""])
 
-    disclosure = summary_json.get("disclosure") or {}
-    if limitations := [_md(x) for x in (disclosure.get("limitations") or []) if _md(x)]:
+    disclosure = _record(summary_json.get("disclosure"))
+    raw_limitations = disclosure.get("limitations")
+    if not isinstance(raw_limitations, list):
+        raw_limitations = []
+    if limitations := [_md(x) for x in raw_limitations if isinstance(x, str) and _md(x)]:
         heading("Disclosure")
         bullets(limitations)
         if disclosure.get("human_review_required"):

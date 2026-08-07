@@ -443,10 +443,25 @@ async def ensure_terminal_summary(db: AsyncSession, run: Run) -> RunSummary:
     errors = validate_summary(summary_json)
     if errors:
         raise ValueError(f"Terminal summary failed schema validation: {errors[:3]}")
+    # Render the full structured record with the same renderer as the normal
+    # completion path, so a terminal run never carries a stub document.
+    # Local import: engine imports this module at load time.
+    from .engine import _summary_markdown  # noqa: PLC0415
+    from .providers import get_demo_provider  # noqa: PLC0415
+
+    disclosure_line = (
+        get_demo_provider().disclosure
+        if run.demo_mode
+        else (
+            "AI-generated decision support produced by a configured model "
+            "provider. Requires human scientific review; not a validated result."
+        )
+    )
+    title = (definition.title if definition else None) or "Run outcome"
     row = RunSummary(
         run_id=run.id,
         workspace_id=run.workspace_id,
-        summary_markdown=f"# Run outcome\n\n{executive}\n",
+        summary_markdown=_summary_markdown(title, disclosure_line, summary_json, ""),
         summary_json=summary_json,
         schema_version="1.0",
         summary_sha256=sha256_text(canonical_json(summary_json)),
