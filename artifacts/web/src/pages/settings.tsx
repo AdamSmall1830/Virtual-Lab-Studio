@@ -3,7 +3,8 @@ import { useRoute, Link } from 'wouter';
 import { useSession } from '@/api/session';
 import { useTheme } from '@/components/theme-provider';
 import ProvidersTab from './settings-providers';
-import { User, Settings as SettingsIcon, Server, FileLock2, LogOut } from 'lucide-react';
+import { RecursiveWorkerAdmin } from '@/components/recursive/worker-admin';
+import { User, Settings as SettingsIcon, Server, FileLock2, LogOut, Network } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 export default function Settings() {
@@ -17,6 +18,7 @@ export default function Settings() {
     { id: 'profile', label: 'Profile & Preferences', icon: User },
     { id: 'workspace', label: 'Workspace Details', icon: SettingsIcon },
     { id: 'providers', label: 'Providers & Models', icon: Server },
+    { id: 'recursive-workers', label: 'Recursive Workers', icon: Network },
     { id: 'governance', label: 'Governance & Rules', icon: FileLock2 },
   ];
 
@@ -118,6 +120,10 @@ export default function Settings() {
           )}
 
           {tab === 'providers' && workspaceId && <ProvidersTab workspaceId={workspaceId} />}
+
+          {tab === 'recursive-workers' && workspaceId && (
+            <RecursiveWorkerAdmin workspaceId={workspaceId} />
+          )}
 
           {tab === 'governance' && (
             <div className="vls-reading-surface rounded-xl p-6 border space-y-4">

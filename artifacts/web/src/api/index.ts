@@ -27,6 +27,19 @@ export {
   useUpdateProviderApiV1ProvidersProviderIdPatch as useUpdateProvider,
   useTestProviderApiV1ProvidersProviderIdTestPost as useTestProvider,
   useProviderEnvironmentApiV1ProvidersEnvironmentGet as useProviderEnvironment,
+  // recursive (RLM) execution — worker administration and read-only views.
+  // The worker-facing routes (enroll/heartbeat/lease/complete/fail/release)
+  // are deliberately not aliased: nothing in the browser may call them.
+  useListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGet as useListWorkers,
+  getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetQueryKey as getListWorkersQueryKey,
+  useCreateEnrollmentApiV1WorkspacesWorkspaceIdRecursiveWorkerEnrollmentsPost as useCreateWorkerEnrollment,
+  useDisableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdDisablePost as useDisableWorker,
+  useEnableWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdEnablePost as useEnableWorker,
+  useRevokeWorkerApiV1WorkspacesWorkspaceIdRecursiveWorkersWorkerIdRevokePost as useRevokeWorker,
+  useGetRunTreeApiV1RunsRunIdRecursiveTreeGet as useRunRecursiveTree,
+  getGetRunTreeApiV1RunsRunIdRecursiveTreeGetQueryKey as getRunRecursiveTreeQueryKey,
+  useListRunJobsApiV1RunsRunIdRecursiveJobsGet as useRunRecursiveJobs,
+  getListRunJobsApiV1RunsRunIdRecursiveJobsGetQueryKey as getRunRecursiveJobsQueryKey,
   // meeting drafts / launch
   useCreateDraftApiV1ProjectsProjectIdMeetingDraftsPost as useCreateDraft,
   useValidateDraftApiV1MeetingDraftsDraftIdValidatePost as useValidateDraft,

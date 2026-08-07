@@ -35,6 +35,7 @@ import {
 } from '@/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { DemoBadge } from '@/components/demo-badge';
+import { RunRecursiveSection } from '@/components/recursive/run-recursive-section';
 import { PdfReportButton } from '@/components/pdf-report-button';
 import { describeSections } from '@/lib/report-sections';
 import { formatRunCost, isUnpricedRun, UNPRICED_COST_HINT } from '@/lib/cost';
@@ -152,6 +153,7 @@ export default function RunDetail() {
     { id: 'transcript', label: 'Transcript' },
     { id: 'evidence', label: 'Evidence & Citations' },
     { id: 'usage', label: 'Usage & Cost' },
+    { id: 'recursive', label: 'Recursive Execution' },
     { id: 'manifest', label: 'Provenance Manifest' },
     { id: 'interventions', label: 'Interventions' },
     { id: 'review', label: 'Review' },
@@ -265,6 +267,9 @@ export default function RunDetail() {
         {tab === 'transcript' && <TranscriptTab runId={runId} />}
         {tab === 'evidence' && <CitationsTab runId={runId} />}
         {tab === 'usage' && <UsageTab run={run} />}
+        {tab === 'recursive' && (
+          <RunRecursiveSection runId={runId} demoMode={Boolean(run.demo_mode)} />
+        )}
         {tab === 'manifest' && <ManifestTab runId={runId} />}
         {tab === 'interventions' && <InterventionsTab runId={runId} />}
         {tab === 'review' && <ReviewTab runId={runId} run={run} />}

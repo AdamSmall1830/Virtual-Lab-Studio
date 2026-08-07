@@ -40,6 +40,21 @@ instead of "duplicate" — the worker cannot tell a lost ack from a rejected
 result, and there is no safe action left for it to take. Retaining the identity
 cannot re-hand out the job, because leasing only considers *queued* jobs.
 
+## Nothing sweeps a worker offline, so liveness is a client-side judgement
+
+A worker's stored status only ever changes when the worker itself says so. There
+is no reaper, so a machine that is unplugged mid-run keeps `status='online'`
+forever.
+
+**Rule:** never trust the stored status to mean "reachable". Decide liveness by
+comparing the last-contact timestamp against the same staleness window the
+backend uses, and treat the stored status only as an *administrative* state
+(disabled, revoked) that a fresh timestamp cannot override.
+
+**Why:** a UI that reads the column literally tells a researcher their machine is
+online while their run sits parked forever, and the parked run gives no
+countervailing signal because parking is a legitimate long-lived state.
+
 ## Never let a worker's self-report become the record verbatim
 
 **Rule:** rebuild capability and model-catalogue JSON field by field from the

@@ -25,16 +25,41 @@ import {
   type MeetingDraftIn,
   type DraftAgentIn,
   type DraftAgentInRoleType,
+  DraftAgentInExecutionMode,
   type ValidationEstimateOut,
   type EvidenceSourceOut,
   type TemplateProfileOut,
 } from '@/api';
+import {
+  ExecutionModeField,
+  type ExecutionMode,
+} from '@/components/recursive/execution-mode-field';
+import { ValidationRecursiveSection } from '@/components/recursive/validation-recursive-section';
+import { useRecursiveWorkers } from '@/components/recursive/use-recursive-workers';
+import {
+  defaultRecursiveConfig,
+  recursiveConfigProblems,
+  type RecursiveDraftConfig,
+} from '@/lib/recursive';
 
 type MeetingType = 'team' | 'individual';
 
 interface Participant {
   agent: AgentProfileOut;
   roleType: DraftAgentInRoleType;
+  /**
+   * Which runtime executes this seat. Defaults to standard; only ever changed
+   * by an explicit choice, never by availability changing underneath.
+   */
+  executionMode: ExecutionMode;
+  recursive: RecursiveDraftConfig | null;
+}
+
+function standardParticipant(
+  agent: AgentProfileOut,
+  roleType: DraftAgentInRoleType,
+): Participant {
+  return { agent, roleType, executionMode: 'standard', recursive: null };
 }
 
 function splitLines(v: string): string[] {
@@ -147,6 +172,12 @@ export default function Composer() {
     setModelId((p?.models ?? []).find((m) => m.is_enabled)?.id ?? '');
   };
 
+  // Recursive execution is optional and deployment-specific. This resolves to
+  // an explicit "why not" state rather than silently hiding the control.
+  const { availability: recursiveAvailability } = useRecursiveWorkers(enabled ? wsId : null);
+  const eligibleWorkers =
+    recursiveAvailability.state === 'ready' ? recursiveAvailability.workers : [];
+
   const evidenceQuery = useProjectEvidence(resolvedProjectId, {
     query: { queryKey: getProjectEvidenceQueryKey(resolvedProjectId), enabled: Boolean(resolvedProjectId) && enabled },
   });
@@ -187,10 +218,10 @@ export default function Composer() {
         const agent = agents.find((a) => a.slug === s.agent_slug);
         if (!agent) continue;
         const rt = s.role_type as DraftAgentInRoleType;
-        if (mt === 'team' && (rt === 'lead' || rt === 'member')) next.push({ agent, roleType: rt });
+        if (mt === 'team' && (rt === 'lead' || rt === 'member')) next.push(standardParticipant(agent, rt));
         else if (mt === 'individual' && (rt === 'expert' || rt === 'critic')) {
-          next.push({ agent, roleType: rt });
-        } else if (mt === 'team') next.push({ agent, roleType: 'member' });
+          next.push(standardParticipant(agent, rt));
+        } else if (mt === 'team') next.push(standardParticipant(agent, 'member'));
       }
       setParticipants(next);
       setPrefilledTemplate(true);
@@ -217,11 +248,11 @@ export default function Composer() {
       const defaultParticipants: Participant[] = [];
       
       if (meetingType === 'team') {
-        if (validAgents[0]) defaultParticipants.push({ agent: validAgents[0], roleType: 'lead' });
-        if (validAgents[1]) defaultParticipants.push({ agent: validAgents[1], roleType: 'member' });
+        if (validAgents[0]) defaultParticipants.push(standardParticipant(validAgents[0], 'lead'));
+        if (validAgents[1]) defaultParticipants.push(standardParticipant(validAgents[1], 'member'));
       } else {
-        if (validAgents[0]) defaultParticipants.push({ agent: validAgents[0], roleType: 'expert' });
-        if (validAgents[1]) defaultParticipants.push({ agent: validAgents[1], roleType: 'critic' });
+        if (validAgents[0]) defaultParticipants.push(standardParticipant(validAgents[0], 'expert'));
+        if (validAgents[1]) defaultParticipants.push(standardParticipant(validAgents[1], 'critic'));
       }
       setParticipants(defaultParticipants);
       setHasSetDefaultTeam(true);
@@ -259,7 +290,7 @@ export default function Composer() {
     if (participants.some((p) => p.agent.id === agent.id)) return;
     const defaultRole: DraftAgentInRoleType =
       meetingType === 'team' ? 'member' : participants.some((p) => p.roleType === 'expert') ? 'critic' : 'expert';
-    setParticipants((prev) => [...prev, { agent, roleType: defaultRole }]);
+    setParticipants((prev) => [...prev, standardParticipant(agent, defaultRole)]);
   };
 
   const removeParticipant = (agentId: string) => {
@@ -269,6 +300,24 @@ export default function Composer() {
   const setRole = (agentId: string, roleType: DraftAgentInRoleType) => {
     setParticipants((prev) =>
       prev.map((p) => (p.agent.id === agentId ? { ...p, roleType } : p)),
+    );
+  };
+
+  const setExecutionMode = (agentId: string, mode: ExecutionMode) => {
+    setParticipants((prev) =>
+      prev.map((p) => {
+        if (p.agent.id !== agentId) return p;
+        if (mode === 'standard') return { ...p, executionMode: mode, recursive: null };
+        // Keep whatever the researcher already configured for this seat. A
+        // fresh config starts unselected so the choice is theirs, not ours.
+        return { ...p, executionMode: mode, recursive: p.recursive ?? defaultRecursiveConfig() };
+      }),
+    );
+  };
+
+  const setRecursiveConfig = (agentId: string, config: RecursiveDraftConfig) => {
+    setParticipants((prev) =>
+      prev.map((p) => (p.agent.id === agentId ? { ...p, recursive: config } : p)),
     );
   };
 
@@ -300,6 +349,18 @@ export default function Composer() {
       }
     }
     if (rounds < 1 || rounds > 12) b.push('Rounds must be between 1 and 12.');
+    // A recursive seat that is half-configured is a blocker, never a reason to
+    // quietly demote the seat back to standard execution.
+    for (const p of participants) {
+      if (p.executionMode !== 'recursive_rlm') continue;
+      if (!p.recursive) {
+        b.push(`${p.agent.title}: choose a worker and model for recursive execution.`);
+        continue;
+      }
+      for (const problem of recursiveConfigProblems(p.recursive, eligibleWorkers)) {
+        b.push(`${p.agent.title}: ${problem}`);
+      }
+    }
     return b;
   }, [resolvedProjectId, title, agenda, selectedProvider, selectedModel, participants, meetingType, rounds]);
 
@@ -309,14 +370,43 @@ export default function Composer() {
     const budget: Record<string, number> = {};
     if (maxProviderCalls > 0) budget.max_provider_calls = maxProviderCalls;
     if (maxCostUsd > 0) budget.max_cost_usd = maxCostUsd;
-    const agentsIn: DraftAgentIn[] = participants.map((p, idx) => ({
-      position: idx,
-      role_type: p.roleType,
-      agent_version_id: p.agent.latest_version?.id ?? '',
-      provider_config_id: selectedProvider!.id,
-      provider_model_id: selectedModel!.id,
-      temperature_override: null,
-    }));
+    // The server accepts exactly one runtime's fields per seat: a standard seat
+    // carries provider/model ids, a recursive seat carries recursive_execution
+    // instead. Sending both is rejected, so the branch here is deliberate.
+    const agentsIn: DraftAgentIn[] = participants.map((p, idx) => {
+      const base = {
+        position: idx,
+        role_type: p.roleType,
+        agent_version_id: p.agent.latest_version?.id ?? '',
+        temperature_override: null,
+      };
+      if (p.executionMode === 'recursive_rlm' && p.recursive) {
+        const r = p.recursive;
+        return {
+          ...base,
+          execution_mode: DraftAgentInExecutionMode.recursive_rlm,
+          provider_config_id: null,
+          provider_model_id: null,
+          recursive_execution: {
+            requested_worker_id: r.requested_worker_id,
+            coordinator_model_key: r.coordinator_model_key,
+            child_model_key: r.child_model_key,
+            max_children: r.max_children,
+            max_depth: r.max_depth,
+            max_agent_turns: r.max_agent_turns,
+            max_tokens: r.max_tokens,
+            max_runtime_seconds: r.max_runtime_seconds,
+            max_cost_usd: r.max_cost_usd,
+          },
+        };
+      }
+      return {
+        ...base,
+        execution_mode: DraftAgentInExecutionMode.standard,
+        provider_config_id: selectedProvider!.id,
+        provider_model_id: selectedModel!.id,
+      };
+    });
     return {
       title: title.trim(),
       meeting_type: meetingType,
@@ -575,6 +665,21 @@ export default function Composer() {
                           </>
                         )}
                       </select>
+
+                      <ExecutionModeField
+                        className="mt-4"
+                        mode={p.executionMode}
+                        config={p.recursive}
+                        availability={recursiveAvailability}
+                        onModeChange={(mode) => setExecutionMode(p.agent.id, mode)}
+                        onConfigChange={(config) => setRecursiveConfig(p.agent.id, config)}
+                        idPrefix={`participant-${p.agent.id}`}
+                        standardLabel={
+                          selectedModel?.display_name
+                            ? `Standard — ${selectedModel.display_name}`
+                            : 'Standard'
+                        }
+                      />
                     </div>
                   </div>
                 ))}
@@ -867,6 +972,15 @@ export default function Composer() {
                        </span>
                      </div>
                   </div>
+
+                  {estimate.recursive_execution && (
+                    <div className="mt-5 max-w-xl">
+                      <ValidationRecursiveSection
+                        estimate={estimate.recursive_execution}
+                        isSimulation={isSimulation}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
               

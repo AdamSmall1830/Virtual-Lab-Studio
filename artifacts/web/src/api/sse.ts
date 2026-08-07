@@ -19,6 +19,16 @@ interface SubscribeOptions {
   onDone?: () => void;
   /** Called on network/parse errors (after reconnect attempts stop). */
   onError?: (error: unknown) => void;
+  /**
+   * Called once each time a *new* connection is established after the first.
+   *
+   * Replay from `last_event_id` covers events the server recorded, but a
+   * consumer that derives state by accumulating events cannot know whether it
+   * missed anything while disconnected. Views backed by their own endpoint
+   * should use this to re-read authoritative state from the server instead of
+   * trusting what they accumulated.
+   */
+  onReconnect?: () => void;
 }
 
 const TERMINAL_EVENTS = new Set(['run.completed', 'run.failed', 'run.cancelled']);
@@ -30,6 +40,8 @@ export function subscribeRunEvents(runId: string, opts: SubscribeOptions): RunSt
   let closed = false;
   let retries = 0;
 
+  let connections = 0;
+
   const connect = async () => {
     while (!closed) {
       try {
@@ -40,6 +52,8 @@ export function subscribeRunEvents(runId: string, opts: SubscribeOptions): RunSt
         });
         if (!res.ok || !res.body) throw new Error(`SSE HTTP ${res.status}`);
         retries = 0;
+        connections += 1;
+        if (connections > 1) opts.onReconnect?.();
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();

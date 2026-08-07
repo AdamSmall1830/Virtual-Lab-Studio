@@ -8,6 +8,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useSession } from '@/api/session';
 import { subscribeRunEvents } from '@/api/sse';
+import { LiveRecursivePanel } from '@/components/recursive/live-recursive-panel';
 import {
   useRun,
   getRunQueryKey,
@@ -75,6 +76,10 @@ export default function LiveRoom() {
 
   const [events, setEvents] = useState<RunEventOut[]>([]);
   const [interventionText, setInterventionText] = useState('');
+  // Bumped on every SSE reconnect. Views that keep server-owned state (the
+  // recursive tree) re-read it instead of trusting what they accumulated,
+  // because a gap in the stream is invisible from the events themselves.
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const seenSeq = useRef<Set<number>>(new Set());
   const lastSeqRef = useRef(0);
 
@@ -117,6 +122,7 @@ export default function LiveRoom() {
     seenSeq.current = new Set();
     lastSeqRef.current = 0;
     setEvents([]);
+    setReconnectNonce(0);
 
     let active = true;
     const handle = subscribeRunEvents(runId, {
@@ -143,6 +149,10 @@ export default function LiveRoom() {
       onDone: () => {
         if (!active) return;
         void queryClient.invalidateQueries({ queryKey: getRunQueryKey(runId) });
+      },
+      onReconnect: () => {
+        if (!active) return;
+        setReconnectNonce((n) => n + 1);
       },
       onError: () => {
         if (!active) return;
@@ -605,6 +615,17 @@ export default function LiveRoom() {
               </Link>
             </div>
           )}
+
+          {/* Recursive execution — renders nothing unless this run has
+              recursive turns, so standard runs are unaffected. */}
+          <div className="max-w-3xl mx-auto w-full">
+            <LiveRecursivePanel
+              runId={runId}
+              events={events}
+              reconnectNonce={reconnectNonce}
+              demoMode={Boolean(run.demo_mode)}
+            />
+          </div>
         </div>
 
         {/* Intervention bar */}
