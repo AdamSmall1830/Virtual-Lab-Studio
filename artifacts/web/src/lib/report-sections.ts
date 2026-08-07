@@ -68,6 +68,12 @@ export const REPORT_SECTIONS: readonly ReportSectionSpec[] = [
     onByDefault: true,
   },
   {
+    id: 'recursive_execution',
+    label: 'Recursive execution',
+    hint: 'Turns delegated to an external worker: the limits imposed, and the agent tree it reported.',
+    onByDefault: false,
+  },
+  {
     id: 'interventions',
     label: 'Human interventions',
     hint: 'Notes, redirections, and stops a person added while the run was live.',

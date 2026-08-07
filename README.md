@@ -24,6 +24,8 @@ disagreements and states confidence honestly.
 | `docs/TECHNICAL_ARCHITECTURE.md` | Target (FastAPI) runtime architecture |
 | `docs/CORE_INTEGRATION.md` | How upstream `src/virtual_lab` concepts map into the product |
 | `docs/SECURITY_GOVERNANCE.md` | Security, authorization, and governance rules |
+| `docs/WORKER_SECURITY_MODEL.md` | The trust boundary for recursive agents — what an external worker can and cannot do |
+| `docs/WORKER_SETUP.md` | Running the bridge worker on your own Windows/GPU machine with local models |
 | `docs/SOURCE_ATTRIBUTION.md` | Upstream attribution requirements |
 | `specs/` | Database schema, design tokens, seed data, JSON schemas, env example |
 | `replit.md` | Project context and implementation status for agents working here |
@@ -60,11 +62,35 @@ Optional environment variables (`backend/app/config.py` is the source of truth):
 | `AI_INTEGRATIONS_OPENAI_BASE_URL` / `AI_INTEGRATIONS_OPENAI_API_KEY` | Replit AI Integrations proxy — powers the zero-key "Replit AI" provider option. Empty = option unavailable. |
 | `REPLIT_AI_ALLOWED_EMAILS` | Comma-separated emails allowed to use the zero-key Replit AI option (it bills the workspace owner's Replit credits). Empty = nobody. |
 
+### Recursive agents (optional, off by default)
+
+A meeting seat can be executed by a **bridge worker** on your own machine — your GPU, your
+local models, your electricity — instead of by a hosted provider. The studio never runs
+agent-generated code: it queues the turn, and the worker on your hardware picks it up over
+an outbound connection. Nothing listens on your machine and nothing dials into it.
+
+Turning it on requires `RECURSIVE_AGENTS_ENABLED=true` and a random
+`RECURSIVE_WORKER_TOKEN_PEPPER` of at least 32 characters (the backend refuses to start
+with a short one rather than quietly disabling the feature). With the flag off, the
+recursive routes are not registered at all — they 404 like any unknown URL and do not
+appear in the OpenAPI document.
+
+- `docs/WORKER_SETUP.md` — the Windows + local-GPU walkthrough
+- `docs/WORKER_SECURITY_MODEL.md` — what the studio does and does not trust a worker to do
+- `worker/README.md` — the worker's own reference and configuration schema
+
+Because the work happens on a machine this deployment cannot observe, the record says so:
+every run manifest carries a `recursive_execution` block (`job_count: 0` on an ordinary
+meeting), the export packet always ships the recursive files bound by manifest digests,
+and the PDF's optional **Recursive execution** appendix states in print what the
+deployment can and cannot attest to.
+
 Common commands:
 
 ```bash
 pnpm --filter @workspace/api-spec run codegen   # regenerate API client + zod after editing lib/api-spec/openapi.yaml
 cd backend && .venv/bin/python -m pytest        # run backend test suite
+backend/.venv/bin/python backend/scripts/export_openapi.py   # regenerate openapi.yaml from FastAPI
 ```
 
 ## Running locally (outside Replit)

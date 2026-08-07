@@ -2619,6 +2619,7 @@ components:
             - citations
             - agents
             - usage
+            - recursive_execution
             - interventions
             - reviews
             - provenance
@@ -4473,6 +4474,8 @@ components:
           anyOf:
           - type: string
             maxLength: 64
+            minLength: 64
+            pattern: ^[a-f0-9]{64}$
           - type: 'null'
           title: Session Reference Hash
       type: object

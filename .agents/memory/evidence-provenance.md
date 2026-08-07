@@ -44,6 +44,14 @@ description: Durable design decisions for the evidence library, citations, run m
   run legitimately produces 0 citations. Only the scripted demo scenario cites
   the seeded demo evidence. Don't treat 0 citations as a bug.
 
+- **A figure this deployment did not measure must say so in its own label.**
+  When a record mixes counts the app made with counts an outside machine
+  reported, a nearby "we did not observe this" callout is not enough — a reader
+  scanning a table sees only the row. Put the qualifier ("Reported model calls")
+  in each label, and let the *unqualified* rows be exactly the ones the app can
+  attest to. **Apply:** the same rule holds for any aggregate the app computes
+  by summing untrusted inputs — the arithmetic is ours, the numbers are not.
+
 - **The DDL contract in specs/database_schema.sql is the source of truth and is
   executed by the single initial migration.** Any *change* to the schema file
   after a database has been stamped needs its own new Alembic revision — the

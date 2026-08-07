@@ -21,10 +21,12 @@ const PLACEHOLDER = "[redacted]";
  * be reported as a credential, not laundered into a bare host name.
  */
 const PATTERNS: ReadonlyArray<RegExp> = [
-  // Bearer tokens and this product's own credential prefixes.
+  // Bearer tokens and this product's own credential prefixes. `rwk_` is a
+  // worker token and `rwe_` an enrollment code -- the two the server actually
+  // mints (see backend/app/recursive/tokens.py). The `vls*` pair is retained
+  // because an operator's older logs and configs may still contain one.
   /\b(?:bearer|token|secret|password|passwd|api[_-]?key)\s*[:=]\s*\S+/gi,
-  /\bvlsw_[A-Za-z0-9._-]+/g,
-  /\bvlse_[A-Za-z0-9._-]+/g,
+  /\b(?:rwk|rwe|vlsw|vlse)_[A-Za-z0-9._-]+/g,
   // Common provider key shapes.
   /\bsk-[A-Za-z0-9._-]{16,}/g,
   /\bgh[pousr]_[A-Za-z0-9]{16,}/g,

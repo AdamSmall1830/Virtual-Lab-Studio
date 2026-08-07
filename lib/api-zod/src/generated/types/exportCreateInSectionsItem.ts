@@ -17,6 +17,7 @@ export const ExportCreateInSectionsItem = {
   citations: 'citations',
   agents: 'agents',
   usage: 'usage',
+  recursive_execution: 'recursive_execution',
   interventions: 'interventions',
   reviews: 'reviews',
   provenance: 'provenance',

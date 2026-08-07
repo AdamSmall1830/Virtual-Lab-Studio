@@ -474,6 +474,370 @@
         }
       }
     },
+    "recursive_execution": {
+      "description": "Participant turns delegated to an enrolled external worker. Always present on manifests written by v0.1.0 and later, with job_count 0 when no participant ran off-host, so absence of recursive work is a statement rather than a gap. The node tree, event log and per-job results live in the reproducibility packet and are bound here by digest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_count",
+        "node_count",
+        "simulated",
+        "usage",
+        "workers",
+        "jobs",
+        "packet_digests"
+      ],
+      "properties": {
+        "job_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "node_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "simulated": {
+          "type": "boolean"
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "job_count",
+            "node_count",
+            "model_calls",
+            "input_tokens",
+            "cached_input_tokens",
+            "output_tokens",
+            "cost_usd"
+          ],
+          "properties": {
+            "job_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "node_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "model_calls": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "input_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cached_input_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cost_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "workers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "worker_id",
+              "display_name",
+              "status"
+            ],
+            "properties": {
+              "worker_id": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "sandbox_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "adapter_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "prime_agent_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "capability_profiles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "enrolled_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "revoked_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "job_id",
+              "run_turn_id",
+              "agent_version_id",
+              "status",
+              "model_key",
+              "capability_profile",
+              "limits",
+              "request_sha256",
+              "usage",
+              "node_count"
+            ],
+            "properties": {
+              "job_id": {
+                "type": "string"
+              },
+              "run_turn_id": {
+                "type": "string"
+              },
+              "agent_version_id": {
+                "type": "string"
+              },
+              "worker_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requested_worker_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string"
+              },
+              "attempt_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "max_attempts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "model_key": {
+                "type": "string"
+              },
+              "child_model_key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "capability_profile": {
+                "type": "string"
+              },
+              "limits": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "max_children",
+                  "max_depth",
+                  "max_agent_turns",
+                  "max_tokens",
+                  "max_runtime_seconds",
+                  "max_cost_usd"
+                ],
+                "properties": {
+                  "max_children": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max_depth": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max_agent_turns": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max_runtime_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max_cost_usd": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "request_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "result_sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "request": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "schema_version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "meeting_definition_sha256": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "turn_sequence": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "round_number": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "capability_profile": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "allowed_skill_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "allow_web": {
+                    "type": "boolean"
+                  },
+                  "evidence_keys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "usage": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "model_calls",
+                  "input_tokens",
+                  "cached_input_tokens",
+                  "output_tokens",
+                  "cost_usd"
+                ],
+                "properties": {
+                  "model_calls": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "input_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cached_input_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "output_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cost_usd": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              },
+              "node_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "started_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "completed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failure_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failure_safe_message": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "packet_digests": {
+          "description": "SHA-256 of each recursive file in the reproducibility packet, keyed by its path inside the packet.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
     "lineage": {
       "type": "object",
       "additionalProperties": false,

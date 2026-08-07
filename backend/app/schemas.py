@@ -794,8 +794,13 @@ class RecursiveRuntimeIn(BaseModel):
     elapsed_ms: int = Field(default=0, ge=0, le=1_000_000_000)
     is_simulation: bool = False
     # A hash, never a path: enough to correlate with the operator's own logs
-    # without telling this deployment anything about their filesystem.
-    session_reference_hash: str | None = Field(default=None, max_length=64)
+    # without telling this deployment anything about their filesystem. The
+    # shape is pinned rather than merely bounded, because a short host path
+    # fits inside a length limit and would then be stored in the permanent
+    # provenance record.
+    session_reference_hash: str | None = Field(
+        default=None, min_length=64, max_length=64, pattern=r"^[a-f0-9]{64}$"
+    )
 
 
 class RecursiveCompletionIn(BaseModel):
@@ -998,6 +1003,7 @@ PDF_REPORT_SECTIONS: tuple[str, ...] = (
     "citations",
     "agents",
     "usage",
+    "recursive_execution",
     "interventions",
     "reviews",
     "provenance",
@@ -1012,6 +1018,7 @@ PdfReportSection = Literal[
     "citations",
     "agents",
     "usage",
+    "recursive_execution",
     "interventions",
     "reviews",
     "provenance",

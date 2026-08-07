@@ -27,6 +27,7 @@ from .models import (
     RunTurn,
 )
 from .provenance import canonical_json, frozen_evidence, sha256_text
+from .recursive.record import load_recursive_record
 
 README_TEMPLATE = """# Virtual Lab Studio — Reproducibility Packet
 
@@ -49,15 +50,32 @@ requires human scientific review before use.
 - `usage.json` — provider/tool call counts, tokens, cost
 - `interventions.json` — human interventions during the run
 - `reviews.json` — human review decisions recorded for this run
+- `recursive/jobs.json` — participant turns delegated to an external worker,
+  with the ceilings imposed on each and the outcome recorded. Empty when no
+  participant ran on an external machine.
+- `recursive/workers.json` — the enrolled machines those jobs ran on
+  (identity and version only; no credential material)
+- `recursive/nodes.json` — the sub-agent tree each job reported: summaries,
+  labels, usage. Deliberately not a reasoning transcript.
+- `recursive/events.json` — the safe progress log for those jobs, filtered by
+  the same allow-list as the live stream
+- `recursive/results/<job_id>.json` — the accepted result per job: citations,
+  limitations, runtime and usage. The answer text itself is the matching
+  transcript turn, bound here by its SHA-256.
 - `hashes.json` — SHA-256 of every file in this packet
 
 ## Integrity
 Verify any file: `sha256sum <file>` and compare with `hashes.json`.
 The transcript and summary hashes also appear in `manifest.json` under
 `integrity`, which is itself hashed (`manifest_payload_sha256`).
+The `recursive/` files are bound the same way: their hashes appear in
+`manifest.json` under `recursive_execution.packet_digests`, so a recursive
+record cannot be edited without breaking the manifest payload hash.
 
 This packet intentionally excludes provider API keys, session data, raw
-storage URLs, and any workspace secrets.
+storage URLs, worker credentials, host filesystem paths, and any workspace
+secrets. Nothing an external worker reported reaches this packet except
+through a reviewed allow-list of fields.
 """
 
 
@@ -221,6 +239,11 @@ async def build_export_packet(db: AsyncSession, run: Run) -> bytes:
             indent=2,
         ),
     }
+    # Rendered by the record itself, not re-serialised here: the manifest
+    # hashes these exact strings, so a second renderer would silently break
+    # the only link that makes the recursive files verifiable.
+    files.update((await load_recursive_record(db, run)).packet_files())
+
     hashes = {name: sha256_text(content) for name, content in files.items()}
     files["hashes.json"] = json.dumps(hashes, indent=2)
     files["README.md"] = README_TEMPLATE.format(

@@ -62,6 +62,7 @@ from .models import (
     RunTurn,
 )
 from .provenance import frozen_evidence, validate_against_schema
+from .recursive.record import load_recursive_record
 from .schemas import PDF_REPORT_SECTIONS
 
 # --------------------------------------------------------------------------
@@ -80,6 +81,7 @@ SECTION_TITLES: dict[str, str] = {
     "citations": "Citations and validation",
     "agents": "Agents and system prompts",
     "usage": "Usage and cost",
+    "recursive_execution": "Recursive execution",
     "interventions": "Human interventions",
     "reviews": "Human reviews",
     "provenance": "Provenance and integrity",
@@ -812,6 +814,9 @@ async def _gather(db: AsyncSession, run: Run) -> _ReportData:
         agents=list(agent_rows),
         titles_by_version=titles_by_version,
         evidence=frozen_evidence(definition) if definition else [],
+        # The same record the manifest and the reproducibility packet are built
+        # from, so a figure on paper cannot disagree with the exported one.
+        recursive=await load_recursive_record(db, run),
     )
 
 
@@ -1539,6 +1544,237 @@ def _appendix_usage(run: Run, data: _ReportData, index: str) -> list[Flowable]:
     return story
 
 
+def _node_rows(nodes: list[dict[str, Any]], job_id: str) -> list[list[str]]:
+    """Flatten one job's reported tree into printable rows, deepest last.
+
+    Depth is drawn as indentation rather than a column: the shape of the tree
+    is the point of the section, and a table of parent ids is not readable.
+    """
+    mine = [n for n in nodes if n.get("job_id") == job_id]
+    children: dict[str | None, list[dict[str, Any]]] = {}
+    for node in mine:
+        children.setdefault(node.get("parent_node_id"), []).append(node)
+    known = {n.get("node_id") for n in mine}
+    # A node whose parent is missing is still evidence of work performed, so it
+    # is printed at the root rather than dropped for having a broken pointer.
+    roots = [n for n in mine if n.get("parent_node_id") not in known]
+
+    rows: list[list[str]] = []
+    seen: set[str] = set()
+
+    def walk(node: dict[str, Any], depth: int) -> None:
+        node_id = str(node.get("node_id"))
+        if node_id in seen or depth > 12:
+            return
+        seen.add(node_id)
+        usage = node.get("usage") or {}
+        rows.append(
+            [
+                ("    " * depth) + _clean(node.get("display_name")) or node_id,
+                _clean(node.get("status")).replace("_", " "),
+                _clean(node.get("model_key")) or "—",
+                f"{int(usage.get('model_calls') or 0):,}",
+                f"{int(usage.get('input_tokens') or 0) + int(usage.get('output_tokens') or 0):,}",
+            ]
+        )
+        for child in children.get(node.get("node_id"), []):
+            walk(child, depth + 1)
+
+    for root in roots:
+        walk(root, 0)
+    # Anything left behind sat in a cycle; print it flat rather than lose it.
+    for node in mine:
+        if str(node.get("node_id")) not in seen:
+            walk(node, 0)
+    return rows
+
+
+def _appendix_recursive(data: _ReportData, index: str) -> list[Flowable]:
+    story = _section(SECTION_TITLES["recursive_execution"], index)
+    record = data.recursive
+    if record.is_empty:
+        story.append(
+            _para(
+                "No participant in this meeting was executed by an external worker. "
+                "Every turn ran inside this deployment against the meeting's own "
+                "configured model providers.",
+                S["quote"],
+            )
+        )
+        return story
+
+    jobs = record.jobs
+    totals = record.totals()
+    story.append(
+        _para(
+            "One or more participants delegated their turn to a recursive coordinator "
+            "running on a machine outside this deployment. The coordinator may split "
+            "its work across sub-agents; what it reported back is recorded below.",
+            S["small"],
+        )
+    )
+    if record.simulated:
+        story.extend(
+            [
+                Spacer(1, 8),
+                _callout(
+                    "Simulated recursive output",
+                    [
+                        "At least one recursive turn in this run was produced by the "
+                        "built-in development simulator, not by a model. Its text, "
+                        "token counts and cost describe the simulation and must not be "
+                        "read as research output.",
+                    ],
+                    accent=VIOLET,
+                    background=TINT_WARN,
+                ),
+            ]
+        )
+    story.extend(
+        [
+            Spacer(1, 8),
+            _callout(
+                "What this deployment can and cannot attest to",
+                [
+                    "This deployment issued each request, enforced the limits shown "
+                    "below, and refused any citation not resolving to evidence frozen "
+                    "into the meeting. It did not observe the work itself: the tree, "
+                    "the summaries and the usage figures are what the worker reported. "
+                    "Treat them as an operator's account, not as an independent "
+                    "measurement.",
+                ],
+                accent=AMBER,
+                background=TINT_WARN,
+            ),
+            Spacer(1, 10),
+        ]
+    )
+
+    table = _kv_table(
+        [
+            # Only the first and last rows are this deployment's own count: it
+            # issued the turns and it holds the worker registry. Every figure
+            # in between is an aggregate of what the workers said about work
+            # nobody here watched, so each one carries "reported" in its label
+            # rather than relying on the callout above to qualify the table.
+            ("Delegated turns", f"{totals['job_count']:,}"),
+            ("Reported agents", f"{totals['node_count']:,}"),
+            ("Reported model calls", f"{totals['model_calls']:,}"),
+            ("Reported input tokens", f"{totals['input_tokens']:,}"),
+            ("Reported output tokens", f"{totals['output_tokens']:,}"),
+            ("Reported cost", f"${totals['cost_usd']:.2f}"),
+            ("Workers", f"{len(record.workers):,}"),
+        ],
+        label_width=1.7 * inch,
+    )
+    if table is not None:
+        story.append(table)
+
+    if record.workers:
+        story.append(_sub("Workers"))
+        rows = [
+            [
+                _clean(w.get("display_name")) or str(w.get("worker_id")),
+                _clean(w.get("status")).replace("_", " "),
+                _clean(w.get("sandbox_mode")) or "—",
+                _clean(w.get("adapter_version")) or "—",
+                _clean(w.get("prime_agent_version")) or "—",
+            ]
+            for w in record.workers
+        ]
+        table = _grid_table(
+            ["Worker", "Status", "Sandbox", "Bridge", "Runtime"],
+            rows,
+            [
+                CONTENT_WIDTH * 0.32, CONTENT_WIDTH * 0.15, CONTENT_WIDTH * 0.15,
+                CONTENT_WIDTH * 0.19, CONTENT_WIDTH * 0.19,
+            ],
+        )
+        if table is not None:
+            story.append(table)
+
+    for job in jobs:
+        limits = job.get("limits") or {}
+        usage = job.get("usage") or {}
+        request = job.get("request") or {}
+        title = data.titles_by_version.get(str(job.get("agent_version_id")), "Participant")
+        turn = request.get("turn_sequence")
+        story.append(_sub(f"{title}" + (f" — turn {turn}" if turn is not None else "")))
+        pairs: list[tuple[str, Any]] = [
+            ("Status", _clean(job.get("status")).replace("_", " ")),
+            ("Coordinator model", job.get("model_key")),
+            ("Sub-agent model", job.get("child_model_key") or "same as coordinator"),
+            ("Capability profile", _clean(job.get("capability_profile")).replace("_", " ")),
+            ("Web access", "denied" if not request.get("allow_web") else "allowed"),
+            (
+                "Limits",
+                f"{limits.get('max_children')} children · depth {limits.get('max_depth')} · "
+                f"{limits.get('max_agent_turns')} agent turns · "
+                f"{int(limits.get('max_tokens') or 0):,} tokens · "
+                f"{limits.get('max_runtime_seconds')}s"
+                + (
+                    f" · ${float(limits['max_cost_usd']):.2f}"
+                    if limits.get("max_cost_usd") is not None
+                    else ""
+                ),
+            ),
+            (
+                "Reported usage",
+                f"{int(usage.get('model_calls') or 0):,} model calls · "
+                f"{int(usage.get('input_tokens') or 0):,} in · "
+                f"{int(usage.get('output_tokens') or 0):,} out · "
+                f"${float(usage.get('cost_usd') or 0):.2f}",
+            ),
+            ("Agents reported", f"{int(job.get('node_count') or 0):,}"),
+            ("Attempts", f"{job.get('attempt_count')} of {job.get('max_attempts')}"),
+            ("Request SHA-256", f"`{_clean(job.get('request_sha256'))}`"),
+            (
+                "Result SHA-256",
+                f"`{_clean(job.get('result_sha256'))}`" if job.get("result_sha256") else "—",
+            ),
+        ]
+        if job.get("failure_safe_message"):
+            pairs.append(
+                (
+                    "Failure",
+                    f"{_clean(job.get('failure_code')).replace('_', ' ')} — "
+                    f"{_clean(job.get('failure_safe_message'))}",
+                )
+            )
+        table = _kv_table(pairs, label_width=1.7 * inch)
+        if table is not None:
+            story.append(table)
+
+        rows = _node_rows(record.nodes, str(job.get("job_id")))
+        if rows:
+            story.append(Spacer(1, 6))
+            table = _grid_table(
+                ["Agent", "Status", "Model", "Calls", "Tokens"],
+                rows,
+                [
+                    CONTENT_WIDTH * 0.40, CONTENT_WIDTH * 0.15, CONTENT_WIDTH * 0.23,
+                    CONTENT_WIDTH * 0.11, CONTENT_WIDTH * 0.11,
+                ],
+                aligns=["LEFT", "LEFT", "LEFT", "RIGHT", "RIGHT"],
+            )
+            if table is not None:
+                story.append(table)
+        for node in record.nodes:
+            if node.get("job_id") != str(job.get("job_id")):
+                continue
+            summary = _clean(node.get("result_summary")) or _clean(node.get("task_summary"))
+            if not summary:
+                continue
+            story.append(
+                Paragraph(
+                    f"<b>{_esc(node.get('display_name'))}</b> — {_esc(summary)}",
+                    S["small"],
+                )
+            )
+        story.append(Spacer(1, 10))
+    return story
+
+
 def _appendix_interventions(data: _ReportData, index: str) -> list[Flowable]:
     story = _section(SECTION_TITLES["interventions"], index)
     if not data.interventions:
@@ -1752,6 +1988,7 @@ def _render(run: Run, data: _ReportData, selected: set[str]) -> bytes:
         "citations": lambda i: _appendix_citations(data, i),
         "agents": lambda i: _appendix_agents(data, i),
         "usage": lambda i: _appendix_usage(run, data, i),
+        "recursive_execution": lambda i: _appendix_recursive(data, i),
         "interventions": lambda i: _appendix_interventions(data, i),
         "reviews": lambda i: _appendix_reviews(run, data, i),
         "provenance": lambda i: _appendix_provenance(run, data, i),

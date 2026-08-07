@@ -146,6 +146,11 @@ async def create_citations_from_summary(
 
 
 async def build_manifest(db: AsyncSession, run: Run) -> dict[str, Any]:
+    # Imported here rather than at module scope: the recursive record hashes
+    # its files with this module's sha256_text, so a top-level import would
+    # close a cycle between the two.
+    from .recursive.record import load_recursive_record
+
     definition = await db.get(MeetingDefinition, run.meeting_definition_id)
     assert definition is not None
     def_agents = list(
@@ -173,7 +178,18 @@ async def build_manifest(db: AsyncSession, run: Run) -> dict[str, Any]:
     model_rows = (
         await db.execute(
             text("SELECT id, model_key FROM provider_models WHERE id = ANY(:ids)"),
-            {"ids": [str(a.provider_model_id) for a in def_agents]},
+            # As with the provider configs below: a participant executed by an
+            # external worker has no provider model, and querying for the
+            # string "None" is a cast error, not an empty result.
+            {
+                "ids": list(
+                    {
+                        str(a.provider_model_id)
+                        for a in def_agents
+                        if a.provider_model_id is not None
+                    }
+                )
+            },
         )
     ).mappings().all()
     model_keys = {row["id"]: row["model_key"] for row in model_rows}
@@ -350,6 +366,10 @@ async def build_manifest(db: AsyncSession, run: Run) -> dict[str, Any]:
             }
             for iv in interventions
         ],
+        # Always present, including as an explicit zero: a reader must be able
+        # to tell "no participant ran on an external machine" from "this
+        # manifest predates the question being asked".
+        "recursive_execution": (await load_recursive_record(db, run)).manifest_block(),
         "lineage": {
             "parent_run_ids": [str(run.parent_run_id)] if run.parent_run_id else [],
             "source_run_ids": [],

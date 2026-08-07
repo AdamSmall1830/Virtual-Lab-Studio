@@ -38,6 +38,17 @@ MAX_EVIDENCE_FILE_BYTES = 512 * 1024
 
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9_-]")
 
+# Reserved on Windows whatever the extension: opening ``CON.txt`` opens the
+# console device, not a file. Workers are expected to run on the researcher's
+# own machine, and Windows is the common case, so an entry name that an
+# ordinary extractor cannot write is a bug in this deployment rather than
+# theirs.
+_WINDOWS_DEVICE_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+
 
 def safe_entry_name(evidence_key: str | None, index: int) -> str:
     """Server-generated archive entry name.
@@ -47,6 +58,8 @@ def safe_entry_name(evidence_key: str | None, index: int) -> str:
     separator, a drive letter, a dot segment or a device name.
     """
     cleaned = _SAFE_NAME.sub("", evidence_key or "")[:40]
+    if cleaned.upper() in _WINDOWS_DEVICE_NAMES:
+        cleaned = f"{cleaned}_"
     return cleaned or f"E{index + 1}"
 
 

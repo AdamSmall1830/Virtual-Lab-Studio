@@ -57,8 +57,8 @@ function JobPanel({ detail, demoMode }: { detail: RecursiveAgentJobDetailOut; de
 
       {demoMode && (
         <p className="text-xs font-semibold rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-3 py-2">
-          Simulated run — this record was produced by the demo provider, not by a real recursive
-          worker.
+          Demonstration run — this meeting used the built-in demo provider, so nothing in this
+          recursive record is a research result.
         </p>
       )}
 

@@ -1345,7 +1345,7 @@ export const createExportApiV1RunsRunIdExportsPostBodyFormatDefault = `repro_zip
 
 export const CreateExportApiV1RunsRunIdExportsPostBody = zod.object({
   "format": zod.enum(['repro_zip', 'report_pdf']).default(createExportApiV1RunsRunIdExportsPostBodyFormatDefault),
-  "sections": zod.array(zod.enum(['meeting_brief', 'question_answers_detail', 'transcript', 'final_synthesis', 'evidence', 'citations', 'agents', 'usage', 'interventions', 'reviews', 'provenance'])).optional()
+  "sections": zod.array(zod.enum(['meeting_brief', 'question_answers_detail', 'transcript', 'final_synthesis', 'evidence', 'citations', 'agents', 'usage', 'recursive_execution', 'interventions', 'reviews', 'provenance'])).optional()
 })
 
 export const CreateExportApiV1RunsRunIdExportsPostResponse = zod.object({
@@ -2447,8 +2447,11 @@ export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElaps
 export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMax = 1000000000;
 
 export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeIsSimulationDefault = false;
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMin = 64;
 export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMax = 64;
 
+
+export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneRegExp = new RegExp('^[a-f0-9]{64}$');
 export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemExternalNodeIdMax = 120;
 
 export const completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemParentExternalNodeIdOneMax = 120;
@@ -2520,7 +2523,7 @@ export const CompleteJobRouteApiV1RecursiveJobsJobIdCompletePostBody = zod.objec
   "child_model_key": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeChildModelKeyOneMax),zod.null()]).optional(),
   "elapsed_ms": zod.int().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsMax).default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeElapsedMsDefault),
   "is_simulation": zod.boolean().default(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeIsSimulationDefault),
-  "session_reference_hash": zod.union([zod.string().max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMax),zod.null()]).optional()
+  "session_reference_hash": zod.union([zod.string().min(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMin).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneMax).regex(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyRuntimeSessionReferenceHashOneRegExp),zod.null()]).optional()
 }).optional(),
   "nodes": zod.array(zod.object({
   "external_node_id": zod.string().min(1).max(completeJobRouteApiV1RecursiveJobsJobIdCompletePostBodyNodesItemExternalNodeIdMax),

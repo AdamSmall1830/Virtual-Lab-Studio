@@ -45,7 +45,7 @@ function JobBlock({ detail, demoMode }: { detail: RecursiveAgentJobDetailOut; de
 
       {demoMode && (
         <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-          Simulated run — not a real recursive execution
+          Demonstration run — not a research result
         </p>
       )}
 

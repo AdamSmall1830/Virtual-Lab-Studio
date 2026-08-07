@@ -63,6 +63,24 @@ Use one process/instance initially unless a database singleton election prevents
 
 Expired leases are recoverable. Resume only at a safe boundary; otherwise fail transparently and offer linked retry.
 
+### External worker (recursive participants, optional)
+
+A recursive participant is executed off this deployment, on hardware the researcher owns.
+The run worker above hands the turn over and stops:
+
+1. Freeze a request contract for exactly this turn and hash it.
+2. Create a job, park the run in `waiting_external`, release the run lease.
+3. An enrolled worker leases the job, pulls the bundle (request, task brief, evidence),
+   and streams allow-listed events into the run's own event stream.
+4. The result must echo the request hash; identity, lease, spend, node shape and
+   citations are re-checked in one transaction before the turn is stored and the run
+   requeued.
+
+The asymmetry is deliberate: **nothing listens** on the operator's machine and this
+deployment never dials out to it. A parked run holds no lease, so the parking step must be
+idempotent; a job that reaches a terminal state keeps the worker identity that produced
+it. The worker is authenticated but not trusted — see `docs/WORKER_SECURITY_MODEL.md`.
+
 ## Provider protocol
 
 Illustrative contract:

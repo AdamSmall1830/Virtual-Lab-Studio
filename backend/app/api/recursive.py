@@ -93,6 +93,56 @@ def _too_large(limit: int) -> HTTPException:
     )
 
 
+# Far deeper than any legitimate payload on this router -- the deepest is an
+# event batch at roughly six levels -- and far below CPython's recursion limit,
+# which the JSON parser hits at a few thousand and answers with a RecursionError
+# rather than a refusal. A worker is authenticated but not trusted, so the
+# structure of its body is bounded the same way its size is.
+MAX_JSON_DEPTH = 32
+
+
+def _json_depth_exceeded(raw: bytes, limit: int) -> bool:
+    """True when the body nests brackets deeper than ``limit``.
+
+    A byte scan rather than a parse: the whole point is to decide before the
+    parser recurses. String contents are skipped so a brace inside a quoted
+    value cannot inflate the count.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for byte in raw:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif byte == 0x5C:  # backslash
+                escaped = True
+            elif byte == 0x22:  # closing quote
+                in_string = False
+            continue
+        if byte == 0x22:
+            in_string = True
+        elif byte in (0x7B, 0x5B):  # { [
+            depth += 1
+            if depth > limit:
+                return True
+        elif byte in (0x7D, 0x5D):  # } ]
+            depth -= 1
+    return False
+
+
+def _too_deep() -> HTTPException:
+    return HTTPException(
+        status_code=400,
+        detail={
+            "code": "body_too_deeply_nested",
+            "message": (
+                f"Request body nests more than {MAX_JSON_DEPTH} levels deep."
+            ),
+        },
+    )
+
+
 class BodyLimitRoute(APIRoute):
     """Refuse an oversized upload before it is read into memory.
 
@@ -139,6 +189,16 @@ class BodyLimitRoute(APIRoute):
                 # Hand the buffered body on: Starlette reuses ``_body`` rather
                 # than trying to read the now-exhausted stream a second time.
                 request._body = b"".join(chunks)
+
+            # Size alone does not bound the cost of parsing: a body well under
+            # the cap can nest deeply enough to exhaust the interpreter's stack
+            # inside the JSON parser, which surfaces as a 500 rather than a
+            # refusal. Reading here is safe -- the body is already capped -- and
+            # Starlette caches it for the parse that follows.
+            if request.method in {"POST", "PUT", "PATCH"}:
+                if _json_depth_exceeded(await request.body(), MAX_JSON_DEPTH):
+                    raise _too_deep()
+
             return await inner(request)
 
         return limited

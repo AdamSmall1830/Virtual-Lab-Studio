@@ -158,6 +158,16 @@ it first when working in this repo. Summary:
   meetings remain a follow-up.
 - Live updates use SSE (`/api/v1/runs/{id}/events/stream`, replay via
   `last_event_id`) with a ~5 s React Query polling fallback while a run is active.
+- **Recursive agents** (optional, `RECURSIVE_AGENTS_ENABLED`, off by default): a meeting
+  seat can be executed by an external bridge worker on the researcher's own hardware.
+  The worker is authenticated but not trusted — everything it reports passes a field
+  allow-list, and every acceptance re-checks identity, lease, spend, node shape and
+  citations. Provenance is recursive-aware: every manifest carries a
+  `recursive_execution` block (`job_count: 0` on an ordinary run), the export packet
+  always ships `recursive/*.json` bound by manifest digests, and the PDF has an opt-in
+  **Recursive execution** appendix that states what the deployment cannot attest to.
+  See `docs/WORKER_SECURITY_MODEL.md`, `docs/WORKER_SETUP.md`, and the three suites
+  `backend/tests/test_recursive_{broker,provenance,hostile_inputs}.py`.
 
 ## Completion standard
 

@@ -8,6 +8,11 @@ describe("outbound scrubbing", () => {
     const cases = [
       "api_key: sk-abcdefghijklmnopqrstuvwx",
       "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      // The prefixes the server actually mints, bare rather than after a
+      // "token=" label: a summary is far more likely to quote the value on its
+      // own than to hand over a labelled field.
+      "left over in a scratch file: rwk_0a1b2c3d4e5f_Zm9vYmFyc2VjcmV0",
+      "the enrollment code is rwe_9f8e7d6c5b4a_c2VjcmV0Y29kZQ",
       "token=vlsw_9f8e7d6c5b4a3928",
       "the enrollment code is vlse_abc123def456",
       "ghp_0123456789abcdefghijklmnopqrstuvwxyz",
@@ -15,7 +20,10 @@ describe("outbound scrubbing", () => {
     for (const input of cases) {
       const output = redact(input);
       assert.ok(output.includes("[redacted]"), `expected a redaction in: ${output}`);
-      assert.ok(!/sk-abcdef|eyJhbGciOi|vlsw_9f8e|vlse_abc123|ghp_0123/.test(output), output);
+      assert.ok(
+        !/sk-abcdef|eyJhbGciOi|rwk_0a1b|rwe_9f8e|vlsw_9f8e|vlse_abc123|ghp_0123/.test(output),
+        output,
+      );
     }
   });
 

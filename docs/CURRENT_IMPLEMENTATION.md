@@ -82,10 +82,23 @@ docs/, specs/               build-pack product contract, tokens, seed data, sche
 | `GET /runs/{id}/events/stream` | SSE with Last-Event-ID replay + heartbeats |
 | `POST /runs/{id}/pause|resume|cancel` | control requests honored at checkpoints |
 | `POST /runs/{id}/interventions` | human instructions injected at next checkpoint |
+| `POST /runs/{id}/exports`, `GET /runs/{id}/report.pdf` | reproducibility packet (ZIP) and typeset report |
 | `GET /api/health/live|ready|worker` | health + queue depth (unversioned) |
 
 Authorization: role ladder viewer < reviewer < researcher < admin < owner; non-members
 get 404 (`backend/app/security.py`).
+
+When `RECURSIVE_AGENTS_ENABLED=true`, a second router (`backend/app/api/recursive.py`)
+adds the recursive-agent surface: researcher-facing reads
+(`GET /workspaces/{id}/recursive-workers`, `GET /runs/{id}/recursive-jobs`,
+`GET /runs/{id}/recursive-tree`, `GET /recursive-jobs/{id}`), workspace administration
+(enrollment-token mint, enable/disable, revoke), and the machine-facing worker protocol
+(`POST /recursive-workers/enroll|heartbeat|jobs/lease`,
+`POST /recursive-jobs/{id}/heartbeat|events|complete|fail|release`,
+`GET /recursive-jobs/{id}/bundle`). The router is *registered* conditionally rather than
+refused at request time, so with the feature off those paths 404 like any unknown URL and
+leave no trace in the OpenAPI document. Worker calls authenticate with a bearer worker
+token and never with a session cookie.
 
 ## 5. Meeting engine and run worker
 
@@ -116,14 +129,56 @@ get 404 (`backend/app/security.py`).
   a model-generated summary with a human-review disclosure. `ensemble_merge` meetings
   remain a follow-up.
 
-## 6. Data model and migrations
+## 6. Recursive agents (optional, off by default)
+
+A *recursive participant* is a seat in a meeting that is executed by an external machine
+the researcher owns — typically their own GPU workstation running local models — instead
+of by this deployment. The studio never runs agent-generated code: it queues the turn and
+waits. The feature is off unless `RECURSIVE_AGENTS_ENABLED=true` and a ≥32-character
+`RECURSIVE_WORKER_TOKEN_PEPPER` is set.
+
+- **Code** (`backend/app/recursive/`): `tokens.py` (enrollment/worker credential minting
+  and verification — peppered hashes, raw tokens never stored), `policy.py` (per-job
+  limits, clamped to the `RECURSIVE_JOB_HARD_MAX_*` ceilings before dispatch),
+  `broker.py` (dispatch, leasing, heartbeats, completion, failure, cancellation
+  precedence), `bundle.py` (the ZIP of request + task brief + evidence handed to a
+  leaseholder), `worker_events.py` (allow-listed ingestion of worker events into the
+  run's event stream), `record.py` (the single shared definition of the recursive
+  execution record used by the manifest, the export packet and the PDF appendix), and
+  `fake_worker.py` (an in-process simulator for development, gated on
+  `RECURSIVE_AGENTS_ALLOW_FAKE_WORKER`).
+- **Data** (migration `0003_recursive_agents`): `recursive_workers`,
+  `recursive_worker_enrollments`, `recursive_agent_jobs`, `recursive_agent_nodes`,
+  `recursive_job_events` (dedup ledger only). Worker-reported activity lands in the
+  ordinary `run_events` stream so the live room and the export see one timeline.
+- **Execution model.** The engine reaches a recursive seat, freezes a request contract
+  (hashed), parks the run in `waiting_external`, and stops holding a lease. A worker
+  leases the job, downloads the bundle, streams events, and posts a result that must echo
+  the request hash. Acceptance re-checks identity, lease, spend, node shape and citations
+  in one transaction, then requeues the run. A worker cannot declare a terminal state
+  through the event stream, spend past its grant, cite evidence that was not frozen, or
+  touch a job it does not hold.
+- **Trust.** A worker is authenticated but not trusted; everything it reports is a claim.
+  What it says is filtered to an allow-list of fields on the way in, so credentials,
+  environment dumps, host paths and private reasoning have no route into the record.
+  `docs/WORKER_SECURITY_MODEL.md` states the boundary in full;
+  `backend/tests/test_recursive_hostile_inputs.py` is its executable form.
+- **Provenance.** Every run manifest carries a `recursive_execution` block inside the
+  hashed payload — `job_count: 0` for an ordinary meeting, so absence is a statement
+  rather than a gap. The export packet always contains `recursive/jobs.json`,
+  `nodes.json`, `events.json`, `workers.json` and a per-job result file, each bound by a
+  digest in the manifest. The PDF has an opt-in **Recursive execution** appendix
+  (`recursive_execution` section, off by default) which says on the page that this
+  deployment did not observe the work itself.
+
+## 7. Data model and migrations
 
 The schema is `specs/database_schema.sql`, applied verbatim by Alembic migration
 `0001_initial_schema`. SQLAlchemy models (`backend/app/models.py`) mirror the used
 subset; Postgres enum values are listed in `_ENUM_VALUES` and must stay in sync with the
 spec SQL.
 
-## 7. Seeding (`backend/app/seed.py`, idempotent — safe to run twice)
+## 8. Seeding (`backend/app/seed.py`, idempotent — safe to run twice)
 
 - 12 system agent profiles + version 1 (upstream-format system prompts + behavioral
   rules) from `specs/seed_agents.json`
@@ -133,7 +188,7 @@ spec SQL.
   `biodegradable-packaging-pilot` with two note evidence items, Demo Provider config +
   `demo-research-v1` model
 
-## 8. Tests
+## 9. Tests
 
 `cd backend && .venv/bin/python -m pytest` — upstream compatibility (call-count
 formulas, exact speaking order, transcript visibility, `Agent.prompt` format), turn-plan
@@ -141,7 +196,18 @@ units, seed idempotency, engine end-to-end (events, summary, pause/resume/cancel
 budget stop), and a clean-database boot test (new empty DB → uvicorn boot → dev login →
 demo launch → completed run).
 
-## 9. Frontend map (`artifacts/web/src/`)
+The recursive-agent feature carries three suites of its own, sharing one scaffold
+(`backend/tests/recursive_support.py`) so that all three describe the same system:
+
+| Suite | Asks |
+|---|---|
+| `test_recursive_broker.py` | does a turn survive the round trip — dispatch, lease, heartbeat, events, completion, failure, cancellation, lease loss, requeue |
+| `test_recursive_provenance.py` | does the permanent record tell the truth — a standard run states that nothing was delegated, every recursive packet file is bound by a manifest digest, the packet holds no credential or host path, and the appendix says what it cannot attest to |
+| `test_recursive_hostile_inputs.py` | what can a compromised worker make this deployment do — path traversal and device names in filenames, prompt injection in evidence, fabricated citations, credential and environment dumps in events, replayed and stolen jobs, SSRF strings, over-deep JSON, oversized text, trees deeper than the granted policy |
+
+The suites run against the development database and clean up after themselves.
+
+## 10. Frontend map (`artifacts/web/src/`)
 
 Single canonical React frontend served at preview path `/` (the older duplicate
 `artifacts/studio` was deleted): landing, methodology, sign-in (dev-login), dashboard,
@@ -153,7 +219,7 @@ fetch-based SSE client (with polling fallback) in `src/api/sse.ts`; there is no
 localStorage demo layer. Design system: restrained glassmorphism per
 `specs/design_tokens.css`; no emojis in UI.
 
-## 10. Operating the project
+## 11. Operating the project
 
 - Workflows: `artifacts/api-server: API Server` (uvicorn) and `artifacts/web: web`, plus
   the canvas mockup sandbox. Restart after code changes.

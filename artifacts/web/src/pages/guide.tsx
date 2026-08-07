@@ -12,6 +12,7 @@ import {
   FileCheck,
   Plug,
   ShieldCheck,
+  Cpu,
 } from 'lucide-react';
 
 type Chapter = {
@@ -30,7 +31,8 @@ const CHAPTERS: Chapter[] = [
   { id: 'live', num: '06', title: 'Run it live', icon: Radio },
   { id: 'results', num: '07', title: 'Results & exports', icon: FileCheck },
   { id: 'providers', num: '08', title: 'Connecting real AI', icon: Plug },
-  { id: 'intended-use', num: '09', title: 'Using it as intended', icon: ShieldCheck },
+  { id: 'recursive', num: '09', title: 'Delegating to your own machine', icon: Cpu },
+  { id: 'intended-use', num: '10', title: 'Using it as intended', icon: ShieldCheck },
 ];
 
 function ChapterHeading({ chapter }: { chapter: Chapter }) {
@@ -93,7 +95,7 @@ export default function Guide() {
           The guided tour of Virtual Lab Studio
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Nine short chapters, in the order a real study unfolds: set up a project, assemble an
+          Ten short chapters, in the order a real study unfolds: set up a project, assemble an
           agent team, ground it in evidence, run a structured deliberation, and walk away with an
           auditable, reproducible record.
         </p>
@@ -423,8 +425,90 @@ export default function Guide() {
           </section>
 
           {/* 09 Intended use */}
-          <section id="intended-use" className="scroll-mt-8">
+          {/* 09 Recursive execution on your own machine */}
+          <section id="recursive" className="scroll-mt-8">
             <ChapterHeading chapter={CHAPTERS[8]} />
+            <div className="vls-reading-surface rounded-xl p-6 space-y-4">
+              <p className="leading-relaxed">
+                Some questions deserve a participant that can work at them for a while — think for
+                several turns, split the question into parts, and hand those parts to child agents.
+                That is a <strong className="text-foreground">recursive participant</strong>, and
+                Virtual Lab Studio does not run one here. It runs on{' '}
+                <strong className="text-foreground">your machine</strong>: your GPU, your local
+                models, your electricity.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                The reason is plain. An agent that plans its own sub-tasks is agent-generated code
+                in all but name, and the studio will not run that on shared infrastructure. So the
+                studio queues the turn and waits. A small program called the{' '}
+                <strong className="text-foreground">bridge worker</strong>, running on your
+                hardware, reaches out, collects the turn, does the work, and posts back the answer.
+                Nothing listens on your machine and nothing dials into your network.
+              </p>
+
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                <div className="bg-background/50 rounded-lg p-4">
+                  <strong className="block text-foreground mb-1">What you need</strong>
+                  <span className="text-muted-foreground">
+                    A machine with a reasonable GPU, a local model server such as Ollama or LM
+                    Studio, Docker, and Node. A 24 GB card runs a 32B model comfortably; smaller
+                    cards simply think more slowly.
+                  </span>
+                </div>
+                <div className="bg-background/50 rounded-lg p-4">
+                  <strong className="block text-foreground mb-1">Setting it up</strong>
+                  <span className="text-muted-foreground">
+                    Enrol the worker from <strong className="text-foreground">Settings</strong>,
+                    paste the enrollment token into its config, and start it. It appears as{' '}
+                    <em>online</em> with the models it can actually serve.
+                  </span>
+                </div>
+                <div className="bg-background/50 rounded-lg p-4">
+                  <strong className="block text-foreground mb-1">Using it in a meeting</strong>
+                  <span className="text-muted-foreground">
+                    In the composer's advanced controls, mark a seat as recursive and set its
+                    ceilings — children, depth, turns, tokens, cost, runtime. The meeting pauses at
+                    that seat, waits for your worker, then carries on with the rest of the team.
+                  </span>
+                </div>
+                <div className="bg-background/50 rounded-lg p-4">
+                  <strong className="block text-foreground mb-1">Watching it work</strong>
+                  <span className="text-muted-foreground">
+                    The live room shows the delegated turn as a tree — the coordinator, its
+                    children, and what each was asked. Every event is timestamped in the same
+                    stream as the rest of the meeting.
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-warning/25 bg-warning/5 p-4 space-y-2">
+                <div className="text-sm font-medium text-foreground">
+                  What the record can and cannot claim
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Work done on your machine is work this deployment did not observe. It records
+                  what your worker reported — the shape of the tree, the limits in force, the
+                  tokens and cost claimed, hashes of the request and the answer — and it says on
+                  the page that this is the operator's account rather than an independent
+                  measurement. Every export carries the recursive files whether or not you used
+                  the feature, so a meeting with no delegation states that plainly instead of
+                  leaving a gap. The typeset report has a{' '}
+                  <strong className="text-foreground">Recursive execution</strong> appendix you can
+                  switch on when you need the detail in print.
+                </p>
+              </div>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                The feature is off unless an administrator has enabled it for this deployment. If
+                you do not see it, that is why.
+              </p>
+              <TryIt href="/settings" label="Open Settings" />
+            </div>
+          </section>
+
+          {/* 10 Intended use */}
+          <section id="intended-use" className="scroll-mt-8">
+            <ChapterHeading chapter={CHAPTERS[9]} />
             <div className="vls-reading-surface rounded-xl p-6 space-y-4">
               <p className="leading-relaxed font-medium">
                 The platform is an ideation and planning instrument — it accelerates the thinking

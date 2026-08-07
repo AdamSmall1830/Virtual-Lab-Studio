@@ -159,10 +159,13 @@ describe('LiveRecursivePanel', () => {
     expect(refetch).not.toHaveBeenCalled();
   });
 
-  it('labels a simulated run everywhere it shows recursive figures', () => {
+  // The warning is driven by the run's demo flag, which says nothing about who
+  // executed the recursive turn, so the copy must not attribute the record to a
+  // particular producer -- only deny that it is a research result.
+  it('labels a demonstration run everywhere it shows recursive figures', () => {
     treeState.data = { run_id: 'r1', jobs: [job()] };
     render(<LiveRecursivePanel runId="r1" events={[]} reconnectNonce={0} demoMode />);
-    expect(screen.getByText(/simulated run/i)).toBeInTheDocument();
+    expect(screen.getByText(/demonstration run/i)).toBeInTheDocument();
   });
 
   it('describes the limits as ceilings, not predictions', () => {
