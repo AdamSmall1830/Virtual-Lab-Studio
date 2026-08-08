@@ -1164,22 +1164,44 @@ async def _get_run(db: AsyncSession, run_id: uuid.UUID, user: User, minimum_role
     return run
 
 
+def _run_out_with_title(run: Run, meeting_title: str) -> RunOut:
+    out = RunOut.model_validate(run)
+    out.meeting_title = meeting_title
+    return out
+
+
+async def _run_out(db: AsyncSession, run: Run) -> RunOut:
+    """RunOut carrying the frozen title from the run's MeetingDefinition."""
+    title = (
+        await db.execute(
+            select(MeetingDefinition.title).where(MeetingDefinition.id == run.meeting_definition_id)
+        )
+    ).scalar_one_or_none()
+    return _run_out_with_title(run, title or "")
+
+
 @router.get("/projects/{project_id}/runs", response_model=list[RunOut])
 async def list_runs(
     project_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     project = await _get_project(db, project_id, user, "viewer")
+    # Single joined query: the frozen definition title rides along with each
+    # run row, so the list endpoint stays free of per-run title lookups.
     rows = (
         await db.execute(
-            select(Run).where(Run.project_id == project.id).order_by(Run.created_at.desc()).limit(100)
+            select(Run, MeetingDefinition.title)
+            .join(MeetingDefinition, MeetingDefinition.id == Run.meeting_definition_id)
+            .where(Run.project_id == project.id)
+            .order_by(Run.created_at.desc())
+            .limit(100)
         )
-    ).scalars()
-    return [RunOut.model_validate(r) for r in rows]
+    ).all()
+    return [_run_out_with_title(run, title) for run, title in rows]
 
 
 @router.get("/runs/{run_id}", response_model=RunOut)
 async def get_run(run_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    return RunOut.model_validate(await _get_run(db, run_id, user, "viewer"))
+    return await _run_out(db, await _get_run(db, run_id, user, "viewer"))
 
 
 @router.get("/runs/{run_id}/turns", response_model=list[RunTurnOut])
@@ -1289,7 +1311,7 @@ async def _request_control(
         payload={"requested_by": str(user.id)}, actor_user_id=user.id,
     )
     await db.refresh(run)
-    return RunOut.model_validate(run)
+    return await _run_out(db, run)
 
 
 @router.post("/runs/{run_id}/pause", response_model=RunOut)
@@ -1436,7 +1458,7 @@ async def retry_run(run_id: uuid.UUID, user: User = Depends(get_current_user), d
         payload={"resumed": True, "reused_turns": int(completed_turns)},
         actor_user_id=user.id,
     )
-    return RunOut.model_validate(run)
+    return await _run_out(db, run)
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunOut)
@@ -1498,7 +1520,7 @@ async def cancel_run(run_id: uuid.UUID, user: User = Depends(get_current_user), 
                 payload={"manifest_version": "1.0"} if mf_err is None else {"message": mf_err},
             )
         await db.refresh(run)
-        return RunOut.model_validate(run)
+        return await _run_out(db, run)
     return await _request_control(
         db, run, user, "cancel", "run.cancellation_requested",
         {"leased", "running", "pausing", "paused"}, None,

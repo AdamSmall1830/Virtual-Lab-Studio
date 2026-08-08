@@ -633,6 +633,7 @@ export const ListRunsApiV1ProjectsProjectIdRunsGetParams = zod.object({
   "project_id": zod.uuid()
 })
 
+export const listRunsApiV1ProjectsProjectIdRunsGetResponseMeetingTitleDefault = ``;
 export const listRunsApiV1ProjectsProjectIdRunsGetResponseRecursiveJobCountDefault = 0;
 export const listRunsApiV1ProjectsProjectIdRunsGetResponseRecursiveAgentNodeCountDefault = 0;
 
@@ -641,6 +642,7 @@ export const ListRunsApiV1ProjectsProjectIdRunsGetResponseItem = zod.object({
   "workspace_id": zod.uuid(),
   "project_id": zod.uuid(),
   "meeting_definition_id": zod.uuid(),
+  "meeting_title": zod.string().default(listRunsApiV1ProjectsProjectIdRunsGetResponseMeetingTitleDefault),
   "status": zod.string(),
   "review_status": zod.string(),
   "demo_mode": zod.boolean(),
@@ -669,6 +671,7 @@ export const GetRunApiV1RunsRunIdGetParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const getRunApiV1RunsRunIdGetResponseMeetingTitleDefault = ``;
 export const getRunApiV1RunsRunIdGetResponseRecursiveJobCountDefault = 0;
 export const getRunApiV1RunsRunIdGetResponseRecursiveAgentNodeCountDefault = 0;
 
@@ -677,6 +680,7 @@ export const GetRunApiV1RunsRunIdGetResponse = zod.object({
   "workspace_id": zod.uuid(),
   "project_id": zod.uuid(),
   "meeting_definition_id": zod.uuid(),
+  "meeting_title": zod.string().default(getRunApiV1RunsRunIdGetResponseMeetingTitleDefault),
   "status": zod.string(),
   "review_status": zod.string(),
   "demo_mode": zod.boolean(),
@@ -782,6 +786,7 @@ export const PauseRunApiV1RunsRunIdPausePostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const pauseRunApiV1RunsRunIdPausePostResponseMeetingTitleDefault = ``;
 export const pauseRunApiV1RunsRunIdPausePostResponseRecursiveJobCountDefault = 0;
 export const pauseRunApiV1RunsRunIdPausePostResponseRecursiveAgentNodeCountDefault = 0;
 
@@ -790,6 +795,7 @@ export const PauseRunApiV1RunsRunIdPausePostResponse = zod.object({
   "workspace_id": zod.uuid(),
   "project_id": zod.uuid(),
   "meeting_definition_id": zod.uuid(),
+  "meeting_title": zod.string().default(pauseRunApiV1RunsRunIdPausePostResponseMeetingTitleDefault),
   "status": zod.string(),
   "review_status": zod.string(),
   "demo_mode": zod.boolean(),
@@ -817,6 +823,7 @@ export const ResumeRunApiV1RunsRunIdResumePostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const resumeRunApiV1RunsRunIdResumePostResponseMeetingTitleDefault = ``;
 export const resumeRunApiV1RunsRunIdResumePostResponseRecursiveJobCountDefault = 0;
 export const resumeRunApiV1RunsRunIdResumePostResponseRecursiveAgentNodeCountDefault = 0;
 
@@ -825,6 +832,7 @@ export const ResumeRunApiV1RunsRunIdResumePostResponse = zod.object({
   "workspace_id": zod.uuid(),
   "project_id": zod.uuid(),
   "meeting_definition_id": zod.uuid(),
+  "meeting_title": zod.string().default(resumeRunApiV1RunsRunIdResumePostResponseMeetingTitleDefault),
   "status": zod.string(),
   "review_status": zod.string(),
   "demo_mode": zod.boolean(),
@@ -858,6 +866,7 @@ export const RetryRunApiV1RunsRunIdRetryPostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const retryRunApiV1RunsRunIdRetryPostResponseMeetingTitleDefault = ``;
 export const retryRunApiV1RunsRunIdRetryPostResponseRecursiveJobCountDefault = 0;
 export const retryRunApiV1RunsRunIdRetryPostResponseRecursiveAgentNodeCountDefault = 0;
 
@@ -866,6 +875,7 @@ export const RetryRunApiV1RunsRunIdRetryPostResponse = zod.object({
   "workspace_id": zod.uuid(),
   "project_id": zod.uuid(),
   "meeting_definition_id": zod.uuid(),
+  "meeting_title": zod.string().default(retryRunApiV1RunsRunIdRetryPostResponseMeetingTitleDefault),
   "status": zod.string(),
   "review_status": zod.string(),
   "demo_mode": zod.boolean(),
@@ -893,6 +903,7 @@ export const CancelRunApiV1RunsRunIdCancelPostParams = zod.object({
   "run_id": zod.uuid()
 })
 
+export const cancelRunApiV1RunsRunIdCancelPostResponseMeetingTitleDefault = ``;
 export const cancelRunApiV1RunsRunIdCancelPostResponseRecursiveJobCountDefault = 0;
 export const cancelRunApiV1RunsRunIdCancelPostResponseRecursiveAgentNodeCountDefault = 0;
 
@@ -901,6 +912,7 @@ export const CancelRunApiV1RunsRunIdCancelPostResponse = zod.object({
   "workspace_id": zod.uuid(),
   "project_id": zod.uuid(),
   "meeting_definition_id": zod.uuid(),
+  "meeting_title": zod.string().default(cancelRunApiV1RunsRunIdCancelPostResponseMeetingTitleDefault),
   "status": zod.string(),
   "review_status": zod.string(),
   "demo_mode": zod.boolean(),

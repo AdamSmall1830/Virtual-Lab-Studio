@@ -5075,6 +5075,10 @@ components:
           type: string
           format: uuid
           title: Meeting Definition Id
+        meeting_title:
+          type: string
+          title: Meeting Title
+          default: ''
         status:
           type: string
           title: Status

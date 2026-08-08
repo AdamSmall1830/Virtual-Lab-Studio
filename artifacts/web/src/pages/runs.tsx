@@ -47,7 +47,9 @@ function statusLabel(status: string): string {
 }
 
 function runTitle(run: RunOut): string {
-  return `Run ${run.id.slice(0, 8)}`;
+  // Frozen meeting title from the definition; the short id stays visible
+  // separately as the identifier researchers quote in reports.
+  return run.meeting_title || `Run ${run.id.slice(0, 8)}`;
 }
 
 export default function Runs() {
@@ -188,6 +190,10 @@ export default function Runs() {
                       {runTitle(run)}
                     </h3>
                     <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-3">
+                      <span className="font-mono text-xs" data-testid={`text-run-short-id-${run.id}`}>
+                        {run.id.slice(0, 8)}
+                      </span>
+                      <span>•</span>
                       <span className="flex items-center gap-1 font-mono text-xs">
                         {format(new Date(run.created_at), 'MMM d, HH:mm')}
                       </span>

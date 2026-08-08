@@ -321,6 +321,9 @@ class RunOut(ORMModel):
     workspace_id: uuid.UUID
     project_id: uuid.UUID
     meeting_definition_id: uuid.UUID
+    # Frozen title from the run's MeetingDefinition (never a later-edited
+    # draft title). Populated by the API layer, not by ORM attribute lookup.
+    meeting_title: str = ""
     status: str
     review_status: str
     demo_mode: bool

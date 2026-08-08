@@ -10,6 +10,7 @@ export interface RunOut {
   workspace_id: string;
   project_id: string;
   meeting_definition_id: string;
+  meeting_title?: string;
   status: string;
   review_status: string;
   demo_mode: boolean;

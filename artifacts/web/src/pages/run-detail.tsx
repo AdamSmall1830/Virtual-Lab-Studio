@@ -53,7 +53,9 @@ const EXPORT_FORMAT_LABEL: Record<string, string> = {
 };
 
 function runTitle(run: RunOut): string {
-  return `Run ${run.id.slice(0, 8)}`;
+  // Frozen meeting title from the definition; the short id stays visible
+  // separately as the identifier researchers quote in reports.
+  return run.meeting_title || `Run ${run.id.slice(0, 8)}`;
 }
 
 function statusLabel(status: string): string {
@@ -174,6 +176,8 @@ export default function RunDetail() {
             </div>
             <h1 className="text-3xl font-display font-bold">{runTitle(run)}</h1>
             <p className="text-sm text-muted-foreground mt-1">
+              <span className="font-mono" data-testid="text-run-short-id">Run {run.id.slice(0, 8)}</span>
+              {' • '}
               Created {format(new Date(run.created_at), 'PPpp')}
               {run.completed_at && ` • Finished ${format(new Date(run.completed_at), 'pp')}`}
             </p>
