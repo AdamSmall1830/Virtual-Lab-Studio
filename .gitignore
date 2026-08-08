@@ -50,3 +50,10 @@ Thumbs.db
 
 # Editor/upload temp files
 attached_assets/.*~
+
+# Local environment files. The *.example templates are tracked on purpose;
+# a real .env holds provider API keys and must never be committed.
+.env
+.env.*
+!.env.example
+!.env.*.example
