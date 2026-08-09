@@ -34,6 +34,17 @@ CREATE TYPE notebook_entry_kind AS ENUM ('note', 'decision', 'hypothesis', 'prot
 CREATE TYPE intervention_kind AS ENUM ('pause', 'resume', 'cancel', 'instruction', 'evidence_addition', 'approval');
 CREATE TYPE citation_support_type AS ENUM ('supports', 'contradicts', 'context', 'uncertain');
 
+-- Shared workspaces. A provider key is either the workspace's (shared, and
+-- therefore spent against a member's ceiling) or a member's own (personal,
+-- their money, visible only to them).
+CREATE TYPE provider_scope AS ENUM ('workspace', 'personal');
+CREATE TYPE invitation_status AS ENUM ('pending', 'accepted', 'revoked', 'expired');
+
+-- Pre-registration. A frozen statement of hypothesis, protocol and expected
+-- outcome, hashed before any run, so the archive can show the question was not
+-- rewritten after the results were seen.
+CREATE TYPE pre_registration_status AS ENUM ('draft', 'registered', 'superseded', 'withdrawn');
+
 -- Optional Recursive Agent (Beta). A participant may be executed by an
 -- external worker the user runs on their own machine instead of by a direct
 -- provider completion.
@@ -90,6 +101,10 @@ CREATE TABLE workspace_memberships (
   invited_by uuid REFERENCES users(id) ON DELETE SET NULL,
   invited_at timestamptz,
   accepted_at timestamptz,
+  -- Ceiling on spend this member may draw from WORKSPACE-scoped provider keys
+  -- within a UTC calendar month. NULL means no per-member ceiling. A personal
+  -- key is the member's own money and is never counted against this.
+  spend_limit_usd numeric(12,4) CHECK (spend_limit_usd IS NULL OR spend_limit_usd >= 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (workspace_id, user_id)
@@ -97,6 +112,36 @@ CREATE TABLE workspace_memberships (
 CREATE INDEX workspace_memberships_user_idx ON workspace_memberships (user_id);
 CREATE TRIGGER workspace_memberships_set_updated_at
   BEFORE UPDATE ON workspace_memberships FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Invitations are bound to an email address and stored only as a hash of the
+-- token, in the same way as worker enrollment tokens: a link that leaks into a
+-- lab chat cannot be redeemed by whoever finds it, and a database reader cannot
+-- mint a working link.
+CREATE TABLE workspace_invitations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  role workspace_role NOT NULL,
+  token_hash char(64) NOT NULL UNIQUE,
+  status invitation_status NOT NULL DEFAULT 'pending',
+  spend_limit_usd numeric(12,4) CHECK (spend_limit_usd IS NULL OR spend_limit_usd >= 0),
+  invited_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  accepted_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  expires_at timestamptz NOT NULL,
+  accepted_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT workspace_invitations_role_not_owner CHECK (role <> 'owner'),
+  CONSTRAINT workspace_invitations_accepted_fields
+    CHECK (status <> 'accepted' OR (accepted_by IS NOT NULL AND accepted_at IS NOT NULL))
+);
+CREATE INDEX workspace_invitations_workspace_idx ON workspace_invitations (workspace_id, status, created_at DESC);
+-- One live invitation per address per workspace; re-inviting revokes and reissues.
+CREATE UNIQUE INDEX workspace_invitations_pending_uniq
+  ON workspace_invitations (workspace_id, lower(email)) WHERE status = 'pending';
+CREATE TRIGGER workspace_invitations_set_updated_at
+  BEFORE UPDATE ON workspace_invitations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE projects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -112,6 +157,9 @@ CREATE TABLE projects (
   constraints jsonb NOT NULL DEFAULT '[]'::jsonb,
   disclosures jsonb NOT NULL DEFAULT '[]'::jsonb,
   human_decision_supported text,
+  -- When true, no run may launch in this project without an active registered
+  -- pre-registration. Off by default: turning it on is a deliberate act.
+  pre_registration_required boolean NOT NULL DEFAULT false,
   tags jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_by uuid REFERENCES users(id) ON DELETE SET NULL,
   archived_at timestamptz,
@@ -125,6 +173,52 @@ CREATE INDEX projects_search_idx ON projects USING gin (
 );
 CREATE TRIGGER projects_set_updated_at
   BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- A pre-registration is editable while 'draft' and frozen forever once
+-- 'registered': content_hash is taken over the canonical JSON at that moment,
+-- and a change afterwards must be a new version that supersedes it with a
+-- stated reason. That chain is the evidence that the question did not move.
+CREATE TABLE pre_registrations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  version integer NOT NULL CONSTRAINT pre_registrations_version_positive CHECK (version > 0),
+  supersedes_id uuid REFERENCES pre_registrations(id) ON DELETE SET NULL,
+  status pre_registration_status NOT NULL DEFAULT 'draft',
+  title text NOT NULL,
+  hypothesis text NOT NULL,
+  protocol text NOT NULL,
+  expected_outcomes text NOT NULL,
+  success_criteria text NOT NULL DEFAULT '',
+  analysis_plan text NOT NULL DEFAULT '',
+  amendment_reason text,
+  content_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  content_hash char(64),
+  registered_at timestamptz,
+  registered_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  withdrawn_at timestamptz,
+  withdrawn_reason text,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (project_id, version),
+  -- A registered row must carry the freeze; a draft must not pretend to.
+  CONSTRAINT pre_registrations_freeze_fields CHECK (
+    (status = 'draft' AND content_hash IS NULL AND registered_at IS NULL)
+    OR (status <> 'draft' AND content_hash IS NOT NULL AND registered_at IS NOT NULL)
+  ),
+  CONSTRAINT pre_registrations_amendment_reason
+    CHECK (supersedes_id IS NULL OR amendment_reason IS NOT NULL),
+  CONSTRAINT pre_registrations_withdrawn_fields
+    CHECK (status <> 'withdrawn' OR withdrawn_at IS NOT NULL)
+);
+-- At most one active pre-registration per project.
+CREATE UNIQUE INDEX pre_registrations_active_uniq
+  ON pre_registrations (project_id) WHERE status = 'registered';
+CREATE INDEX pre_registrations_project_idx ON pre_registrations (project_id, version DESC);
+CREATE INDEX pre_registrations_workspace_idx ON pre_registrations (workspace_id);
+CREATE TRIGGER pre_registrations_set_updated_at
+  BEFORE UPDATE ON pre_registrations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE project_notebook_entries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -236,16 +330,32 @@ CREATE TABLE provider_configs (
   last_tested_at timestamptz,
   last_test_status text,
   last_test_safe_message text,
+  -- Whose key this is. A 'workspace' key is shared and its spend counts
+  -- against the launching member's monthly ceiling; a 'personal' key belongs
+  -- to owner_user_id, is visible only to them, and is never metered here
+  -- because it is not the workspace owner's money.
+  scope provider_scope NOT NULL DEFAULT 'workspace',
+  owner_user_id uuid REFERENCES users(id) ON DELETE CASCADE,
   created_by uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (workspace_id, name),
+  CONSTRAINT provider_configs_scope_owner_check CHECK (
+    (scope = 'workspace' AND owner_user_id IS NULL)
+    OR (scope = 'personal' AND owner_user_id IS NOT NULL)
+  ),
   CHECK (
     provider_type = 'demo'
     OR (secret_ciphertext IS NOT NULL AND secret_nonce IS NOT NULL AND base_url IS NOT NULL)
   )
 );
 CREATE INDEX provider_configs_workspace_idx ON provider_configs (workspace_id, is_enabled);
+CREATE INDEX provider_configs_owner_idx ON provider_configs (owner_user_id) WHERE owner_user_id IS NOT NULL;
+-- Names are unique among shared keys, and separately unique within one
+-- member's own keys, so two researchers may both call theirs "My OpenAI".
+CREATE UNIQUE INDEX provider_configs_workspace_name_uniq
+  ON provider_configs (workspace_id, name) WHERE owner_user_id IS NULL;
+CREATE UNIQUE INDEX provider_configs_personal_name_uniq
+  ON provider_configs (workspace_id, owner_user_id, name) WHERE owner_user_id IS NOT NULL;
 CREATE TRIGGER provider_configs_set_updated_at
   BEFORE UPDATE ON provider_configs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -549,9 +659,20 @@ CREATE TABLE runs (
   output_tokens bigint NOT NULL DEFAULT 0,
   estimated_cost_usd numeric(16,6) NOT NULL DEFAULT 0,
   actual_cost_usd numeric(16,6) NOT NULL DEFAULT 0,
+  -- The part of the estimate that would be drawn from WORKSPACE-scoped keys,
+  -- frozen at launch. Held as a reservation against the launching member's
+  -- monthly ceiling while the run is non-terminal, then superseded by measured
+  -- per-turn cost. Reserving before dispatch is what stops many simultaneous
+  -- launches from each passing the same "not over yet" check.
+  workspace_funded_estimate_usd numeric(16,6) NOT NULL DEFAULT 0,
   wall_seconds numeric(16,3) NOT NULL DEFAULT 0,
   failure_code text,
   failure_safe_message text,
+  -- The pre-registration this run was launched under, and its hash frozen at
+  -- that moment: a later amendment supersedes the row but must not be able to
+  -- change what this run says it tested.
+  pre_registration_id uuid REFERENCES pre_registrations(id) ON DELETE RESTRICT,
+  pre_registration_hash char(64),
   created_by uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   started_at timestamptz,

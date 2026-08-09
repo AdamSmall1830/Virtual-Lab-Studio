@@ -66,6 +66,7 @@ class ProjectOut(ORMModel):
     research_question: str | None
     human_decision_supported: str | None
     tags: list
+    pre_registration_required: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -146,6 +147,10 @@ class ProviderConfigOut(ORMModel):
     last_tested_at: datetime | None = None
     last_test_status: str | None
     last_test_safe_message: str | None
+    # 'workspace' is a shared key funded by the workspace; 'personal' belongs to
+    # owner_user_id and is only ever visible to that member.
+    scope: str = "workspace"
+    owner_user_id: uuid.UUID | None = None
     models: list[ProviderModelOut] = []
 
 
@@ -165,6 +170,7 @@ class ProviderCreateIn(BaseModel):
     api_key: str | None = Field(default=None, min_length=1, max_length=4000)
     credential_source: Literal["api_key", "replit_ai"] = "api_key"
     organization_id: str | None = Field(default=None, max_length=200)
+    scope: Literal["workspace", "personal"] = "workspace"
     models: list[ProviderModelIn] = Field(default_factory=list, max_length=25)
 
 

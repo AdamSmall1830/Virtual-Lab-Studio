@@ -16,9 +16,11 @@ import {
 import type { RunOut, EvidenceSourceOut, ComparisonSetOut, ProjectCreateIn } from '@/api';
 import { useSession } from '@/api/session';
 import ProjectCompare from './project-compare';
+import PreRegistrationTab from '@/components/prereg/pre-registration-tab';
 import { formatRunCost, isUnpricedRun, UNPRICED_COST_HINT } from '@/lib/cost';
 import {
   ArrowLeft,
+  ClipboardCheck,
   FileText,
   Activity,
   Database,
@@ -304,6 +306,7 @@ function ProjectDetailView() {
     { id: 'meetings', label: 'Runs', icon: Activity, count: runs.length },
     { id: 'evidence', label: 'Evidence', icon: Database, count: evidence.length },
     { id: 'compare', label: 'Compare', icon: GitMerge, count: comparisons.length },
+    { id: 'pre-registration', label: 'Pre-registration', icon: ClipboardCheck },
   ];
 
   const tags = Array.isArray(project.tags) ? project.tags : [];
@@ -519,6 +522,10 @@ function ProjectDetailView() {
         )}
 
         {tab === 'compare' && <ProjectCompare />}
+
+        {tab === 'pre-registration' && (
+          <PreRegistrationTab projectId={projectId} project={project} />
+        )}
       </div>
     </div>
   );

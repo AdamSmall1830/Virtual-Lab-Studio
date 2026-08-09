@@ -474,6 +474,85 @@
         }
       }
     },
+    "pre_registration": {
+      "description": "What this run committed to testing before it began. Always present on manifests written by v0.1.0 and later, with a null document when the run was not pre-registered, so an unregistered run is a statement rather than a gap. content_hash is the value frozen onto the run at launch: a later amendment creates a new version and cannot rewrite what this run says it set out to test.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_by_project_at_launch",
+        "project_requires_pre_registration_now",
+        "document"
+      ],
+      "properties": {
+        "required_by_project_at_launch": {
+          "description": "Whether the project demanded a pre-registration at the moment this run launched. Frozen from the launch decision, not re-read afterwards, so toggling the project policy later cannot change what a completed run says about how it was gated.",
+          "type": "boolean"
+        },
+        "project_requires_pre_registration_now": {
+          "description": "The project's live policy at the time this manifest was written. Reported separately from the launch-time value, and only ever descriptive of the project: never of this run.",
+          "type": "boolean"
+        },
+        "document": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "title",
+            "content_hash",
+            "registered_at",
+            "recomputed_content_hash",
+            "content_hash_matches_document",
+            "superseded_by_version"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "title": {
+              "type": "string"
+            },
+            "content_hash": {
+              "description": "sha256 of the canonical document, frozen onto the run at launch.",
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "registered_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "recomputed_content_hash": {
+              "description": "sha256 recomputed from the stored document's own fields when this manifest was written, not read from the hash column beside them. Comparing against that column would be no check at all, since anything able to edit the document can edit its stored hash.",
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "content_hash_matches_document": {
+              "description": "Whether the hash frozen onto the run at launch still matches the document recomputed from its own fields. A registered document is never edited through the API, so false is not an amendment: it is evidence of a direct write to the database.",
+              "type": "boolean"
+            },
+            "superseded_by_version": {
+              "description": "Version number of a later amendment that supersedes the document this run cites, or null. A run remains bound to what it cited; this only tells the reader the plan moved afterwards.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
     "recursive_execution": {
       "description": "Participant turns delegated to an enrolled external worker. Always present on manifests written by v0.1.0 and later, with job_count 0 when no participant ran off-host, so absence of recursive work is a statement rather than a gap. The node tree, event log and per-job results live in the reproducibility packet and are bound here by digest.",
       "type": "object",

@@ -101,8 +101,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProjectOut'
-                title: Response List Projects Api V1 Workspaces  Workspace Id  Projects
-                  Get
+                title: Response List Projects Api V1 Workspaces  Workspace Id  Projects Get
         '422':
           description: Validation Error
           content:
@@ -185,8 +184,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AgentProfileOut'
-                title: Response List Agents Api V1 Workspaces  Workspace Id  Agents
-                  Get
+                title: Response List Agents Api V1 Workspaces  Workspace Id  Agents Get
         '422':
           description: Validation Error
           content:
@@ -330,8 +328,7 @@ paths:
   /v1/providers/{provider_id}/test:
     post:
       summary: Test Provider
-      description: 'Run a minimal live completion against the provider and record
-        the result.
+      description: 'Run a minimal live completion against the provider and record the result.
 
 
         The stored API key is decrypted server-side only; the response never
@@ -558,6 +555,20 @@ paths:
           type: string
           format: uuid
           title: Run Id
+      - name: after
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: After
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 500
+          title: Limit
       responses:
         '200':
           description: Successful Response
@@ -651,8 +662,7 @@ paths:
   /v1/runs/{run_id}/retry:
     post:
       summary: Retry Run
-      description: 'Requeue a stopped run so it continues from its last completed
-        turn.
+      description: 'Requeue a stopped run so it continues from its last completed turn.
 
 
         Turns already persisted are replayed from the database when the run is
@@ -760,8 +770,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/InterventionOut'
-                title: Response List Interventions Api V1 Runs  Run Id  Interventions
-                  Get
+                title: Response List Interventions Api V1 Runs  Run Id  Interventions Get
         '422':
           description: Validation Error
           content:
@@ -789,8 +798,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EvidenceSourceOut'
-                title: Response List Evidence Api V1 Projects  Project Id  Evidence
-                  Get
+                title: Response List Evidence Api V1 Projects  Project Id  Evidence Get
         '422':
           description: Validation Error
           content:
@@ -905,8 +913,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EvidenceChunkOut'
-                title: Response List Evidence Chunks Api V1 Evidence  Source Id  Chunks
-                  Get
+                title: Response List Evidence Chunks Api V1 Evidence  Source Id  Chunks Get
         '422':
           description: Validation Error
           content:
@@ -965,8 +972,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EvidenceSearchHit'
-                title: Response Search Workspace Evidence Api V1 Workspaces  Workspace
-                  Id  Evidence Search Post
+                title: Response Search Workspace Evidence Api V1 Workspaces  Workspace Id  Evidence
+                  Search Post
         '422':
           description: Validation Error
           content:
@@ -1055,8 +1062,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RunCitationOut'
-                title: Response List Run Citations Api V1 Runs  Run Id  Citations
-                  Get
+                title: Response List Run Citations Api V1 Runs  Run Id  Citations Get
         '422':
           description: Validation Error
           content:
@@ -1371,6 +1377,528 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/members:
+    get:
+      summary: List Members
+      operationId: list_members_api_v1_workspaces__workspace_id__members_get
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberOut'
+                title: Response List Members Api V1 Workspaces  Workspace Id  Members Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/members/{member_id}:
+    patch:
+      summary: Update Member
+      operationId: update_member_api_v1_workspaces__workspace_id__members__member_id__patch
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: member_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Member Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdateIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      summary: Remove Member
+      operationId: remove_member_api_v1_workspaces__workspace_id__members__member_id__delete
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: member_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Member Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/invitations:
+    post:
+      summary: Create Invitation
+      operationId: create_invitation_api_v1_workspaces__workspace_id__invitations_post
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreateIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCreateOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      summary: List Invitations
+      operationId: list_invitations_api_v1_workspaces__workspace_id__invitations_get
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvitationOut'
+                title: Response List Invitations Api V1 Workspaces  Workspace Id  Invitations
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/invitations/{invitation_id}:
+    delete:
+      summary: Revoke Invitation
+      operationId: revoke_invitation_api_v1_workspaces__workspace_id__invitations__invitation_id__delete
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Invitation Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/invitations/preview:
+    post:
+      summary: Preview Invitation
+      description: 'Inspect an invitation before committing to it.
+
+
+        A POST, despite being a read: the token is a bearer credential, and a GET
+
+        would put it in the request line, where the web server''s access log records
+
+        it verbatim. The body keeps it out of server logs and out of any proxy in
+
+        between.'
+      operationId: preview_invitation_api_v1_invitations_preview_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationAcceptIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreviewOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/invitations/accept:
+    post:
+      summary: Accept Invitation
+      operationId: accept_invitation_api_v1_invitations_accept_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationAcceptIn'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/workspaces/{workspace_id}/audit-log:
+    get:
+      summary: Read Audit Log
+      operationId: read_audit_log_api_v1_workspaces__workspace_id__audit_log_get
+      parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Workspace Id
+      - name: action
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+      - name: object_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Object Type
+      - name: actor_user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Actor User Id
+      - name: created_after
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created After
+      - name: created_before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created Before
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/projects/{project_id}/pre-registrations:
+    get:
+      summary: List Pre Registrations
+      operationId: list_pre_registrations_api_v1_projects__project_id__pre_registrations_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreRegistrationListItem'
+                title: Response List Pre Registrations Api V1 Projects  Project Id  Pre Registrations
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      summary: Create Pre Registration
+      operationId: create_pre_registration_api_v1_projects__project_id__pre_registrations_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreRegistrationCreateIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreRegistrationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/pre-registrations/{prereg_id}:
+    get:
+      summary: Get Pre Registration
+      operationId: get_pre_registration_api_v1_pre_registrations__prereg_id__get
+      parameters:
+      - name: prereg_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Prereg Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreRegistrationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      summary: Update Pre Registration
+      operationId: update_pre_registration_api_v1_pre_registrations__prereg_id__patch
+      parameters:
+      - name: prereg_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Prereg Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreRegistrationPatchIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreRegistrationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/pre-registrations/{prereg_id}/register:
+    post:
+      summary: Register Pre Registration
+      operationId: register_pre_registration_api_v1_pre_registrations__prereg_id__register_post
+      parameters:
+      - name: prereg_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Prereg Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreRegistrationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/pre-registrations/{prereg_id}/withdraw:
+    post:
+      summary: Withdraw Pre Registration
+      operationId: withdraw_pre_registration_api_v1_pre_registrations__prereg_id__withdraw_post
+      parameters:
+      - name: prereg_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Prereg Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreRegistrationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/projects/{project_id}/pre-registration-policy:
+    patch:
+      summary: Set Pre Registration Policy
+      operationId: set_pre_registration_policy_api_v1_projects__project_id__pre_registration_policy_patch
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/workspaces/{workspace_id}/recursive-workers:
     get:
       summary: List Workers
@@ -1392,8 +1920,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RecursiveWorkerOut'
-                title: Response List Workers Api V1 Workspaces  Workspace Id  Recursive
-                  Workers Get
+                title: Response List Workers Api V1 Workspaces  Workspace Id  Recursive Workers
+                  Get
         '422':
           description: Validation Error
           content:
@@ -1403,8 +1931,7 @@ paths:
   /v1/workspaces/{workspace_id}/recursive-worker-enrollments:
     post:
       summary: Create Enrollment
-      description: Mint a short-lived enrollment token. Admin only, shown exactly
-        once.
+      description: Mint a short-lived enrollment token. Admin only, shown exactly once.
       operationId: create_enrollment_api_v1_workspaces__workspace_id__recursive_worker_enrollments_post
       parameters:
       - name: workspace_id
@@ -1556,8 +2083,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RecursiveAgentJobOut'
-                title: Response List Run Jobs Api V1 Runs  Run Id  Recursive Jobs
-                  Get
+                title: Response List Run Jobs Api V1 Runs  Run Id  Recursive Jobs Get
         '422':
           description: Validation Error
           content:
@@ -2083,6 +2609,80 @@ components:
       - recommended_temperature
       - created_at
       title: AgentVersionOut
+    AuditEventOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        actor_user_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Actor User Id
+        actor_email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Email
+        actor_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Display Name
+        action:
+          type: string
+          title: Action
+        object_type:
+          type: string
+          title: Object Type
+        object_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Object Id
+        metadata:
+          additionalProperties: true
+          type: object
+          title: Metadata
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - workspace_id
+      - actor_user_id
+      - actor_email
+      - actor_display_name
+      - action
+      - object_type
+      - object_id
+      - metadata
+      - created_at
+      title: AuditEventOut
+    AuditLogOut:
+      properties:
+        events:
+          items:
+            $ref: '#/components/schemas/AuditEventOut'
+          type: array
+          title: Events
+        next_offset:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Next Offset
+      type: object
+      required:
+      - events
+      - next_offset
+      title: AuditLogOut
     Body_upload_evidence_api_v1_projects__project_id__evidence_upload_post:
       properties:
         file:
@@ -2763,6 +3363,203 @@ components:
       - applied_at_checkpoint
       - created_at
       title: InterventionOut
+    InvitationAcceptIn:
+      properties:
+        token:
+          type: string
+          title: Token
+      type: object
+      required:
+      - token
+      title: InvitationAcceptIn
+    InvitationCreateIn:
+      properties:
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+        spend_limit_usd:
+          anyOf:
+          - type: number
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Spend Limit Usd
+        expiry_days:
+          type: integer
+          maximum: 90.0
+          minimum: 1.0
+          title: Expiry Days
+          default: 14
+      type: object
+      required:
+      - email
+      - role
+      title: InvitationCreateIn
+    InvitationCreateOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+        status:
+          type: string
+          title: Status
+        spend_limit_usd:
+          anyOf:
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Spend Limit Usd
+        invited_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Invited By
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        accepted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Accepted At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        token:
+          type: string
+          title: Token
+      type: object
+      required:
+      - id
+      - workspace_id
+      - email
+      - role
+      - status
+      - spend_limit_usd
+      - invited_by
+      - expires_at
+      - accepted_at
+      - revoked_at
+      - created_at
+      - token
+      title: InvitationCreateOut
+    InvitationOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+        status:
+          type: string
+          title: Status
+        spend_limit_usd:
+          anyOf:
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Spend Limit Usd
+        invited_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Invited By
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        accepted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Accepted At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - workspace_id
+      - email
+      - role
+      - status
+      - spend_limit_usd
+      - invited_by
+      - expires_at
+      - accepted_at
+      - revoked_at
+      - created_at
+      title: InvitationOut
+    InvitationPreviewOut:
+      properties:
+        workspace_name:
+          type: string
+          title: Workspace Name
+        role:
+          type: string
+          title: Role
+        inviter_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Inviter Display Name
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        email_matches:
+          type: boolean
+          title: Email Matches
+      type: object
+      required:
+      - workspace_name
+      - role
+      - inviter_display_name
+      - expires_at
+      - email_matches
+      title: InvitationPreviewOut
     LaunchOut:
       properties:
         run_id:
@@ -2921,6 +3718,74 @@ components:
       - created_at
       - updated_at
       title: MeetingDraftOut
+    MemberOut:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        email:
+          type: string
+          title: Email
+        display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Display Name
+        role:
+          type: string
+          title: Role
+        spend_limit_usd:
+          anyOf:
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Spend Limit Usd
+        current_month_spend_usd:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Current Month Spend Usd
+        joined_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Joined At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - user_id
+      - email
+      - display_name
+      - role
+      - spend_limit_usd
+      - current_month_spend_usd
+      - joined_at
+      - created_at
+      title: MemberOut
+    MemberUpdateIn:
+      properties:
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+        spend_limit_usd:
+          anyOf:
+          - type: number
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Spend Limit Usd
+        set_spend_limit:
+          type: boolean
+          title: Set Spend Limit
+          default: false
+      type: object
+      title: MemberUpdateIn
     MembershipOut:
       properties:
         workspace_id:
@@ -2968,6 +3833,311 @@ components:
       required:
       - query
       title: PmcSearchIn
+    PolicyIn:
+      properties:
+        pre_registration_required:
+          type: boolean
+          title: Pre Registration Required
+      type: object
+      required:
+      - pre_registration_required
+      title: PolicyIn
+    PolicyOut:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        pre_registration_required:
+          type: boolean
+          title: Pre Registration Required
+        warning:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Warning
+      type: object
+      required:
+      - project_id
+      - pre_registration_required
+      title: PolicyOut
+    PreRegistrationCreateIn:
+      properties:
+        title:
+          type: string
+          minLength: 1
+          title: Title
+        hypothesis:
+          type: string
+          title: Hypothesis
+          default: ''
+        protocol:
+          type: string
+          title: Protocol
+          default: ''
+        expected_outcomes:
+          type: string
+          title: Expected Outcomes
+          default: ''
+        success_criteria:
+          type: string
+          title: Success Criteria
+          default: ''
+        analysis_plan:
+          type: string
+          title: Analysis Plan
+          default: ''
+        supersedes_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Supersedes Id
+        amendment_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Amendment Reason
+      type: object
+      required:
+      - title
+      title: PreRegistrationCreateIn
+    PreRegistrationListItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        version:
+          type: integer
+          title: Version
+        status:
+          type: string
+          title: Status
+        is_active:
+          type: boolean
+          title: Is Active
+        title:
+          type: string
+          title: Title
+        supersedes_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Supersedes Id
+        content_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Content Hash
+        registered_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Registered At
+        withdrawn_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Withdrawn At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - project_id
+      - version
+      - status
+      - is_active
+      - title
+      - supersedes_id
+      - content_hash
+      - registered_at
+      - withdrawn_at
+      - created_at
+      - updated_at
+      title: PreRegistrationListItem
+    PreRegistrationOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workspace_id:
+          type: string
+          format: uuid
+          title: Workspace Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        version:
+          type: integer
+          title: Version
+        status:
+          type: string
+          title: Status
+        is_active:
+          type: boolean
+          title: Is Active
+        supersedes_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Supersedes Id
+        title:
+          type: string
+          title: Title
+        hypothesis:
+          type: string
+          title: Hypothesis
+        protocol:
+          type: string
+          title: Protocol
+        expected_outcomes:
+          type: string
+          title: Expected Outcomes
+        success_criteria:
+          type: string
+          title: Success Criteria
+        analysis_plan:
+          type: string
+          title: Analysis Plan
+        amendment_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Amendment Reason
+        content_json:
+          additionalProperties: true
+          type: object
+          title: Content Json
+        content_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Content Hash
+        registered_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Registered At
+        registered_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Registered By
+        withdrawn_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Withdrawn At
+        withdrawn_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Withdrawn Reason
+        created_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Created By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        launch_impact:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Launch Impact
+      type: object
+      required:
+      - id
+      - workspace_id
+      - project_id
+      - version
+      - status
+      - is_active
+      - supersedes_id
+      - title
+      - hypothesis
+      - protocol
+      - expected_outcomes
+      - success_criteria
+      - analysis_plan
+      - amendment_reason
+      - content_json
+      - content_hash
+      - registered_at
+      - registered_by
+      - withdrawn_at
+      - withdrawn_reason
+      - created_by
+      - created_at
+      - updated_at
+      title: PreRegistrationOut
+    PreRegistrationPatchIn:
+      properties:
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        hypothesis:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hypothesis
+        protocol:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Protocol
+        expected_outcomes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expected Outcomes
+        success_criteria:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Success Criteria
+        analysis_plan:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Analysis Plan
+        amendment_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Amendment Reason
+      type: object
+      title: PreRegistrationPatchIn
     ProjectCreateIn:
       properties:
         name:
@@ -3067,6 +4237,10 @@ components:
           items: {}
           type: array
           title: Tags
+        pre_registration_required:
+          type: boolean
+          title: Pre Registration Required
+          default: false
         created_at:
           type: string
           format: date-time
@@ -3138,6 +4312,16 @@ components:
           - type: string
           - type: 'null'
           title: Last Test Safe Message
+        scope:
+          type: string
+          title: Scope
+          default: workspace
+        owner_user_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner User Id
         models:
           items:
             $ref: '#/components/schemas/ProviderModelOut'
@@ -3193,6 +4377,13 @@ components:
             maxLength: 200
           - type: 'null'
           title: Organization Id
+        scope:
+          type: string
+          enum:
+          - workspace
+          - personal
+          title: Scope
+          default: workspace
         models:
           items:
             $ref: '#/components/schemas/ProviderModelIn'
@@ -3916,8 +5107,7 @@ components:
           - type: 'null'
       type: object
       title: RecursiveEventPayloadIn
-      description: 'The only payload fields a worker event may carry into the run
-        stream.
+      description: 'The only payload fields a worker event may carry into the run stream.
 
 
         Anything not named here is dropped. That direction is deliberate: the
@@ -5573,6 +6763,16 @@ components:
       - pricing_complete
       - budget
       title: ValidationEstimateOut
+    WithdrawIn:
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          title: Reason
+      type: object
+      required:
+      - reason
+      title: WithdrawIn
     WorkspaceOut:
       properties:
         id:

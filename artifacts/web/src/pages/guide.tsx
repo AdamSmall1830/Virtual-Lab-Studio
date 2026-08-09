@@ -13,6 +13,8 @@ import {
   Plug,
   ShieldCheck,
   Cpu,
+  UserPlus,
+  FileLock2,
 } from 'lucide-react';
 
 type Chapter = {
@@ -32,7 +34,9 @@ const CHAPTERS: Chapter[] = [
   { id: 'results', num: '07', title: 'Results & exports', icon: FileCheck },
   { id: 'providers', num: '08', title: 'Connecting real AI', icon: Plug },
   { id: 'recursive', num: '09', title: 'Delegating to your own machine', icon: Cpu },
-  { id: 'intended-use', num: '10', title: 'Using it as intended', icon: ShieldCheck },
+  { id: 'team', num: '10', title: 'Working as a team', icon: UserPlus },
+  { id: 'pre-registration', num: '11', title: 'Committing to the question', icon: FileLock2 },
+  { id: 'intended-use', num: '12', title: 'Using it as intended', icon: ShieldCheck },
 ];
 
 function ChapterHeading({ chapter }: { chapter: Chapter }) {
@@ -95,9 +99,9 @@ export default function Guide() {
           The guided tour of Virtual Lab Studio
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Ten short chapters, in the order a real study unfolds: set up a project, assemble an
-          agent team, ground it in evidence, run a structured deliberation, and walk away with an
-          auditable, reproducible record.
+          Twelve short chapters, in the order a real study unfolds: set up a project, assemble an
+          agent team, ground it in evidence, run a structured deliberation, work as a team, and
+          walk away with an auditable, reproducible record.
         </p>
       </div>
 
@@ -506,9 +510,108 @@ export default function Guide() {
             </div>
           </section>
 
-          {/* 10 Intended use */}
-          <section id="intended-use" className="scroll-mt-8">
+          {/* 10 Team */}
+          <section id="team" className="scroll-mt-8">
             <ChapterHeading chapter={CHAPTERS[9]} />
+            <div className="vls-reading-surface rounded-xl p-6 space-y-4">
+              <p className="leading-relaxed">
+                A workspace can hold a whole group — co-authors, a supervisor, a reviewer who
+                only reads. Invite people from{' '}
+                <span className="font-medium text-foreground">Settings &rarr; Team</span> by email
+                address. The invitation is bound to that address and carries the role it will
+                grant, so the link is not a skeleton key: signing in as anyone else will not
+                redeem it.
+              </p>
+              <p className="leading-relaxed">
+                You will see the invite link exactly once, at the moment you create it. Only a
+                fingerprint of it is kept, so nobody — including you — can retrieve it
+                afterwards. Send it, and if it goes astray, revoke it and issue another.
+              </p>
+              <h3 className="font-semibold pt-2">Who can do what</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  <span><span className="text-foreground font-medium">Viewer</span> reads runs and results.</span></li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  <span><span className="text-foreground font-medium">Reviewer</span> also signs off on them — the human review that turns a draft into a record.</span></li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  <span><span className="text-foreground font-medium">Researcher</span> designs and launches meetings.</span></li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  <span><span className="text-foreground font-medium">Admin</span> manages the workspace and its people.</span></li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  <span><span className="text-foreground font-medium">Owner</span> holds the workspace, including what it spends.</span></li>
+              </ul>
+              <h3 className="font-semibold pt-2">Whose money is it</h3>
+              <p className="leading-relaxed">
+                Model calls cost real money, so the platform never leaves that ambiguous. A{' '}
+                <span className="font-medium text-foreground">workspace</span> key is funded by
+                the owner and usable by everyone. A{' '}
+                <span className="font-medium text-foreground">personal</span> key belongs to one
+                person: nobody else can read it or spend against it, and what it costs is
+                between them and their provider.
+              </p>
+              <p className="leading-relaxed">
+                Against workspace money the owner can set a monthly cap per member. It is checked
+                when a run is launched, against that run's estimated cost — a launch that would
+                take you past your cap is refused rather than quietly started and abandoned
+                halfway. Spending on your own personal key never counts against it.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                One honest caveat: a personal key is confidential, not secret. The audit log
+                records that you added one, and a run that used it can be traced to it. Money
+                spent outside the workspace's control is precisely what a governance record
+                ought to show.
+              </p>
+              <TryIt href="/app/settings/team" label="Open Team settings" />
+            </div>
+          </section>
+
+          {/* 11 Pre-registration */}
+          <section id="pre-registration" className="scroll-mt-8">
+            <ChapterHeading chapter={CHAPTERS[10]} />
+            <div className="vls-reading-surface rounded-xl p-6 space-y-4">
+              <p className="leading-relaxed font-medium">
+                Pre-registration is writing down what you expect to find, before you find it.
+              </p>
+              <p className="leading-relaxed">
+                It is the cheapest defence there is against fooling yourself. Agents are fluent
+                and agreeable; it is remarkably easy to run a meeting, read a persuasive answer,
+                and decide in hindsight that it was the question you meant to ask all along. A
+                pre-registration removes that option by fixing the hypothesis, the protocol and
+                the analysis plan in advance.
+              </p>
+              <h3 className="font-semibold pt-2">How it works here</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  Write it on the project's Pre-registration tab. While it is a draft, edit it freely.</li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  Registering it takes a fingerprint of the text and freezes it. Registered documents are never edited.</li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  Changed your mind? Register an <span className="text-foreground font-medium">amendment</span>: a new version that supersedes the old one and has to say why. The earlier version stays visible — the chain of amendments is the evidence, not an embarrassment to be hidden.</li>
+                <li className="flex gap-3"><span className="text-primary shrink-0">&bull;</span>
+                  Every run records which document and which exact text it launched under, and the exported manifest reports it — including whether that document has been amended since.</li>
+              </ul>
+              <h3 className="font-semibold pt-2">Making it binding</h3>
+              <p className="leading-relaxed">
+                A project can be switched to{' '}
+                <span className="font-medium text-foreground">require</span> pre-registration.
+                After that, no run launches without an active registered document — the platform
+                refuses, rather than trusting everyone to remember. Turn the requirement on
+                before you have registered anything and runs are blocked from that moment; the
+                page tells you so at the time rather than letting you discover it at launch.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Worth being clear about what this proves. It proves what you committed to and
+                when, and that the text has not changed since. It does not make a claim true, and
+                it is not a registry entry with an outside body — if your field expects one of
+                those, this complements it rather than replacing it.
+              </p>
+              <TryIt href="/app/projects" label="Open a project" />
+            </div>
+          </section>
+
+          {/* 12 Intended use */}
+          <section id="intended-use" className="scroll-mt-8">
+            <ChapterHeading chapter={CHAPTERS[11]} />
             <div className="vls-reading-surface rounded-xl p-6 space-y-4">
               <p className="leading-relaxed font-medium">
                 The platform is an ideation and planning instrument — it accelerates the thinking

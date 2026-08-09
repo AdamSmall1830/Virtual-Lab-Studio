@@ -24,6 +24,8 @@ from .models import (
     EvidenceSource,
     MeetingDefinition,
     MeetingDefinitionAgent,
+    PreRegistration,
+    Project,
     Run,
     RunCitation,
     RunIntervention,
@@ -43,6 +45,23 @@ def sha256_text(value: str) -> str:
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def content_fields(pr: PreRegistration) -> dict[str, str]:
+    """The substantive fields that a pre-registration freeze covers and hashes.
+
+    Lives here rather than beside the API router because it defines what the
+    freeze *means*: both the register path and the manifest's tamper check hash
+    this exact projection, and they must never drift apart.
+    """
+    return {
+        "title": pr.title,
+        "hypothesis": pr.hypothesis,
+        "protocol": pr.protocol,
+        "expected_outcomes": pr.expected_outcomes,
+        "success_criteria": pr.success_criteria,
+        "analysis_plan": pr.analysis_plan,
+    }
 
 
 @lru_cache
@@ -263,6 +282,59 @@ async def build_manifest(db: AsyncSession, run: Run) -> dict[str, Any]:
     status_map = {"completed": "completed", "failed": "failed", "cancelled": "cancelled",
                   "budget_stopped": "budget_stopped"}
 
+    # Pre-registration is recorded either way. A manifest that simply omitted
+    # the section would leave a reader unable to tell an unregistered run from
+    # an older manifest format, so an unregistered run says so explicitly.
+    #
+    # The hash written here is the one frozen onto the run at launch, never the
+    # document's current value: an amendment made afterwards is a new version,
+    # and it must not be able to rewrite what this run set out to test.
+    project = await db.get(Project, run.project_id)
+    pre_registration: dict[str, Any] = {
+        # Frozen at launch, not read from the project now. The launch gate hands
+        # back a document id only when the policy was on, so a frozen id *is*
+        # the launch-time policy state. Reading the project's current flag here
+        # would let a toggle made afterwards rewrite what this run says about
+        # how it was gated. The live flag is reported separately and labelled.
+        "required_by_project_at_launch": run.pre_registration_id is not None,
+        "project_requires_pre_registration_now": (
+            bool(project.pre_registration_required) if project else False
+        ),
+        "document": None,
+    }
+    if run.pre_registration_id is not None:
+        prereg = await db.get(PreRegistration, run.pre_registration_id)
+        if prereg is not None:
+            superseded_by = (
+                await db.execute(
+                    select(PreRegistration.version)
+                    .where(PreRegistration.supersedes_id == prereg.id)
+                    .order_by(PreRegistration.version.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            # Recomputed from the document's own fields. Comparing the run's
+            # frozen hash against the hash *column* stored beside those fields
+            # would be no check at all: anything able to edit the row can edit
+            # that column too, and the manifest would report an altered
+            # document as intact. A registered document is never edited through
+            # the API, so a mismatch is evidence of a direct database write.
+            recomputed_hash = sha256_text(canonical_json(content_fields(prereg)))
+            pre_registration["document"] = {
+                "id": str(prereg.id),
+                "version": prereg.version,
+                "title": prereg.title,
+                "content_hash": run.pre_registration_hash,
+                "registered_at": (
+                    prereg.registered_at.isoformat() if prereg.registered_at else None
+                ),
+                "recomputed_content_hash": recomputed_hash,
+                "content_hash_matches_document": (
+                    run.pre_registration_hash == recomputed_hash
+                ),
+                "superseded_by_version": superseded_by,
+            }
+
     manifest: dict[str, Any] = {
         "manifest_version": "1.0",
         "run": {
@@ -277,6 +349,7 @@ async def build_manifest(db: AsyncSession, run: Run) -> dict[str, Any]:
             "review_status": run.review_status,
             "demo_mode": run.demo_mode,
         },
+        "pre_registration": pre_registration,
         "software": {
             "application_version": APPLICATION_VERSION,
             "git_commit": _git_commit(),

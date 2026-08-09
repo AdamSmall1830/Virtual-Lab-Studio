@@ -5,7 +5,8 @@ import asyncio
 import hashlib
 import json
 import uuid
-from typing import Any
+from decimal import Decimal
+from typing import Any, NamedTuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -58,6 +59,8 @@ from ..providers import (
 )
 from ..secretbox import decrypt_secret, encrypt_secret
 from ..provenance import ensure_manifest_safe
+from .prereg import assert_pre_registration_gate
+from .team import assert_within_spend_cap, visible_provider_scope_clause
 from ..recursive import broker as recursive_broker
 from ..recursive import policy as recursive_policy
 from ..schemas import (
@@ -422,10 +425,15 @@ async def list_providers(
     workspace_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     await require_workspace_role(db, workspace_id, user, "viewer")
+    # Shared workspace keys, plus this member's own personal keys. Another
+    # member's personal key is their own credential and is never listed here.
     rows = list(
         (
             await db.execute(
-                select(ProviderConfig).where(ProviderConfig.workspace_id == workspace_id)
+                select(ProviderConfig).where(
+                    ProviderConfig.workspace_id == workspace_id,
+                    visible_provider_scope_clause(user.id),
+                )
                 .order_by(ProviderConfig.created_at)
             )
         ).scalars()
@@ -510,6 +518,31 @@ async def create_provider(
     await require_workspace_role(db, workspace_id, user, "researcher")
     settings = get_settings()
 
+    personal = body.scope == "personal"
+    if personal and body.credential_source == "replit_ai":
+        raise problem(
+            422, "personal_replit_ai",
+            "The Replit AI option is billed to the app owner, so it cannot be added as a personal key.",
+        )
+    # Names are unique among shared keys and, separately, within one member's
+    # own keys. Checked here so a collision reads as a clear message instead of
+    # surfacing as a database integrity error.
+    owner_match = (
+        ProviderConfig.owner_user_id == user.id if personal
+        else ProviderConfig.owner_user_id.is_(None)
+    )
+    clash = (
+        await db.execute(
+            select(ProviderConfig.id).where(
+                ProviderConfig.workspace_id == workspace_id,
+                ProviderConfig.name == body.name.strip(),
+                owner_match,
+            )
+        )
+    ).first()
+    if clash is not None:
+        raise problem(409, "provider_name_taken", "A provider with that name already exists.")
+
     routing_policy: dict[str, Any] = {"credential_source": body.credential_source}
     base_url: str | None = None
     ciphertext = nonce = None
@@ -549,13 +582,19 @@ async def create_provider(
         secret_ciphertext=ciphertext, secret_nonce=nonce, secret_key_version=key_version,
         endpoint_fingerprint=sha256_text(base_url or "replit_ai"),
         is_enabled=True, routing_policy=routing_policy, created_by=user.id,
+        scope=body.scope, owner_user_id=user.id if personal else None,
     )
     db.add(pc)
     await db.flush()
     await _upsert_models(db, pc, body.models)
+    # A personal key's *existence* is workspace-governance information (it means
+    # spending outside the workspace's control) and stays in the log, but the
+    # user-chosen name is the one free-text field here and is withheld from a
+    # log every admin can read.
     await audit(db, workspace_id, user, "provider.created", "provider_config", str(pc.id),
-                {"name": pc.name, "provider_type": pc.provider_type,
-                 "credential_source": body.credential_source})
+                {"name": pc.name if pc.scope != "personal" else None,
+                 "provider_type": pc.provider_type,
+                 "credential_source": body.credential_source, "scope": pc.scope})
     await db.commit()
     await db.refresh(pc)
     return await _provider_out(db, pc)
@@ -568,6 +607,10 @@ async def _get_provider_config(
     if pc is None:
         raise problem(404, "not_found", "Provider not found")
     await require_workspace_role(db, pc.workspace_id, user, minimum_role)
+    if pc.owner_user_id is not None and pc.owner_user_id != user.id:
+        # Someone else's personal key answers exactly as a non-existent one, so
+        # this endpoint cannot be used to discover which colleagues added keys.
+        raise problem(404, "not_found", "Provider not found")
     return pc
 
 
@@ -677,7 +720,7 @@ async def test_provider(
 # --------------------------------------------------------------------------
 
 async def _validate_draft(
-    db: AsyncSession, workspace_id: uuid.UUID, body: MeetingDraftIn
+    db: AsyncSession, workspace_id: uuid.UUID, body: MeetingDraftIn, user: User
 ) -> tuple[list[dict[str, str]], list[dict[str, str]], int | None]:
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
@@ -759,6 +802,17 @@ async def _validate_draft(
         pc = await db.get(ProviderConfig, a.provider_config_id)
         if pc is None or pc.workspace_id != workspace_id or not pc.is_enabled:
             errors.append({"field": "agents", "message": "Provider is missing, disabled, or not in this workspace."})
+            continue
+        if pc.owner_user_id is not None and pc.owner_user_id != user.id:
+            # A personal key is one member's own credential. A shared draft may
+            # still name it, but only its owner can run with it.
+            errors.append({
+                "field": "agents",
+                "message": (
+                    f"'{pc.name}' is another member's personal provider key. "
+                    "Choose a shared workspace provider or one of your own."
+                ),
+            })
             continue
         pm = await db.get(ProviderModel, a.provider_model_id)
         if pm is None or pm.provider_config_id != pc.id or not pm.is_enabled:
@@ -844,39 +898,16 @@ async def validate_draft(
         raise problem(404, "not_found", "Draft not found")
     await require_workspace_role(db, draft.workspace_id, user, "viewer")
     body = MeetingDraftIn.model_validate(draft.draft_json)
-    errors, warnings, base_calls = await _validate_draft(db, draft.workspace_id, body)
+    errors, warnings, base_calls = await _validate_draft(db, draft.workspace_id, body, user)
     demo = get_demo_provider()
     est_in = est_out = est_cost = None
     pricing_complete = True
     if base_calls is not None:
         est_in = base_calls * demo.input_tokens_per_call
         est_out = base_calls * demo.output_tokens_per_call
-        # Cost estimate: per-agent planned call counts priced against each
-        # agent's model. Demo calls are free; unpriced real models mark the
-        # estimate incomplete instead of silently pretending it is zero.
-        est_cost = 0.0
-        for a in body.agents:
-            if body.meeting_type == "team":
-                calls = body.rounds + 1 if a.role_type == "lead" else body.rounds
-            else:
-                calls = body.rounds + 1 if a.role_type == "expert" else body.rounds
-            if a.execution_mode == "recursive_rlm":
-                # Recursive turns are bounded, not predicted, and are reported
-                # separately below. Folding a ceiling into this figure would
-                # present a worst case as an expectation.
-                continue
-            pc = await db.get(ProviderConfig, a.provider_config_id)
-            pm = await db.get(ProviderModel, a.provider_model_id)
-            if pc is None or pm is None or pc.provider_type == "demo":
-                continue
-            pricing = pricing_from_capabilities(pm.capabilities)
-            if not pricing.complete:
-                pricing_complete = False
-                continue
-            est_cost += calls * pricing.cost(
-                demo.input_tokens_per_call, 0, demo.output_tokens_per_call
-            )
-        est_cost = round(est_cost, 4)
+        estimate = await _estimate_cost(db, body)
+        est_cost = estimate.total_usd
+        pricing_complete = estimate.pricing_complete
         if not pricing_complete:
             warnings.append({
                 "field": "agents",
@@ -889,6 +920,57 @@ async def validate_draft(
         estimated_cost_usd=est_cost, pricing_complete=pricing_complete, budget=body.budget,
         recursive_execution=await _recursive_estimate(db, body),
     )
+
+
+class _CostEstimate(NamedTuple):
+    total_usd: float
+    workspace_funded_usd: float
+    pricing_complete: bool
+
+
+async def _estimate_cost(db: AsyncSession, body: MeetingDraftIn) -> _CostEstimate:
+    """Planned spend for a draft, split by who pays for it.
+
+    Both figures come out of one pass because they have to agree with each
+    other. ``total_usd`` is what the meeting is expected to cost;
+    ``workspace_funded_usd`` is the part drawn from shared workspace keys, and
+    is the only part charged against a member's ceiling. A personal key is the
+    member's own money and is deliberately excluded, as is a recursive
+    participant, which runs on the operator's own hardware.
+
+    Per-agent planned call counts are priced against each agent's model. Demo
+    calls are free; an unpriced real model marks the estimate incomplete rather
+    than silently pretending it is zero.
+    """
+    demo = get_demo_provider()
+    total = 0.0
+    workspace_funded = 0.0
+    pricing_complete = True
+    for a in body.agents:
+        if body.meeting_type == "team":
+            calls = body.rounds + 1 if a.role_type == "lead" else body.rounds
+        else:
+            calls = body.rounds + 1 if a.role_type == "expert" else body.rounds
+        if a.execution_mode == "recursive_rlm":
+            # Recursive turns are bounded, not predicted, and are reported
+            # separately. Folding a ceiling into this figure would present a
+            # worst case as an expectation.
+            continue
+        pc = await db.get(ProviderConfig, a.provider_config_id)
+        pm = await db.get(ProviderModel, a.provider_model_id)
+        if pc is None or pm is None or pc.provider_type == "demo":
+            continue
+        pricing = pricing_from_capabilities(pm.capabilities)
+        if not pricing.complete:
+            pricing_complete = False
+            continue
+        cost = calls * pricing.cost(
+            demo.input_tokens_per_call, 0, demo.output_tokens_per_call
+        )
+        total += cost
+        if pc.scope == "workspace":
+            workspace_funded += cost
+    return _CostEstimate(round(total, 4), round(workspace_funded, 4), pricing_complete)
 
 
 async def _recursive_estimate(
@@ -953,9 +1035,30 @@ async def launch_draft(
         raise problem(404, "not_found", "Draft not found")
     await require_workspace_role(db, draft.workspace_id, user, "researcher")
     body = MeetingDraftIn.model_validate(draft.draft_json)
-    errors, _warnings, _base = await _validate_draft(db, draft.workspace_id, body)
+    errors, _warnings, _base = await _validate_draft(db, draft.workspace_id, body, user)
     if errors:
         raise HTTPException(status_code=422, detail={"code": "invalid_draft", "message": "Draft failed validation", "field_errors": errors})
+
+    # Both launch gates run before anything is frozen, so a refusal leaves no
+    # half-created definition behind.
+    #
+    # Pre-registration first: if this project requires one, the run records the
+    # exact document and its hash at this moment, so a later amendment can
+    # never change what a finished run says it set out to test.
+    project = await db.get(Project, draft.project_id)
+    if project is None:
+        raise problem(404, "not_found", "Project not found")
+    pre_registration_id, pre_registration_hash = await assert_pre_registration_gate(db, project)
+
+    # Then the member's spend ceiling. Only the share drawn from shared
+    # workspace keys is charged; a personal key is the member's own money.
+    # The estimate is reserved now rather than settled later, so simultaneous
+    # launches cannot all read "under the cap" and proceed together.
+    estimate = await _estimate_cost(db, body)
+    workspace_funded_estimate = Decimal(str(estimate.workspace_funded_usd))
+    await assert_within_spend_cap(
+        db, draft.workspace_id, user.id, workspace_funded_estimate
+    )
 
     # Freeze the definition (immutable snapshot). _validate_draft has already
     # rejected any participant whose runtime cannot execute, so every agent
@@ -1139,6 +1242,9 @@ async def launch_draft(
         workspace_id=draft.workspace_id, project_id=draft.project_id,
         meeting_definition_id=definition.id, status="queued",
         demo_mode=demo_mode, created_by=user.id,
+        workspace_funded_estimate_usd=workspace_funded_estimate,
+        pre_registration_id=pre_registration_id,
+        pre_registration_hash=pre_registration_hash,
     )
     db.add(run)
     await audit(db, draft.workspace_id, user, "run.launched", "run", None)

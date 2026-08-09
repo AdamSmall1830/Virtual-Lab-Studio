@@ -111,3 +111,33 @@ deliberate.
 **How to apply:** never call `.get` on an element of a parsed JSON list without
 first filtering to mappings, and return the count of what was dropped alongside
 the good entries so the caller can disclose it.
+
+# An integrity check must recompute, never compare against a stored digest
+
+A "was this tampered with" field that compares a frozen hash to a hash *column
+stored beside the data it describes* verifies nothing. Recompute the digest from
+the record's own fields and compare against the value frozen elsewhere.
+
+**Why:** anything able to edit the row can edit the hash column in the same
+statement, so the check reports an altered document as intact. It is worse than
+no check: the manifest now carries an affirmative statement of integrity that
+the code never established.
+
+**How to apply:** keep the canonical field projection that gets hashed in one
+place, upstream of both the writer that freezes it and the reader that verifies
+it, so the two can never drift. Publish the recomputed digest alongside the
+boolean so a reader can check the arithmetic themselves.
+
+# A frozen record must not report live state as its own
+
+Anything in a provenance record describing *how a run was governed* has to come
+from what was frozen at launch, not re-read when the document is generated.
+Where the live value is genuinely interesting, emit it as a separate, clearly
+named field about the project — never about the run.
+
+**Why:** a policy toggled after the fact would otherwise rewrite what a
+completed run claims about the rules it ran under.
+
+**How to apply:** prefer deriving the launch-time value from something already
+frozen on the row over adding a column. A gate that only yields an artifact when
+the policy was on means the artifact's presence *is* the frozen policy state.

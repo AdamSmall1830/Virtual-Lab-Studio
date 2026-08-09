@@ -16,7 +16,9 @@ from .config import Settings, get_settings
 from .db import get_engine, get_sessionmaker
 from .api.v1 import router as v1_router
 from .api.library import router as library_router
+from .api.prereg import router as prereg_router
 from .api.recursive import router as recursive_router
+from .api.team import router as team_router
 from .worker import worker_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -91,6 +93,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(v1_router, prefix="/api/v1")
     app.include_router(library_router, prefix="/api/v1")
+    app.include_router(team_router, prefix="/api/v1")
+    app.include_router(prereg_router, prefix="/api/v1")
     if settings.recursive_agents_enabled:
         app.include_router(recursive_router, prefix="/api/v1")
 

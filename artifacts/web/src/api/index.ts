@@ -90,6 +90,32 @@ export {
   getGetComparisonApiV1ComparisonsComparisonIdGetQueryKey as getComparisonQueryKey,
   useSubmitEvaluationApiV1ComparisonsComparisonIdEvaluationsPost as useSubmitEvaluation,
   useListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet as useComparisonEvaluations,
+  // team: members, invitations, audit log
+  useListMembersApiV1WorkspacesWorkspaceIdMembersGet as useMembers,
+  getListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryKey as getMembersQueryKey,
+  useUpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch as useUpdateMember,
+  useRemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete as useRemoveMember,
+  useListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet as useInvitations,
+  getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryKey as getInvitationsQueryKey,
+  useCreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPost as useCreateInvitation,
+  useRevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete as useRevokeInvitation,
+  // Preview is a POST because the token is a bearer credential and a GET would
+  // write it into server access logs. It is still a read, so callers wrap this
+  // raw function in a query rather than treating it as a mutation.
+  previewInvitationApiV1InvitationsPreviewPost as previewInvitation,
+  useAcceptInvitationApiV1InvitationsAcceptPost as useAcceptInvitation,
+  useReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet as useAuditLog,
+  getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryKey as getAuditLogQueryKey,
+  // pre-registration
+  useListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet as useProjectPreRegistrations,
+  getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryKey as getProjectPreRegistrationsQueryKey,
+  useGetPreRegistrationApiV1PreRegistrationsPreregIdGet as usePreRegistration,
+  getGetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryKey as getPreRegistrationQueryKey,
+  useCreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost as useCreatePreRegistration,
+  useUpdatePreRegistrationApiV1PreRegistrationsPreregIdPatch as useUpdatePreRegistration,
+  useRegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost as useRegisterPreRegistration,
+  useWithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost as useWithdrawPreRegistration,
+  useSetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch as useSetPreRegistrationPolicy,
 } from '@workspace/api-client-react';
 
 /** Base URL prefix for hand-rolled requests (SSE, downloads). Includes no trailing slash. */

@@ -33,6 +33,26 @@ export interface AgentProfileOut {
   latest_version?: AgentVersionOut | null;
 }
 
+export type AuditEventOutMetadata = { [key: string]: unknown };
+
+export interface AuditEventOut {
+  id: number;
+  workspace_id: string;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  actor_display_name: string | null;
+  action: string;
+  object_type: string;
+  object_id: string | null;
+  metadata: AuditEventOutMetadata;
+  created_at: string;
+}
+
+export interface AuditLogOut {
+  events: AuditEventOut[];
+  next_offset: number | null;
+}
+
 export interface BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost {
   file: Blob;
   title?: string | null;
@@ -354,6 +374,58 @@ export interface InterventionOut {
   created_at: string;
 }
 
+export interface InvitationAcceptIn {
+  token: string;
+}
+
+export interface InvitationCreateIn {
+  email: string;
+  role: string;
+  spend_limit_usd?: number | string | null;
+  /**
+     * @minimum 1
+     * @maximum 90
+     */
+  expiry_days?: number;
+}
+
+export interface InvitationCreateOut {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: string;
+  status: string;
+  spend_limit_usd: string | null;
+  invited_by: string | null;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  token: string;
+}
+
+export interface InvitationOut {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: string;
+  status: string;
+  spend_limit_usd: string | null;
+  invited_by: string | null;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+export interface InvitationPreviewOut {
+  workspace_name: string;
+  role: string;
+  inviter_display_name: string | null;
+  expires_at: string;
+  email_matches: boolean;
+}
+
 export interface LaunchOut {
   run_id: string;
   meeting_definition_id: string;
@@ -437,6 +509,24 @@ export interface MeetingDraftOut {
   updated_at: string;
 }
 
+export interface MemberOut {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  role: string;
+  spend_limit_usd: string | null;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
+  current_month_spend_usd: string;
+  joined_at: string | null;
+  created_at: string;
+}
+
+export interface MemberUpdateIn {
+  role?: string | null;
+  spend_limit_usd?: number | string | null;
+  set_spend_limit?: boolean;
+}
+
 export interface PmcImportIn {
   /**
      * @minLength 3
@@ -456,6 +546,82 @@ export interface PmcSearchIn {
      * @maximum 25
      */
   limit?: number;
+}
+
+export interface PolicyIn {
+  pre_registration_required: boolean;
+}
+
+export interface PolicyOut {
+  project_id: string;
+  pre_registration_required: boolean;
+  warning?: string | null;
+}
+
+export interface PreRegistrationCreateIn {
+  /** @minLength 1 */
+  title: string;
+  hypothesis?: string;
+  protocol?: string;
+  expected_outcomes?: string;
+  success_criteria?: string;
+  analysis_plan?: string;
+  supersedes_id?: string | null;
+  amendment_reason?: string | null;
+}
+
+export interface PreRegistrationListItem {
+  id: string;
+  project_id: string;
+  version: number;
+  status: string;
+  is_active: boolean;
+  title: string;
+  supersedes_id: string | null;
+  content_hash: string | null;
+  registered_at: string | null;
+  withdrawn_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PreRegistrationOutContentJson = { [key: string]: unknown };
+
+export interface PreRegistrationOut {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  version: number;
+  status: string;
+  is_active: boolean;
+  supersedes_id: string | null;
+  title: string;
+  hypothesis: string;
+  protocol: string;
+  expected_outcomes: string;
+  success_criteria: string;
+  analysis_plan: string;
+  amendment_reason: string | null;
+  content_json: PreRegistrationOutContentJson;
+  content_hash: string | null;
+  registered_at: string | null;
+  registered_by: string | null;
+  withdrawn_at: string | null;
+  withdrawn_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  launch_impact?: string | null;
+}
+
+export interface PreRegistrationPatchIn {
+  title?: string | null;
+  hypothesis?: string | null;
+  protocol?: string | null;
+  expected_outcomes?: string | null;
+  success_criteria?: string | null;
+  analysis_plan?: string | null;
+  amendment_reason?: string | null;
 }
 
 export interface ProjectCreateIn {
@@ -490,6 +656,7 @@ export interface ProjectOut {
   research_question: string | null;
   human_decision_supported: string | null;
   tags: unknown[];
+  pre_registration_required?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -520,6 +687,8 @@ export interface ProviderConfigOut {
   last_tested_at?: string | null;
   last_test_status: string | null;
   last_test_safe_message: string | null;
+  scope?: string;
+  owner_user_id?: string | null;
   models?: ProviderModelOut[];
 }
 
@@ -537,6 +706,14 @@ export type ProviderCreateInCredentialSource = typeof ProviderCreateInCredential
 export const ProviderCreateInCredentialSource = {
   api_key: 'api_key',
   replit_ai: 'replit_ai',
+} as const;
+
+export type ProviderCreateInScope = typeof ProviderCreateInScope[keyof typeof ProviderCreateInScope];
+
+
+export const ProviderCreateInScope = {
+  workspace: 'workspace',
+  personal: 'personal',
 } as const;
 
 export interface ProviderModelIn {
@@ -563,6 +740,7 @@ export interface ProviderCreateIn {
   api_key?: string | null;
   credential_source?: ProviderCreateInCredentialSource;
   organization_id?: string | null;
+  scope?: ProviderCreateInScope;
   /** @maxItems 25 */
   models?: ProviderModelIn[];
 }
@@ -1369,4 +1547,31 @@ export interface ValidationEstimateOut {
   budget: ValidationEstimateOutBudget;
   recursive_execution?: RecursiveExecutionEstimateOut | null;
 }
+
+export interface WithdrawIn {
+  /** @minLength 1 */
+  reason: string;
+}
+
+export type GetRunEventsApiV1RunsRunIdEventsGetParams = {
+after?: number;
+limit?: number;
+};
+
+export type ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams = {
+action?: string | null;
+object_type?: string | null;
+actor_user_id?: string | null;
+created_after?: string | null;
+created_before?: string | null;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
 

@@ -51,7 +51,12 @@ export default defineConfig({
       workspace: apiZodSrc,
       client: "zod",
       target: "generated",
-      schemas: { path: "generated/types", type: "typescript" },
+      // No `schemas` entry on purpose. Emitting TypeScript types here as well
+      // duplicates the models already generated into lib/api-client-react, and
+      // for any operation with query parameters orval names the type and the
+      // zod schema identically, so the package barrel could not re-export both
+      // (TS2308). This package provides the runtime validators; the types are
+      // imported from @workspace/api-client-react.
       mode: "split",
       clean: true,
       prettier: true,

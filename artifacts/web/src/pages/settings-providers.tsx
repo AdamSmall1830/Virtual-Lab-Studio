@@ -3,6 +3,8 @@
 // server-side, and never returned to the browser.
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSession } from '@/api/session';
+import { apiErrorMessage } from '@/lib/api-error';
 import {
   useProviders,
   getProvidersQueryKey,
@@ -13,7 +15,7 @@ import {
 } from '@/api';
 import type { ProviderConfigOut, ProviderModelIn } from '@/api';
 import {
-  Server, Loader2, Plus, X, KeyRound, Sparkles, CheckCircle2, XCircle, FlaskConical,
+  Server, Loader2, Plus, X, KeyRound, Sparkles, CheckCircle2, XCircle, FlaskConical, User, Users
 } from 'lucide-react';
 
 type ModelRow = {
@@ -38,13 +40,7 @@ function toModelIn(rows: ModelRow[]): ProviderModelIn[] {
 }
 
 function errText(err: unknown): string {
-  const anyErr = err as { detail?: unknown } | undefined;
-  const d = anyErr && (anyErr as Record<string, unknown>).detail;
-  if (typeof d === 'string') return d;
-  if (Array.isArray(d) && d[0]?.msg) return String(d[0].msg);
-  const t = (anyErr as Record<string, unknown> | undefined)?.title;
-  if (typeof t === 'string') return t;
-  return 'Request failed. Check the values and try again.';
+  return apiErrorMessage(err, 'Request failed. Check the values and try again.');
 }
 
 function ModelRowsEditor({ rows, setRows }: { rows: ModelRow[]; setRows: (r: ModelRow[]) => void }) {
@@ -86,11 +82,26 @@ function AddProviderForm({ workspaceId, onDone }: { workspaceId: string; onDone:
   const create = useCreateProvider();
 
   const [source, setSource] = React.useState<'openai' | 'compatible' | 'replit_ai'>('openai');
+  const [scope, setScope] = React.useState<'workspace' | 'personal'>('workspace');
   const [name, setName] = React.useState('');
   const [baseUrl, setBaseUrl] = React.useState('');
   const [apiKey, setApiKey] = React.useState('');
   const [rows, setRows] = React.useState<ModelRow[]>([{ ...EMPTY_MODEL }]);
   const [error, setError] = React.useState<string | null>(null);
+
+  const handleSourceChange = (newSource: 'openai' | 'compatible' | 'replit_ai') => {
+    if (newSource === 'replit_ai' && scope === 'personal') {
+      setScope('workspace');
+    }
+    setSource(newSource);
+  };
+
+  const handleScopeChange = (newScope: 'workspace' | 'personal') => {
+    if (newScope === 'personal' && source === 'replit_ai') {
+      setSource('openai');
+    }
+    setScope(newScope);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +117,7 @@ function AddProviderForm({ workspaceId, onDone }: { workspaceId: string; onDone:
           base_url: source === 'compatible' ? baseUrl.trim() : null,
           api_key: source === 'replit_ai' ? null : apiKey,
           credential_source: source === 'replit_ai' ? 'replit_ai' : 'api_key',
+          scope,
           models,
         },
       });
@@ -117,35 +129,68 @@ function AddProviderForm({ workspaceId, onDone }: { workspaceId: string; onDone:
   };
 
   return (
-    <form onSubmit={submit} className="bg-background border rounded-lg p-4 space-y-4" data-testid="form-add-provider">
-      <div className="flex gap-2 flex-wrap">
-        {([
-          ['openai', 'OpenAI', KeyRound],
-          ['compatible', 'OpenAI-compatible', Server],
-          ['replit_ai', 'Replit AI (no key)', Sparkles],
-        ] as const).map(([id, label, Icon]) => (
-          <button key={id} type="button" onClick={() => setSource(id)}
-            disabled={id === 'replit_ai' && !replitAvailable}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
-              source === id ? 'border-primary text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
-            } ${id === 'replit_ai' && !replitAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
-            data-testid={`button-source-${id}`}>
-            <Icon className="w-3.5 h-3.5" /> {label}
-          </button>
-        ))}
+    <form onSubmit={submit} className="bg-background border rounded-lg p-5 space-y-5" data-testid="form-add-provider">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <span className="text-xs text-muted-foreground font-medium">1. Scope (Who pays for this?)</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button type="button" onClick={() => handleScopeChange('workspace')}
+              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${
+                scope === 'workspace' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'bg-background hover:bg-muted/50'
+              }`}>
+              <div className={`flex items-center gap-1.5 font-medium text-sm ${scope === 'workspace' ? 'text-primary' : 'text-foreground'}`}>
+                <Users className="w-4 h-4" /> Workspace Shared
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-tight">Shared with all members. Usage counts against the lab's monthly cap.</div>
+            </button>
+            <button type="button" onClick={() => handleScopeChange('personal')}
+              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${
+                scope === 'personal' ? 'border-secondary bg-secondary/5 ring-1 ring-secondary' : 'bg-background hover:bg-muted/50'
+              }`}>
+              <div className={`flex items-center gap-1.5 font-medium text-sm ${scope === 'personal' ? 'text-secondary' : 'text-foreground'}`}>
+                <User className="w-4 h-4" /> Personal Key
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-tight">Only you can use this. Billed directly to you, ignores workspace caps.</div>
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-xs text-muted-foreground font-medium">2. Connection type</span>
+          <div className="flex gap-2 flex-wrap">
+            {([
+              ['openai', 'OpenAI', KeyRound],
+              ['compatible', 'OpenAI-compatible', Server],
+              ['replit_ai', 'Replit AI (no key)', Sparkles],
+            ] as const).map(([id, label, Icon]) => {
+              const disabled = (id === 'replit_ai' && !replitAvailable) || (id === 'replit_ai' && scope === 'personal');
+              return (
+                <button key={id} type="button" onClick={() => handleSourceChange(id as 'openai' | 'compatible' | 'replit_ai')}
+                  disabled={disabled}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                    source === id ? 'border-primary text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+                  } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  data-testid={`button-source-${id}`}>
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </button>
+              );
+            })}
+          </div>
+          {source === 'replit_ai' && scope === 'workspace' && (
+            <p className="text-[11px] text-muted-foreground">
+              Uses the workspace's Replit AI integration — no API key needed. Usage is billed to the Replit account.
+            </p>
+          )}
+          {source === 'replit_ai' && !replitAvailable && (
+            <p className="text-[11px] text-amber-500">Replit AI is not configured in this environment.</p>
+          )}
+        </div>
       </div>
-      {source === 'replit_ai' && (
-        <p className="text-xs text-muted-foreground">
-          Uses the workspace's Replit AI integration — no API key needed. Usage is billed to the Replit account.
-        </p>
-      )}
-      {source === 'replit_ai' && !replitAvailable && (
-        <p className="text-xs text-amber-500">Replit AI is not configured in this environment.</p>
-      )}
-      <div className="grid gap-3 sm:grid-cols-2">
+
+      <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t">
         <label className="text-xs space-y-1">
           <span className="text-muted-foreground">Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. OpenAI (lab account)"
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={scope === 'personal' ? "e.g. OpenAI (My personal key)" : "e.g. OpenAI (Lab account)"}
             className="vls-input w-full" data-testid="input-provider-name" />
         </label>
         {source === 'compatible' && (
@@ -182,7 +227,7 @@ function AddProviderForm({ workspaceId, onDone }: { workspaceId: string; onDone:
   );
 }
 
-function ProviderCard({ p, workspaceId }: { p: ProviderConfigOut; workspaceId: string }) {
+function ProviderCard({ p, workspaceId, userId }: { p: ProviderConfigOut; workspaceId: string; userId?: string }) {
   const queryClient = useQueryClient();
   const update = useUpdateProvider();
   const test = useTestProvider();
@@ -200,6 +245,8 @@ function ProviderCard({ p, workspaceId }: { p: ProviderConfigOut; workspaceId: s
   const [error, setError] = React.useState<string | null>(null);
   const [testResult, setTestResult] = React.useState<{ status: string; message: string } | null>(null);
   const isDemo = p.provider_type === 'demo';
+  const isPersonal = p.scope === 'personal';
+  const isMine = isPersonal && p.owner_user_id === userId;
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getProvidersQueryKey(workspaceId) });
 
   const saveEdit = async () => {
@@ -238,19 +285,32 @@ function ProviderCard({ p, workspaceId }: { p: ProviderConfigOut; workspaceId: s
           <div className="min-w-0">
             <div className="font-semibold flex items-center gap-2 flex-wrap">
               {p.name}
-              <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                isDemo ? 'bg-amber-500/10 text-amber-500' : 'bg-primary/10 text-primary'
-              }`}>
-                {isDemo ? 'Simulation' : 'Real model'}
-              </span>
+              {isPersonal ? (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20">
+                  <User className="w-3 h-3" /> {isMine ? 'Personal (My Key)' : 'Personal'}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                  <Users className="w-3 h-3" /> Workspace Shared
+                </span>
+              )}
+              {isDemo && (
+                <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider border border-amber-500/20">
+                  Simulation
+                </span>
+              )}
               {p.credential_source === 'replit_ai' && (
-                <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Replit AI</span>
+                <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider border border-primary/20">
+                  Replit AI
+                </span>
               )}
               {!p.is_enabled && (
-                <span className="bg-muted text-muted-foreground text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Disabled</span>
+                <span className="bg-muted text-muted-foreground text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider border border-muted-foreground/20">
+                  Disabled
+                </span>
               )}
             </div>
-            <div className="text-sm text-muted-foreground truncate">
+            <div className="text-sm text-muted-foreground truncate mt-1">
               {p.provider_type}
               {p.base_url && ` · ${p.base_url}`}
               {p.models && p.models.length > 0 && ` · ${p.models.length} model${p.models.length > 1 ? 's' : ''}`}
@@ -320,6 +380,7 @@ function ProviderCard({ p, workspaceId }: { p: ProviderConfigOut; workspaceId: s
 }
 
 export default function ProvidersTab({ workspaceId }: { workspaceId: string }) {
+  const { user } = useSession();
   const providersQuery = useProviders(workspaceId, {
     query: { queryKey: getProvidersQueryKey(workspaceId), enabled: Boolean(workspaceId) },
   });
@@ -357,7 +418,7 @@ export default function ProvidersTab({ workspaceId }: { workspaceId: string }) {
           </div>
         )}
         {providersQuery.isError && <p className="text-sm text-destructive">Could not load providers.</p>}
-        {providersQuery.data?.map((p) => <ProviderCard key={p.id} p={p} workspaceId={workspaceId} />)}
+        {providersQuery.data?.map((p) => <ProviderCard key={p.id} p={p} workspaceId={workspaceId} userId={user?.id} />)}
         {providersQuery.data && providersQuery.data.length === 0 && (
           <p className="text-sm text-muted-foreground">No providers configured for this workspace.</p>
         )}

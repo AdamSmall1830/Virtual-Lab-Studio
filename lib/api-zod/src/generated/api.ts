@@ -86,6 +86,8 @@ export const ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetParams = zod.objec
   "workspace_id": zod.uuid()
 })
 
+export const listProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponsePreRegistrationRequiredDefault = false;
+
 export const ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponseItem = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -97,6 +99,7 @@ export const ListProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponseItem = zod
   "research_question": zod.union([zod.string(),zod.null()]),
   "human_decision_supported": zod.union([zod.string(),zod.null()]),
   "tags": zod.array(zod.unknown()),
+  "pre_registration_required": zod.boolean().default(listProjectsApiV1WorkspacesWorkspaceIdProjectsGetResponsePreRegistrationRequiredDefault),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()
 })
@@ -143,6 +146,8 @@ export const CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostBody = zod.objec
   "tags": zod.array(zod.string()).max(createProjectApiV1WorkspacesWorkspaceIdProjectsPostBodyTagsMax).optional()
 })
 
+export const createProjectApiV1WorkspacesWorkspaceIdProjectsPostResponsePreRegistrationRequiredDefault = false;
+
 export const CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -154,6 +159,7 @@ export const CreateProjectApiV1WorkspacesWorkspaceIdProjectsPostResponse = zod.o
   "research_question": zod.union([zod.string(),zod.null()]),
   "human_decision_supported": zod.union([zod.string(),zod.null()]),
   "tags": zod.array(zod.unknown()),
+  "pre_registration_required": zod.boolean().default(createProjectApiV1WorkspacesWorkspaceIdProjectsPostResponsePreRegistrationRequiredDefault),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()
 })
@@ -166,6 +172,8 @@ export const GetProjectApiV1ProjectsProjectIdGetParams = zod.object({
   "project_id": zod.uuid()
 })
 
+export const getProjectApiV1ProjectsProjectIdGetResponsePreRegistrationRequiredDefault = false;
+
 export const GetProjectApiV1ProjectsProjectIdGetResponse = zod.object({
   "id": zod.uuid(),
   "workspace_id": zod.uuid(),
@@ -177,6 +185,7 @@ export const GetProjectApiV1ProjectsProjectIdGetResponse = zod.object({
   "research_question": zod.union([zod.string(),zod.null()]),
   "human_decision_supported": zod.union([zod.string(),zod.null()]),
   "tags": zod.array(zod.unknown()),
+  "pre_registration_required": zod.boolean().default(getProjectApiV1ProjectsProjectIdGetResponsePreRegistrationRequiredDefault),
   "created_at": zod.coerce.date(),
   "updated_at": zod.coerce.date()
 })
@@ -255,6 +264,7 @@ export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetParams = zod.obj
 
 export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseCredentialSourceDefault = `api_key`;
 export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseHasCredentialsDefault = false;
+export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseScopeDefault = `workspace`;
 export const listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseModelsDefault = [];
 
 export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem = zod.object({
@@ -269,6 +279,8 @@ export const ListProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseItem = z
   "last_tested_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
   "last_test_status": zod.union([zod.string(),zod.null()]),
   "last_test_safe_message": zod.union([zod.string(),zod.null()]),
+  "scope": zod.string().default(listProvidersApiV1WorkspacesWorkspaceIdProvidersGetResponseScopeDefault),
+  "owner_user_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "models": zod.array(zod.object({
   "id": zod.uuid(),
   "provider_config_id": zod.uuid(),
@@ -302,6 +314,7 @@ export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyApiKeyOneM
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyCredentialSourceDefault = `api_key`;
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyOrganizationIdOneMax = 200;
 
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyScopeDefault = `workspace`;
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemModelKeyMax = 200;
 
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemDisplayNameOneMax = 200;
@@ -324,6 +337,7 @@ export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostBody = zod.obj
   "api_key": zod.union([zod.string().min(1).max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyApiKeyOneMax),zod.null()]).optional(),
   "credential_source": zod.enum(['api_key', 'replit_ai']).default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyCredentialSourceDefault),
   "organization_id": zod.union([zod.string().max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyOrganizationIdOneMax),zod.null()]).optional(),
+  "scope": zod.enum(['workspace', 'personal']).default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyScopeDefault),
   "models": zod.array(zod.object({
   "model_key": zod.string().min(1).max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemModelKeyMax),
   "display_name": zod.union([zod.string().max(createProviderApiV1WorkspacesWorkspaceIdProvidersPostBodyModelsItemDisplayNameOneMax),zod.null()]).optional(),
@@ -336,6 +350,7 @@ export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostBody = zod.obj
 
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseCredentialSourceDefault = `api_key`;
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseHasCredentialsDefault = false;
+export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseScopeDefault = `workspace`;
 export const createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseModelsDefault = [];
 
 export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostResponse = zod.object({
@@ -350,6 +365,8 @@ export const CreateProviderApiV1WorkspacesWorkspaceIdProvidersPostResponse = zod
   "last_tested_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
   "last_test_status": zod.union([zod.string(),zod.null()]),
   "last_test_safe_message": zod.union([zod.string(),zod.null()]),
+  "scope": zod.string().default(createProviderApiV1WorkspacesWorkspaceIdProvidersPostResponseScopeDefault),
+  "owner_user_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "models": zod.array(zod.object({
   "id": zod.uuid(),
   "provider_config_id": zod.uuid(),
@@ -422,6 +439,7 @@ export const UpdateProviderApiV1ProvidersProviderIdPatchBody = zod.object({
 
 export const updateProviderApiV1ProvidersProviderIdPatchResponseCredentialSourceDefault = `api_key`;
 export const updateProviderApiV1ProvidersProviderIdPatchResponseHasCredentialsDefault = false;
+export const updateProviderApiV1ProvidersProviderIdPatchResponseScopeDefault = `workspace`;
 export const updateProviderApiV1ProvidersProviderIdPatchResponseModelsDefault = [];
 
 export const UpdateProviderApiV1ProvidersProviderIdPatchResponse = zod.object({
@@ -436,6 +454,8 @@ export const UpdateProviderApiV1ProvidersProviderIdPatchResponse = zod.object({
   "last_tested_at": zod.union([zod.coerce.date(),zod.null()]).optional(),
   "last_test_status": zod.union([zod.string(),zod.null()]),
   "last_test_safe_message": zod.union([zod.string(),zod.null()]),
+  "scope": zod.string().default(updateProviderApiV1ProvidersProviderIdPatchResponseScopeDefault),
+  "owner_user_id": zod.union([zod.uuid(),zod.null()]).optional(),
   "models": zod.array(zod.object({
   "id": zod.uuid(),
   "provider_config_id": zod.uuid(),
@@ -756,6 +776,14 @@ export const GetRunSummaryApiV1RunsRunIdSummaryGetResponse = zod.object({
  */
 export const GetRunEventsApiV1RunsRunIdEventsGetParams = zod.object({
   "run_id": zod.uuid()
+})
+
+export const getRunEventsApiV1RunsRunIdEventsGetQueryAfterDefault = 0;
+export const getRunEventsApiV1RunsRunIdEventsGetQueryLimitDefault = 500;
+
+export const GetRunEventsApiV1RunsRunIdEventsGetQueryParams = zod.object({
+  "after": zod.coerce.number().int().default(getRunEventsApiV1RunsRunIdEventsGetQueryAfterDefault),
+  "limit": zod.coerce.number().int().default(getRunEventsApiV1RunsRunIdEventsGetQueryLimitDefault)
 })
 
 export const GetRunEventsApiV1RunsRunIdEventsGetResponseItem = zod.object({
@@ -1586,6 +1614,489 @@ export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponseIt
   "submitted_at": zod.coerce.date()
 })
 export const ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponse = zod.array(ListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGetResponseItem)
+
+
+/**
+ * @summary List Members
+ */
+export const ListMembersApiV1WorkspacesWorkspaceIdMembersGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const listMembersApiV1WorkspacesWorkspaceIdMembersGetResponseSpendLimitUsdOneRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+export const listMembersApiV1WorkspacesWorkspaceIdMembersGetResponseCurrentMonthSpendUsdRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+
+
+export const ListMembersApiV1WorkspacesWorkspaceIdMembersGetResponseItem = zod.object({
+  "user_id": zod.uuid(),
+  "email": zod.string(),
+  "display_name": zod.union([zod.string(),zod.null()]),
+  "role": zod.string(),
+  "spend_limit_usd": zod.union([zod.string().regex(listMembersApiV1WorkspacesWorkspaceIdMembersGetResponseSpendLimitUsdOneRegExp),zod.null()]),
+  "current_month_spend_usd": zod.string().regex(listMembersApiV1WorkspacesWorkspaceIdMembersGetResponseCurrentMonthSpendUsdRegExp),
+  "joined_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+export const ListMembersApiV1WorkspacesWorkspaceIdMembersGetResponse = zod.array(ListMembersApiV1WorkspacesWorkspaceIdMembersGetResponseItem)
+
+
+/**
+ * @summary Update Member
+ */
+export const UpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchParams = zod.object({
+  "workspace_id": zod.uuid(),
+  "member_id": zod.uuid()
+})
+
+export const updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchBodySpendLimitUsdTwoRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+export const updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchBodySetSpendLimitDefault = false;
+
+export const UpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchBody = zod.object({
+  "role": zod.union([zod.string(),zod.null()]).optional(),
+  "spend_limit_usd": zod.union([zod.number(),zod.string().regex(updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchBodySpendLimitUsdTwoRegExp),zod.null()]).optional(),
+  "set_spend_limit": zod.boolean().default(updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchBodySetSpendLimitDefault)
+})
+
+export const updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchResponseSpendLimitUsdOneRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+export const updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchResponseCurrentMonthSpendUsdRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+
+
+export const UpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchResponse = zod.object({
+  "user_id": zod.uuid(),
+  "email": zod.string(),
+  "display_name": zod.union([zod.string(),zod.null()]),
+  "role": zod.string(),
+  "spend_limit_usd": zod.union([zod.string().regex(updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchResponseSpendLimitUsdOneRegExp),zod.null()]),
+  "current_month_spend_usd": zod.string().regex(updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchResponseCurrentMonthSpendUsdRegExp),
+  "joined_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove Member
+ */
+export const RemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteParams = zod.object({
+  "workspace_id": zod.uuid(),
+  "member_id": zod.uuid()
+})
+
+export const RemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteResponse = zod.void()
+
+
+/**
+ * @summary Create Invitation
+ */
+export const CreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBodySpendLimitUsdTwoRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+export const createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBodyExpiryDaysDefault = 14;
+export const createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBodyExpiryDaysMax = 90;
+
+
+
+export const CreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBody = zod.object({
+  "email": zod.string(),
+  "role": zod.string(),
+  "spend_limit_usd": zod.union([zod.number(),zod.string().regex(createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBodySpendLimitUsdTwoRegExp),zod.null()]).optional(),
+  "expiry_days": zod.int().min(1).max(createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBodyExpiryDaysMax).default(createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostBodyExpiryDaysDefault)
+})
+
+export const createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostResponseSpendLimitUsdOneRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+
+
+export const CreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "status": zod.string(),
+  "spend_limit_usd": zod.union([zod.string().regex(createInvitationApiV1WorkspacesWorkspaceIdInvitationsPostResponseSpendLimitUsdOneRegExp),zod.null()]),
+  "invited_by": zod.union([zod.uuid(),zod.null()]),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.union([zod.coerce.date(),zod.null()]),
+  "revoked_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "token": zod.string()
+})
+
+
+/**
+ * @summary List Invitations
+ */
+export const ListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetResponseSpendLimitUsdOneRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+
+
+export const ListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "status": zod.string(),
+  "spend_limit_usd": zod.union([zod.string().regex(listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetResponseSpendLimitUsdOneRegExp),zod.null()]),
+  "invited_by": zod.union([zod.uuid(),zod.null()]),
+  "expires_at": zod.coerce.date(),
+  "accepted_at": zod.union([zod.coerce.date(),zod.null()]),
+  "revoked_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+export const ListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetResponse = zod.array(ListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetResponseItem)
+
+
+/**
+ * @summary Revoke Invitation
+ */
+export const RevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteParams = zod.object({
+  "workspace_id": zod.uuid(),
+  "invitation_id": zod.uuid()
+})
+
+export const RevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteResponse = zod.void()
+
+
+/**
+ * Inspect an invitation before committing to it.
+ *
+ * A POST, despite being a read: the token is a bearer credential, and a GET
+ * would put it in the request line, where the web server's access log records
+ * it verbatim. The body keeps it out of server logs and out of any proxy in
+ * between.
+ * @summary Preview Invitation
+ */
+export const PreviewInvitationApiV1InvitationsPreviewPostBody = zod.object({
+  "token": zod.string()
+})
+
+export const PreviewInvitationApiV1InvitationsPreviewPostResponse = zod.object({
+  "workspace_name": zod.string(),
+  "role": zod.string(),
+  "inviter_display_name": zod.union([zod.string(),zod.null()]),
+  "expires_at": zod.coerce.date(),
+  "email_matches": zod.boolean()
+})
+
+
+/**
+ * @summary Accept Invitation
+ */
+export const AcceptInvitationApiV1InvitationsAcceptPostBody = zod.object({
+  "token": zod.string()
+})
+
+export const acceptInvitationApiV1InvitationsAcceptPostResponseSpendLimitUsdOneRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+export const acceptInvitationApiV1InvitationsAcceptPostResponseCurrentMonthSpendUsdRegExp = new RegExp('^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$');
+
+
+export const AcceptInvitationApiV1InvitationsAcceptPostResponse = zod.object({
+  "user_id": zod.uuid(),
+  "email": zod.string(),
+  "display_name": zod.union([zod.string(),zod.null()]),
+  "role": zod.string(),
+  "spend_limit_usd": zod.union([zod.string().regex(acceptInvitationApiV1InvitationsAcceptPostResponseSpendLimitUsdOneRegExp),zod.null()]),
+  "current_month_spend_usd": zod.string().regex(acceptInvitationApiV1InvitationsAcceptPostResponseCurrentMonthSpendUsdRegExp),
+  "joined_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Read Audit Log
+ */
+export const ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams = zod.object({
+  "workspace_id": zod.uuid()
+})
+
+export const readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryLimitDefault = 50;
+export const readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryLimitMax = 100;
+
+export const readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryOffsetDefault = 0;
+export const readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryOffsetMin = 0;
+
+
+
+export const ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryParams = zod.object({
+  "action": zod.union([zod.coerce.string(),zod.null()]).optional(),
+  "object_type": zod.union([zod.coerce.string(),zod.null()]).optional(),
+  "actor_user_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "created_after": zod.union([zod.date(),zod.null()]).optional(),
+  "created_before": zod.union([zod.date(),zod.null()]).optional(),
+  "limit": zod.coerce.number().int().min(1).max(readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryLimitMax).default(readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryOffsetMin).default(readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryOffsetDefault)
+})
+
+export const ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.int(),
+  "workspace_id": zod.uuid(),
+  "actor_user_id": zod.union([zod.uuid(),zod.null()]),
+  "actor_email": zod.union([zod.string(),zod.null()]),
+  "actor_display_name": zod.union([zod.string(),zod.null()]),
+  "action": zod.string(),
+  "object_type": zod.string(),
+  "object_id": zod.union([zod.string(),zod.null()]),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "created_at": zod.coerce.date()
+})),
+  "next_offset": zod.union([zod.int(),zod.null()])
+})
+
+
+/**
+ * @summary List Pre Registrations
+ */
+export const ListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const ListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetResponseItem = zod.object({
+  "id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "version": zod.int(),
+  "status": zod.string(),
+  "is_active": zod.boolean(),
+  "title": zod.string(),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]),
+  "content_hash": zod.union([zod.string(),zod.null()]),
+  "registered_at": zod.union([zod.coerce.date(),zod.null()]),
+  "withdrawn_at": zod.union([zod.coerce.date(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date()
+})
+export const ListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetResponse = zod.array(ListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetResponseItem)
+
+
+/**
+ * @summary Create Pre Registration
+ */
+export const CreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+
+export const createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyHypothesisDefault = ``;
+export const createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyProtocolDefault = ``;
+export const createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyExpectedOutcomesDefault = ``;
+export const createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodySuccessCriteriaDefault = ``;
+export const createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyAnalysisPlanDefault = ``;
+
+export const CreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBody = zod.object({
+  "title": zod.string().min(1),
+  "hypothesis": zod.string().default(createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyHypothesisDefault),
+  "protocol": zod.string().default(createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyProtocolDefault),
+  "expected_outcomes": zod.string().default(createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyExpectedOutcomesDefault),
+  "success_criteria": zod.string().default(createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodySuccessCriteriaDefault),
+  "analysis_plan": zod.string().default(createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostBodyAnalysisPlanDefault),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const CreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "version": zod.int(),
+  "status": zod.string(),
+  "is_active": zod.boolean(),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]),
+  "title": zod.string(),
+  "hypothesis": zod.string(),
+  "protocol": zod.string(),
+  "expected_outcomes": zod.string(),
+  "success_criteria": zod.string(),
+  "analysis_plan": zod.string(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]),
+  "content_json": zod.record(zod.string(), zod.unknown()),
+  "content_hash": zod.union([zod.string(),zod.null()]),
+  "registered_at": zod.union([zod.coerce.date(),zod.null()]),
+  "registered_by": zod.union([zod.uuid(),zod.null()]),
+  "withdrawn_at": zod.union([zod.coerce.date(),zod.null()]),
+  "withdrawn_reason": zod.union([zod.string(),zod.null()]),
+  "created_by": zod.union([zod.uuid(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "launch_impact": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Get Pre Registration
+ */
+export const GetPreRegistrationApiV1PreRegistrationsPreregIdGetParams = zod.object({
+  "prereg_id": zod.uuid()
+})
+
+export const GetPreRegistrationApiV1PreRegistrationsPreregIdGetResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "version": zod.int(),
+  "status": zod.string(),
+  "is_active": zod.boolean(),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]),
+  "title": zod.string(),
+  "hypothesis": zod.string(),
+  "protocol": zod.string(),
+  "expected_outcomes": zod.string(),
+  "success_criteria": zod.string(),
+  "analysis_plan": zod.string(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]),
+  "content_json": zod.record(zod.string(), zod.unknown()),
+  "content_hash": zod.union([zod.string(),zod.null()]),
+  "registered_at": zod.union([zod.coerce.date(),zod.null()]),
+  "registered_by": zod.union([zod.uuid(),zod.null()]),
+  "withdrawn_at": zod.union([zod.coerce.date(),zod.null()]),
+  "withdrawn_reason": zod.union([zod.string(),zod.null()]),
+  "created_by": zod.union([zod.uuid(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "launch_impact": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Update Pre Registration
+ */
+export const UpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchParams = zod.object({
+  "prereg_id": zod.uuid()
+})
+
+export const UpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchBody = zod.object({
+  "title": zod.union([zod.string(),zod.null()]).optional(),
+  "hypothesis": zod.union([zod.string(),zod.null()]).optional(),
+  "protocol": zod.union([zod.string(),zod.null()]).optional(),
+  "expected_outcomes": zod.union([zod.string(),zod.null()]).optional(),
+  "success_criteria": zod.union([zod.string(),zod.null()]).optional(),
+  "analysis_plan": zod.union([zod.string(),zod.null()]).optional(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const UpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "version": zod.int(),
+  "status": zod.string(),
+  "is_active": zod.boolean(),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]),
+  "title": zod.string(),
+  "hypothesis": zod.string(),
+  "protocol": zod.string(),
+  "expected_outcomes": zod.string(),
+  "success_criteria": zod.string(),
+  "analysis_plan": zod.string(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]),
+  "content_json": zod.record(zod.string(), zod.unknown()),
+  "content_hash": zod.union([zod.string(),zod.null()]),
+  "registered_at": zod.union([zod.coerce.date(),zod.null()]),
+  "registered_by": zod.union([zod.uuid(),zod.null()]),
+  "withdrawn_at": zod.union([zod.coerce.date(),zod.null()]),
+  "withdrawn_reason": zod.union([zod.string(),zod.null()]),
+  "created_by": zod.union([zod.uuid(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "launch_impact": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Register Pre Registration
+ */
+export const RegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostParams = zod.object({
+  "prereg_id": zod.uuid()
+})
+
+export const RegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "version": zod.int(),
+  "status": zod.string(),
+  "is_active": zod.boolean(),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]),
+  "title": zod.string(),
+  "hypothesis": zod.string(),
+  "protocol": zod.string(),
+  "expected_outcomes": zod.string(),
+  "success_criteria": zod.string(),
+  "analysis_plan": zod.string(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]),
+  "content_json": zod.record(zod.string(), zod.unknown()),
+  "content_hash": zod.union([zod.string(),zod.null()]),
+  "registered_at": zod.union([zod.coerce.date(),zod.null()]),
+  "registered_by": zod.union([zod.uuid(),zod.null()]),
+  "withdrawn_at": zod.union([zod.coerce.date(),zod.null()]),
+  "withdrawn_reason": zod.union([zod.string(),zod.null()]),
+  "created_by": zod.union([zod.uuid(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "launch_impact": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Withdraw Pre Registration
+ */
+export const WithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostParams = zod.object({
+  "prereg_id": zod.uuid()
+})
+
+
+
+
+export const WithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostBody = zod.object({
+  "reason": zod.string().min(1)
+})
+
+export const WithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostResponse = zod.object({
+  "id": zod.uuid(),
+  "workspace_id": zod.uuid(),
+  "project_id": zod.uuid(),
+  "version": zod.int(),
+  "status": zod.string(),
+  "is_active": zod.boolean(),
+  "supersedes_id": zod.union([zod.uuid(),zod.null()]),
+  "title": zod.string(),
+  "hypothesis": zod.string(),
+  "protocol": zod.string(),
+  "expected_outcomes": zod.string(),
+  "success_criteria": zod.string(),
+  "analysis_plan": zod.string(),
+  "amendment_reason": zod.union([zod.string(),zod.null()]),
+  "content_json": zod.record(zod.string(), zod.unknown()),
+  "content_hash": zod.union([zod.string(),zod.null()]),
+  "registered_at": zod.union([zod.coerce.date(),zod.null()]),
+  "registered_by": zod.union([zod.uuid(),zod.null()]),
+  "withdrawn_at": zod.union([zod.coerce.date(),zod.null()]),
+  "withdrawn_reason": zod.union([zod.string(),zod.null()]),
+  "created_by": zod.union([zod.uuid(),zod.null()]),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "launch_impact": zod.union([zod.string(),zod.null()]).optional()
+})
+
+
+/**
+ * @summary Set Pre Registration Policy
+ */
+export const SetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchParams = zod.object({
+  "project_id": zod.uuid()
+})
+
+export const SetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchBody = zod.object({
+  "pre_registration_required": zod.boolean()
+})
+
+export const SetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchResponse = zod.object({
+  "project_id": zod.uuid(),
+  "pre_registration_required": zod.boolean(),
+  "warning": zod.union([zod.string(),zod.null()]).optional()
+})
 
 
 /**

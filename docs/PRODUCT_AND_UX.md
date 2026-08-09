@@ -70,6 +70,7 @@ Overview | Meetings | Evidence | Notebook | Compare | Settings
 /app/projects/:projectId/evidence  evidence
 /app/projects/:projectId/notebook  notebook
 /app/projects/:projectId/compare   comparisons
+/app/projects/:projectId/pre-registration  pre-registration document + project policy
 /app/projects/:projectId/settings  project settings
 /app/agents                        Agent Studio
 /app/templates                     Template Library
@@ -80,6 +81,8 @@ Overview | Meetings | Evidence | Notebook | Compare | Settings
 /app/runs/:runId                   Run Detail
 /app/settings/profile              profile/preferences
 /app/settings/workspace            members/defaults
+/app/settings/team                 roster, roles, per-member spend caps, invitations
+/app/invite?token=...              accept a workspace invitation (requires sign-in)
 /app/settings/providers            providers/models/pricing
 /app/settings/governance           classification/retention/disclosures
 /app/settings/audit                owner/admin audit
@@ -350,6 +353,57 @@ Premium scientific instrument: calm, precise, layered, and alive during a run. G
 ## Human rubrics
 
 General research plan, literature review, code/reproducibility, manuscript review. Scores 1–5 plus rationale and flagged passages. Optional model judging is future secondary evidence, never ground truth.
+
+## Teams and spend control
+
+A workspace is shared, and model calls cost real money, so the product makes "whose money is
+this" explicit rather than implicit.
+
+**Two kinds of provider key.** A *workspace* key is funded by the owner and usable by the
+whole workspace. A *personal* key belongs to one member: only its owner can read or use it —
+it is filtered out of the workspace provider list and fetching it by id returns 404 to anyone
+else, admins included — and spending on it is outside the workspace's control.
+
+The claim is *unusable by others*, not *undetectable*: a personal key's existence is recorded
+in the audit log and implied by any run that used it, both of which the workspace can see.
+That is deliberate. Money spent outside the workspace's control is governance information, and
+a promise of total invisibility would be one the product cannot keep. Every provider surface labels which kind it is, because choosing a provider is a
+spending decision.
+
+**Per-member spend caps.** The owner may set a monthly USD cap per member, enforced against
+workspace-funded usage only. A member with no cap is uncapped. The cap is checked at launch
+against the estimated workspace-funded cost of the run, and a launch that would exceed it is
+refused with `402 spend_cap_exceeded` — the estimate is not merely displayed. Personal-key
+spending is never counted against the cap.
+
+Spend is derived, not ledgered: each turn already records the provider config it used and its
+cost, so workspace-funded spend is a join over those rows. There is no second source of truth
+to drift.
+
+**Invitations.** Members are invited by email address. The invitation is bound to that
+address, carries the role and optional cap it will grant, and expires. Only a SHA-256 of the
+token is stored; the plaintext link is displayed exactly once, at creation, and cannot be
+recovered afterwards. Accepting requires being signed in as the invited address — the accept
+screen says so before the user commits, rather than letting them walk into a rejection.
+
+## Pre-registration
+
+Pre-registration is the practice of publishing the hypothesis, protocol, and analysis plan
+*before* seeing results, so the question cannot be quietly rewritten afterwards.
+
+A project may switch on **pre-registration required**. From then on no run launches unless an
+active registered document exists; the launch is refused with `409 pre_registration_required`.
+Turning the requirement on while nothing is registered blocks runs immediately, and the UI
+says so at the moment of the change rather than letting it be discovered at launch.
+
+A document is a draft until it is *registered*, at which point its content is hashed and
+frozen. Registered documents are never edited. To change one, register an **amendment**: a new
+version that supersedes the previous one and must state why. Superseded versions stay visible
+— the chain is the evidence.
+
+Each run records the pre-registration id and the content hash as they stood at launch, and the
+run manifest reports them, including whether the stored hash still matches the document and
+whether that document has since been superseded.
 
 ## Success measures
 

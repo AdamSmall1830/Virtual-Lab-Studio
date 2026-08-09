@@ -36,6 +36,7 @@ import LiveRoom from '@/pages/live-room';
 import RunDetail from '@/pages/run-detail';
 import Settings from '@/pages/settings';
 import ProjectCompare from '@/pages/project-compare';
+import InviteAccept from '@/pages/invite';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +79,9 @@ function AppRoutes() {
         <Route path="/app/runs/:runId" component={RunDetail} />
         <Route path="/app/settings/:tab" component={Settings} />
         <Route path="/app/settings" component={Settings} />
+        {/* Accepting an invitation requires a signed-in identity: the server
+            binds the invite to the address it was sent to. */}
+        <Route path="/app/invite" component={InviteAccept} />
         <Route component={NotFound} />
       </Switch>
     </AppShell>

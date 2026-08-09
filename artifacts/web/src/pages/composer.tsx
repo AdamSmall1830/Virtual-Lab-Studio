@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useSession } from '@/api/session';
+import { apiErrorCode, apiErrorMessage } from '@/lib/api-error';
 import {
   useProjects,
   useTemplates,
@@ -66,12 +67,8 @@ function splitLines(v: string): string[] {
   return v.split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
-function errMessage(err: unknown, fallback: string): string {
-  if (err && typeof err === 'object' && 'message' in err) {
-    const m = (err as { message?: unknown }).message;
-    if (typeof m === 'string' && m) return m;
-  }
-  return fallback;
+function errDetail(err: unknown, fallback: string): { code?: string; message: string } {
+  return { code: apiErrorCode(err), message: apiErrorMessage(err, fallback) };
 }
 
 function TemplateDef(t: TemplateProfileOut): Record<string, unknown> {
@@ -189,7 +186,7 @@ export default function Composer() {
 
   const [estimate, setEstimate] = useState<ValidationEstimateOut | null>(null);
   const [validatedDraftId, setValidatedDraftId] = useState<string | null>(null);
-  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [launchError, setLaunchError] = useState<{ code?: string; message: string } | null>(null);
   const busy = createDraft.isPending || validateDraft.isPending || launchDraft.isPending;
 
   // ---- template application ----
@@ -437,7 +434,7 @@ export default function Composer() {
       setEstimate(est);
       setValidatedDraftId(draft.id);
     } catch (err) {
-      setLaunchError(errMessage(err, 'Failed to prepare the session.'));
+      setLaunchError(errDetail(err, 'Failed to prepare the session.'));
     }
   };
 
@@ -454,7 +451,7 @@ export default function Composer() {
         });
         const est = await validateDraft.mutateAsync({ draftId: draft.id });
         if (!est.valid) {
-          setLaunchError('The session failed server validation. Review the configuration.');
+          setLaunchError({ message: 'The session failed server validation. Review the configuration.' });
           return;
         }
         targetDraftId = draft.id;
@@ -464,7 +461,7 @@ export default function Composer() {
       toast({ title: 'Session launched', description: 'The research session is starting.' });
       setLocation(`/app/runs/${launched.run_id}/live`);
     } catch (err) {
-      setLaunchError(errMessage(err, 'Launch failed.'));
+      setLaunchError(errDetail(err, 'Launch failed.'));
     }
   };
 
@@ -906,9 +903,24 @@ export default function Composer() {
       {/* Bottom Bar Content */}
       <div className="shrink-0 bg-background border border-border border-t-0 rounded-b-3xl shadow-xl z-10 transition-all duration-500 overflow-hidden">
         {launchError && (
-          <div className="bg-destructive text-destructive-foreground px-6 py-3 text-sm font-bold flex items-center justify-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
-            {launchError}
+          <div className="bg-destructive text-destructive-foreground px-6 py-4 text-sm flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center gap-2 font-bold">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>{launchError.message}</span>
+            </div>
+            {launchError.code === 'pre_registration_required' && (
+              <button
+                onClick={() => setLocation(`/app/projects/${resolvedProjectId}/pre-registration`)}
+                className="bg-background text-foreground px-3 py-1.5 rounded text-xs font-semibold hover:bg-background/90 whitespace-nowrap"
+              >
+                Go to Pre-registration
+              </button>
+            )}
+            {launchError.code === 'spend_cap_exceeded' && (
+              <div className="text-xs bg-background/20 px-3 py-1.5 rounded">
+                This is a workspace-funded limit set by the owner. Add a personal provider key in Settings to bypass it.
+              </div>
+            )}
           </div>
         )}
 

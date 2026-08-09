@@ -20,6 +20,7 @@ import type {
 
 import type {
   AgentProfileOut,
+  AuditLogOut,
   BodyUploadEvidenceApiV1ProjectsProjectIdEvidenceUploadPost,
   ComparisonCreateIn,
   ComparisonEvaluationIn,
@@ -33,15 +34,29 @@ import type {
   EvidenceSourceOut,
   ExportCreateIn,
   ExportJobOut,
+  GetRunEventsApiV1RunsRunIdEventsGetParams,
   HTTPValidationError,
   InterventionIn,
   InterventionOut,
+  InvitationAcceptIn,
+  InvitationCreateIn,
+  InvitationCreateOut,
+  InvitationOut,
+  InvitationPreviewOut,
   LaunchOut,
   MeOut,
   MeetingDraftIn,
   MeetingDraftOut,
+  MemberOut,
+  MemberUpdateIn,
   PmcImportIn,
   PmcSearchIn,
+  PolicyIn,
+  PolicyOut,
+  PreRegistrationCreateIn,
+  PreRegistrationListItem,
+  PreRegistrationOut,
+  PreRegistrationPatchIn,
   ProjectCreateIn,
   ProjectOut,
   ProviderConfigOut,
@@ -49,6 +64,7 @@ import type {
   ProviderEnvironmentOut,
   ProviderTestOut,
   ProviderUpdateIn,
+  ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams,
   RecursiveAgentJobDetailOut,
   RecursiveAgentJobOut,
   RecursiveCompletionIn,
@@ -77,6 +93,7 @@ import type {
   RunTurnOut,
   TemplateProfileOut,
   ValidationEstimateOut,
+  WithdrawIn,
   WorkspaceOut
 } from './api.schemas';
 
@@ -1758,20 +1775,29 @@ export function useGetRunSummaryApiV1RunsRunIdSummaryGet<TData = Awaited<ReturnT
 
 
 
-export const getGetRunEventsApiV1RunsRunIdEventsGetUrl = (runId: string,) => {
+export const getGetRunEventsApiV1RunsRunIdEventsGetUrl = (runId: string,
+    params?: GetRunEventsApiV1RunsRunIdEventsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/runs/${runId}/events`
+  return stringifiedParams.length > 0 ? `/api/v1/runs/${runId}/events?${stringifiedParams}` : `/api/v1/runs/${runId}/events`
 }
 
 /**
  * @summary Get Run Events
  */
-export const getRunEventsApiV1RunsRunIdEventsGet = async (runId: string, options?: Parameters<typeof customFetch>[1]): Promise<RunEventOut[]> => {
+export const getRunEventsApiV1RunsRunIdEventsGet = async (runId: string,
+    params?: GetRunEventsApiV1RunsRunIdEventsGetParams, options?: Parameters<typeof customFetch>[1]): Promise<RunEventOut[]> => {
 
-  return customFetch<RunEventOut[]>(getGetRunEventsApiV1RunsRunIdEventsGetUrl(runId),
+  return customFetch<RunEventOut[]>(getGetRunEventsApiV1RunsRunIdEventsGetUrl(runId,params),
   {
     ...options,
     method: 'GET'
@@ -1784,23 +1810,25 @@ export const getRunEventsApiV1RunsRunIdEventsGet = async (runId: string, options
 
 
 
-export const getGetRunEventsApiV1RunsRunIdEventsGetQueryKey = (runId: string,) => {
+export const getGetRunEventsApiV1RunsRunIdEventsGetQueryKey = (runId: string,
+    params?: GetRunEventsApiV1RunsRunIdEventsGetParams,) => {
     return [
-    `/api/v1/runs/${runId}/events`
+    `/api/v1/runs/${runId}/events`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetRunEventsApiV1RunsRunIdEventsGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetRunEventsApiV1RunsRunIdEventsGetQueryOptions = <TData = Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError = ErrorType<HTTPValidationError>>(runId: string,
+    params?: GetRunEventsApiV1RunsRunIdEventsGetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetRunEventsApiV1RunsRunIdEventsGetQueryKey(runId);
+  const queryKey =  queryOptions?.queryKey ?? getGetRunEventsApiV1RunsRunIdEventsGetQueryKey(runId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>> = ({ signal }) => getRunEventsApiV1RunsRunIdEventsGet(runId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>> = ({ signal }) => getRunEventsApiV1RunsRunIdEventsGet(runId,params, { signal, ...requestOptions });
 
 
 
@@ -1818,11 +1846,12 @@ export type GetRunEventsApiV1RunsRunIdEventsGetQueryError = ErrorType<HTTPValida
  */
 
 export function useGetRunEventsApiV1RunsRunIdEventsGet<TData = Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError = ErrorType<HTTPValidationError>>(
- runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ runId: string,
+    params?: GetRunEventsApiV1RunsRunIdEventsGetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRunEventsApiV1RunsRunIdEventsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetRunEventsApiV1RunsRunIdEventsGetQueryOptions(runId,options)
+  const queryOptions = getGetRunEventsApiV1RunsRunIdEventsGetQueryOptions(runId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -3924,6 +3953,1202 @@ export function useListEvaluationsApiV1ComparisonsComparisonIdEvaluationsGet<TDa
 
 
 
+
+export const getListMembersApiV1WorkspacesWorkspaceIdMembersGetUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/members`
+}
+
+/**
+ * @summary List Members
+ */
+export const listMembersApiV1WorkspacesWorkspaceIdMembersGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<MemberOut[]> => {
+
+  return customFetch<MemberOut[]>(getListMembersApiV1WorkspacesWorkspaceIdMembersGetUrl(workspaceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/members`
+    ] as const;
+    }
+
+
+export const getListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryOptions = <TData = Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>> = ({ signal }) => listMembersApiV1WorkspacesWorkspaceIdMembersGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryResult = NonNullable<Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>>
+export type ListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Members
+ */
+
+export function useListMembersApiV1WorkspacesWorkspaceIdMembersGet<TData = Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMembersApiV1WorkspacesWorkspaceIdMembersGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMembersApiV1WorkspacesWorkspaceIdMembersGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchUrl = (workspaceId: string,
+    memberId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/members/${memberId}`
+}
+
+/**
+ * @summary Update Member
+ */
+export const updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch = async (workspaceId: string,
+    memberId: string,
+    memberUpdateIn: MemberUpdateIn, options?: Parameters<typeof customFetch>[1]): Promise<MemberOut> => {
+
+  return customFetch<MemberOut>(getUpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchUrl(workspaceId,memberId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(memberUpdateIn)
+  }
+);}
+
+
+
+
+
+export const getUpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch>>, TError,{workspaceId: string;memberId: string;data: BodyType<MemberUpdateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch>>, TError,{workspaceId: string;memberId: string;data: BodyType<MemberUpdateIn>}, TContext> => {
+
+const mutationKey = ['updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch>>, {workspaceId: string;memberId: string;data: BodyType<MemberUpdateIn>}> = (props) => {
+          const {workspaceId,memberId,data} = props ?? {};
+
+          return  updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch(workspaceId,memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch>>>
+    export type UpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchMutationBody = BodyType<MemberUpdateIn>
+    export type UpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Member
+ */
+export const useUpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch>>, TError,{workspaceId: string;memberId: string;data: BodyType<MemberUpdateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatch>>,
+        TError,
+        {workspaceId: string;memberId: string;data: BodyType<MemberUpdateIn>},
+        TContext
+      > => {
+      return useMutation(getUpdateMemberApiV1WorkspacesWorkspaceIdMembersMemberIdPatchMutationOptions(options));
+    }
+
+export const getRemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteUrl = (workspaceId: string,
+    memberId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/members/${memberId}`
+}
+
+/**
+ * @summary Remove Member
+ */
+export const removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete = async (workspaceId: string,
+    memberId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteUrl(workspaceId,memberId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete>>, TError,{workspaceId: string;memberId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete>>, TError,{workspaceId: string;memberId: string}, TContext> => {
+
+const mutationKey = ['removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete>>, {workspaceId: string;memberId: string}> = (props) => {
+          const {workspaceId,memberId} = props ?? {};
+
+          return  removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete(workspaceId,memberId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete>>>
+
+    export type RemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Remove Member
+ */
+export const useRemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete>>, TError,{workspaceId: string;memberId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDelete>>,
+        TError,
+        {workspaceId: string;memberId: string},
+        TContext
+      > => {
+      return useMutation(getRemoveMemberApiV1WorkspacesWorkspaceIdMembersMemberIdDeleteMutationOptions(options));
+    }
+
+export const getCreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/invitations`
+}
+
+/**
+ * @summary Create Invitation
+ */
+export const createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost = async (workspaceId: string,
+    invitationCreateIn: InvitationCreateIn, options?: Parameters<typeof customFetch>[1]): Promise<InvitationCreateOut> => {
+
+  return customFetch<InvitationCreateOut>(getCreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostUrl(workspaceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(invitationCreateIn)
+  }
+);}
+
+
+
+
+
+export const getCreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost>>, TError,{workspaceId: string;data: BodyType<InvitationCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost>>, TError,{workspaceId: string;data: BodyType<InvitationCreateIn>}, TContext> => {
+
+const mutationKey = ['createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost>>, {workspaceId: string;data: BodyType<InvitationCreateIn>}> = (props) => {
+          const {workspaceId,data} = props ?? {};
+
+          return  createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost(workspaceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost>>>
+    export type CreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostMutationBody = BodyType<InvitationCreateIn>
+    export type CreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Invitation
+ */
+export const useCreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost>>, TError,{workspaceId: string;data: BodyType<InvitationCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createInvitationApiV1WorkspacesWorkspaceIdInvitationsPost>>,
+        TError,
+        {workspaceId: string;data: BodyType<InvitationCreateIn>},
+        TContext
+      > => {
+      return useMutation(getCreateInvitationApiV1WorkspacesWorkspaceIdInvitationsPostMutationOptions(options));
+    }
+
+export const getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetUrl = (workspaceId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/invitations`
+}
+
+/**
+ * @summary List Invitations
+ */
+export const listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet = async (workspaceId: string, options?: Parameters<typeof customFetch>[1]): Promise<InvitationOut[]> => {
+
+  return customFetch<InvitationOut[]>(getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetUrl(workspaceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryKey = (workspaceId: string,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/invitations`
+    ] as const;
+    }
+
+
+export const getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryOptions = <TData = Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryKey(workspaceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>> = ({ signal }) => listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet(workspaceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>>
+export type ListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Invitations
+ */
+
+export function useListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet<TData = Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvitationsApiV1WorkspacesWorkspaceIdInvitationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInvitationsApiV1WorkspacesWorkspaceIdInvitationsGetQueryOptions(workspaceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteUrl = (workspaceId: string,
+    invitationId: string,) => {
+
+
+
+
+  return `/api/v1/workspaces/${workspaceId}/invitations/${invitationId}`
+}
+
+/**
+ * @summary Revoke Invitation
+ */
+export const revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete = async (workspaceId: string,
+    invitationId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteUrl(workspaceId,invitationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete>>, TError,{workspaceId: string;invitationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete>>, TError,{workspaceId: string;invitationId: string}, TContext> => {
+
+const mutationKey = ['revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete>>, {workspaceId: string;invitationId: string}> = (props) => {
+          const {workspaceId,invitationId} = props ?? {};
+
+          return  revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete(workspaceId,invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete>>>
+
+    export type RevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Revoke Invitation
+ */
+export const useRevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete>>, TError,{workspaceId: string;invitationId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDelete>>,
+        TError,
+        {workspaceId: string;invitationId: string},
+        TContext
+      > => {
+      return useMutation(getRevokeInvitationApiV1WorkspacesWorkspaceIdInvitationsInvitationIdDeleteMutationOptions(options));
+    }
+
+export const getPreviewInvitationApiV1InvitationsPreviewPostUrl = () => {
+
+
+
+
+  return `/api/v1/invitations/preview`
+}
+
+/**
+ * Inspect an invitation before committing to it.
+ *
+ * A POST, despite being a read: the token is a bearer credential, and a GET
+ * would put it in the request line, where the web server's access log records
+ * it verbatim. The body keeps it out of server logs and out of any proxy in
+ * between.
+ * @summary Preview Invitation
+ */
+export const previewInvitationApiV1InvitationsPreviewPost = async (invitationAcceptIn: InvitationAcceptIn, options?: Parameters<typeof customFetch>[1]): Promise<InvitationPreviewOut> => {
+
+  return customFetch<InvitationPreviewOut>(getPreviewInvitationApiV1InvitationsPreviewPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(invitationAcceptIn)
+  }
+);}
+
+
+
+
+
+export const getPreviewInvitationApiV1InvitationsPreviewPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewInvitationApiV1InvitationsPreviewPost>>, TError,{data: BodyType<InvitationAcceptIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewInvitationApiV1InvitationsPreviewPost>>, TError,{data: BodyType<InvitationAcceptIn>}, TContext> => {
+
+const mutationKey = ['previewInvitationApiV1InvitationsPreviewPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewInvitationApiV1InvitationsPreviewPost>>, {data: BodyType<InvitationAcceptIn>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewInvitationApiV1InvitationsPreviewPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewInvitationApiV1InvitationsPreviewPostMutationResult = NonNullable<Awaited<ReturnType<typeof previewInvitationApiV1InvitationsPreviewPost>>>
+    export type PreviewInvitationApiV1InvitationsPreviewPostMutationBody = BodyType<InvitationAcceptIn>
+    export type PreviewInvitationApiV1InvitationsPreviewPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Preview Invitation
+ */
+export const usePreviewInvitationApiV1InvitationsPreviewPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewInvitationApiV1InvitationsPreviewPost>>, TError,{data: BodyType<InvitationAcceptIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewInvitationApiV1InvitationsPreviewPost>>,
+        TError,
+        {data: BodyType<InvitationAcceptIn>},
+        TContext
+      > => {
+      return useMutation(getPreviewInvitationApiV1InvitationsPreviewPostMutationOptions(options));
+    }
+
+export const getAcceptInvitationApiV1InvitationsAcceptPostUrl = () => {
+
+
+
+
+  return `/api/v1/invitations/accept`
+}
+
+/**
+ * @summary Accept Invitation
+ */
+export const acceptInvitationApiV1InvitationsAcceptPost = async (invitationAcceptIn: InvitationAcceptIn, options?: Parameters<typeof customFetch>[1]): Promise<MemberOut> => {
+
+  return customFetch<MemberOut>(getAcceptInvitationApiV1InvitationsAcceptPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(invitationAcceptIn)
+  }
+);}
+
+
+
+
+
+export const getAcceptInvitationApiV1InvitationsAcceptPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvitationApiV1InvitationsAcceptPost>>, TError,{data: BodyType<InvitationAcceptIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptInvitationApiV1InvitationsAcceptPost>>, TError,{data: BodyType<InvitationAcceptIn>}, TContext> => {
+
+const mutationKey = ['acceptInvitationApiV1InvitationsAcceptPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptInvitationApiV1InvitationsAcceptPost>>, {data: BodyType<InvitationAcceptIn>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  acceptInvitationApiV1InvitationsAcceptPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptInvitationApiV1InvitationsAcceptPostMutationResult = NonNullable<Awaited<ReturnType<typeof acceptInvitationApiV1InvitationsAcceptPost>>>
+    export type AcceptInvitationApiV1InvitationsAcceptPostMutationBody = BodyType<InvitationAcceptIn>
+    export type AcceptInvitationApiV1InvitationsAcceptPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Accept Invitation
+ */
+export const useAcceptInvitationApiV1InvitationsAcceptPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvitationApiV1InvitationsAcceptPost>>, TError,{data: BodyType<InvitationAcceptIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptInvitationApiV1InvitationsAcceptPost>>,
+        TError,
+        {data: BodyType<InvitationAcceptIn>},
+        TContext
+      > => {
+      return useMutation(getAcceptInvitationApiV1InvitationsAcceptPostMutationOptions(options));
+    }
+
+export const getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetUrl = (workspaceId: string,
+    params?: ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/workspaces/${workspaceId}/audit-log?${stringifiedParams}` : `/api/v1/workspaces/${workspaceId}/audit-log`
+}
+
+/**
+ * @summary Read Audit Log
+ */
+export const readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet = async (workspaceId: string,
+    params?: ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditLogOut> => {
+
+  return customFetch<AuditLogOut>(getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetUrl(workspaceId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryKey = (workspaceId: string,
+    params?: ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams,) => {
+    return [
+    `/api/v1/workspaces/${workspaceId}/audit-log`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryOptions = <TData = Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>, TError = ErrorType<HTTPValidationError>>(workspaceId: string,
+    params?: ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryKey(workspaceId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>> = ({ signal }) => readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet(workspaceId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: workspaceId !== null && workspaceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryResult = NonNullable<Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>>
+export type ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Read Audit Log
+ */
+
+export function useReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet<TData = Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>, TError = ErrorType<HTTPValidationError>>(
+ workspaceId: string,
+    params?: ReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof readAuditLogApiV1WorkspacesWorkspaceIdAuditLogGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getReadAuditLogApiV1WorkspacesWorkspaceIdAuditLogGetQueryOptions(workspaceId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/pre-registrations`
+}
+
+/**
+ * @summary List Pre Registrations
+ */
+export const listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<PreRegistrationListItem[]> => {
+
+  return customFetch<PreRegistrationListItem[]>(getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryKey = (projectId: string,) => {
+    return [
+    `/api/v1/projects/${projectId}/pre-registrations`
+    ] as const;
+    }
+
+
+export const getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryOptions = <TData = Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>, TError = ErrorType<HTTPValidationError>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>> = ({ signal }) => listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>>
+export type ListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary List Pre Registrations
+ */
+
+export function useListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet<TData = Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>, TError = ErrorType<HTTPValidationError>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPreRegistrationsApiV1ProjectsProjectIdPreRegistrationsGetQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/pre-registrations`
+}
+
+/**
+ * @summary Create Pre Registration
+ */
+export const createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost = async (projectId: string,
+    preRegistrationCreateIn: PreRegistrationCreateIn, options?: Parameters<typeof customFetch>[1]): Promise<PreRegistrationOut> => {
+
+  return customFetch<PreRegistrationOut>(getCreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(preRegistrationCreateIn)
+  }
+);}
+
+
+
+
+
+export const getCreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost>>, TError,{projectId: string;data: BodyType<PreRegistrationCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost>>, TError,{projectId: string;data: BodyType<PreRegistrationCreateIn>}, TContext> => {
+
+const mutationKey = ['createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost>>, {projectId: string;data: BodyType<PreRegistrationCreateIn>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost>>>
+    export type CreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostMutationBody = BodyType<PreRegistrationCreateIn>
+    export type CreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Create Pre Registration
+ */
+export const useCreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost>>, TError,{projectId: string;data: BodyType<PreRegistrationCreateIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPreRegistrationApiV1ProjectsProjectIdPreRegistrationsPost>>,
+        TError,
+        {projectId: string;data: BodyType<PreRegistrationCreateIn>},
+        TContext
+      > => {
+      return useMutation(getCreatePreRegistrationApiV1ProjectsProjectIdPreRegistrationsPostMutationOptions(options));
+    }
+
+export const getGetPreRegistrationApiV1PreRegistrationsPreregIdGetUrl = (preregId: string,) => {
+
+
+
+
+  return `/api/v1/pre-registrations/${preregId}`
+}
+
+/**
+ * @summary Get Pre Registration
+ */
+export const getPreRegistrationApiV1PreRegistrationsPreregIdGet = async (preregId: string, options?: Parameters<typeof customFetch>[1]): Promise<PreRegistrationOut> => {
+
+  return customFetch<PreRegistrationOut>(getGetPreRegistrationApiV1PreRegistrationsPreregIdGetUrl(preregId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryKey = (preregId: string,) => {
+    return [
+    `/api/v1/pre-registrations/${preregId}`
+    ] as const;
+    }
+
+
+export const getGetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryOptions = <TData = Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>, TError = ErrorType<HTTPValidationError>>(preregId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryKey(preregId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>> = ({ signal }) => getPreRegistrationApiV1PreRegistrationsPreregIdGet(preregId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: preregId !== null && preregId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>>
+export type GetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryError = ErrorType<HTTPValidationError>
+
+
+/**
+ * @summary Get Pre Registration
+ */
+
+export function useGetPreRegistrationApiV1PreRegistrationsPreregIdGet<TData = Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>, TError = ErrorType<HTTPValidationError>>(
+ preregId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPreRegistrationApiV1PreRegistrationsPreregIdGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPreRegistrationApiV1PreRegistrationsPreregIdGetQueryOptions(preregId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchUrl = (preregId: string,) => {
+
+
+
+
+  return `/api/v1/pre-registrations/${preregId}`
+}
+
+/**
+ * @summary Update Pre Registration
+ */
+export const updatePreRegistrationApiV1PreRegistrationsPreregIdPatch = async (preregId: string,
+    preRegistrationPatchIn: PreRegistrationPatchIn, options?: Parameters<typeof customFetch>[1]): Promise<PreRegistrationOut> => {
+
+  return customFetch<PreRegistrationOut>(getUpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchUrl(preregId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(preRegistrationPatchIn)
+  }
+);}
+
+
+
+
+
+export const getUpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePreRegistrationApiV1PreRegistrationsPreregIdPatch>>, TError,{preregId: string;data: BodyType<PreRegistrationPatchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePreRegistrationApiV1PreRegistrationsPreregIdPatch>>, TError,{preregId: string;data: BodyType<PreRegistrationPatchIn>}, TContext> => {
+
+const mutationKey = ['updatePreRegistrationApiV1PreRegistrationsPreregIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePreRegistrationApiV1PreRegistrationsPreregIdPatch>>, {preregId: string;data: BodyType<PreRegistrationPatchIn>}> = (props) => {
+          const {preregId,data} = props ?? {};
+
+          return  updatePreRegistrationApiV1PreRegistrationsPreregIdPatch(preregId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof updatePreRegistrationApiV1PreRegistrationsPreregIdPatch>>>
+    export type UpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchMutationBody = BodyType<PreRegistrationPatchIn>
+    export type UpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Update Pre Registration
+ */
+export const useUpdatePreRegistrationApiV1PreRegistrationsPreregIdPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePreRegistrationApiV1PreRegistrationsPreregIdPatch>>, TError,{preregId: string;data: BodyType<PreRegistrationPatchIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePreRegistrationApiV1PreRegistrationsPreregIdPatch>>,
+        TError,
+        {preregId: string;data: BodyType<PreRegistrationPatchIn>},
+        TContext
+      > => {
+      return useMutation(getUpdatePreRegistrationApiV1PreRegistrationsPreregIdPatchMutationOptions(options));
+    }
+
+export const getRegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostUrl = (preregId: string,) => {
+
+
+
+
+  return `/api/v1/pre-registrations/${preregId}/register`
+}
+
+/**
+ * @summary Register Pre Registration
+ */
+export const registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost = async (preregId: string, options?: Parameters<typeof customFetch>[1]): Promise<PreRegistrationOut> => {
+
+  return customFetch<PreRegistrationOut>(getRegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostUrl(preregId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost>>, TError,{preregId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost>>, TError,{preregId: string}, TContext> => {
+
+const mutationKey = ['registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost>>, {preregId: string}> = (props) => {
+          const {preregId} = props ?? {};
+
+          return  registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost(preregId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostMutationResult = NonNullable<Awaited<ReturnType<typeof registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost>>>
+
+    export type RegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Register Pre Registration
+ */
+export const useRegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost>>, TError,{preregId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerPreRegistrationApiV1PreRegistrationsPreregIdRegisterPost>>,
+        TError,
+        {preregId: string},
+        TContext
+      > => {
+      return useMutation(getRegisterPreRegistrationApiV1PreRegistrationsPreregIdRegisterPostMutationOptions(options));
+    }
+
+export const getWithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostUrl = (preregId: string,) => {
+
+
+
+
+  return `/api/v1/pre-registrations/${preregId}/withdraw`
+}
+
+/**
+ * @summary Withdraw Pre Registration
+ */
+export const withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost = async (preregId: string,
+    withdrawIn: WithdrawIn, options?: Parameters<typeof customFetch>[1]): Promise<PreRegistrationOut> => {
+
+  return customFetch<PreRegistrationOut>(getWithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostUrl(preregId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(withdrawIn)
+  }
+);}
+
+
+
+
+
+export const getWithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost>>, TError,{preregId: string;data: BodyType<WithdrawIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost>>, TError,{preregId: string;data: BodyType<WithdrawIn>}, TContext> => {
+
+const mutationKey = ['withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost>>, {preregId: string;data: BodyType<WithdrawIn>}> = (props) => {
+          const {preregId,data} = props ?? {};
+
+          return  withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost(preregId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost>>>
+    export type WithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostMutationBody = BodyType<WithdrawIn>
+    export type WithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Withdraw Pre Registration
+ */
+export const useWithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost>>, TError,{preregId: string;data: BodyType<WithdrawIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPost>>,
+        TError,
+        {preregId: string;data: BodyType<WithdrawIn>},
+        TContext
+      > => {
+      return useMutation(getWithdrawPreRegistrationApiV1PreRegistrationsPreregIdWithdrawPostMutationOptions(options));
+    }
+
+export const getSetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/v1/projects/${projectId}/pre-registration-policy`
+}
+
+/**
+ * @summary Set Pre Registration Policy
+ */
+export const setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch = async (projectId: string,
+    policyIn: PolicyIn, options?: Parameters<typeof customFetch>[1]): Promise<PolicyOut> => {
+
+  return customFetch<PolicyOut>(getSetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchUrl(projectId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(policyIn)
+  }
+);}
+
+
+
+
+
+export const getSetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchMutationOptions = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch>>, TError,{projectId: string;data: BodyType<PolicyIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch>>, TError,{projectId: string;data: BodyType<PolicyIn>}, TContext> => {
+
+const mutationKey = ['setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch>>, {projectId: string;data: BodyType<PolicyIn>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchMutationResult = NonNullable<Awaited<ReturnType<typeof setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch>>>
+    export type SetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchMutationBody = BodyType<PolicyIn>
+    export type SetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchMutationError = ErrorType<HTTPValidationError>
+
+    /**
+ * @summary Set Pre Registration Policy
+ */
+export const useSetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch = <TError = ErrorType<HTTPValidationError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch>>, TError,{projectId: string;data: BodyType<PolicyIn>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatch>>,
+        TError,
+        {projectId: string;data: BodyType<PolicyIn>},
+        TContext
+      > => {
+      return useMutation(getSetPreRegistrationPolicyApiV1ProjectsProjectIdPreRegistrationPolicyPatchMutationOptions(options));
+    }
 
 export const getListWorkersApiV1WorkspacesWorkspaceIdRecursiveWorkersGetUrl = (workspaceId: string,) => {
 

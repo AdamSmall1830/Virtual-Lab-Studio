@@ -6,6 +6,7 @@
 - [Clerk auth bridge](clerk-auth-bridge.md) — Clerk JWT verified server-side then bridged into the app's own session cookie; per-user workspace provisioning is idempotent by deterministic slug.
 - [Real model providers](real-providers.md) — OpenAI-compatible adapters built per config; AES-GCM secrets from SESSION_SECRET; pricing in ProviderModel.capabilities; demo_mode drives truthful labeling.
 - [Recurring env failures](replit-env-recurring.md) — post-merge port-bind failures, stale generated client types, and how a dead backend masquerades as a disabled feature.
+- [Lock before the check](lock-before-check.md) — an unlocked read then UPDATE silently overwrites a concurrent commit; assert guards *block*, and pair with an invariant test.
 - [Run lease fencing](run-lease-fencing.md) — heartbeat long provider calls; owner-conditional renewal; the fence must commit in the same transaction as the writes it guards.
 - [Terminal artifacts vs. requeue](terminal-artifacts-and-requeue.md) — un-terminalling a run races the later summary/manifest write; both sides must take the run row lock, and a stale summary gets reused.
 - [Output legitimacy](output-legitimacy.md) — no app-authored judgements or confidence defaults in a research record; validation gates, prompts don't enforce; blind-safe warnings always sent.

@@ -23,6 +23,21 @@ from app.config import Settings
 from app.models import AgentVersion, MeetingDefinitionAgent, ProviderConfig, ProviderModel
 from app.schemas import MeetingDraftIn
 
+
+async def _any_user(db):
+    """A User to stand in as the launching member for _validate_draft.
+
+    Draft validation needs to know who is launching so it can refuse another
+    member's personal provider key. These tests use workspace-scoped keys, so
+    the identity is immaterial; an unsaved row is enough and keeps the test
+    from depending on what happens to be in the development database.
+    """
+    from app.models import User as _User
+    from sqlalchemy import select as _select
+
+    found = (await db.execute(_select(_User).limit(1))).scalars().first()
+    return found if found is not None else _User(id=uuid.uuid4(), email="validator@test.local")
+
 PROXY = "http://localhost:80"
 
 
@@ -188,7 +203,13 @@ async def test_validate_refuses_recursive_with_the_feature_enabled(sessionmaker,
         )
         monkeypatch.setattr(v1_module, "get_settings", lambda: enabled)
 
-        errors, _warnings, _base = await v1_module._validate_draft(db, provider.workspace_id, body)
+        # _validate_draft now also checks that the launching member may use the
+        # selected provider keys. This draft uses workspace-scoped keys, so any
+        # member passes that check; the guard under test is unaffected.
+        actor = await _any_user(db)
+        errors, _warnings, _base = await v1_module._validate_draft(
+            db, provider.workspace_id, body, actor
+        )
 
         messages = [e["message"] for e in errors]
         assert any("recursive" in m.lower() for m in messages), messages

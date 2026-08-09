@@ -85,6 +85,23 @@ docs/, specs/               build-pack product contract, tokens, seed data, sche
 | `POST /runs/{id}/exports`, `GET /runs/{id}/report.pdf` | reproducibility packet (ZIP) and typeset report |
 | `GET /api/health/live|ready|worker` | health + queue depth (unversioned) |
 
+Two further routers are registered unconditionally under `/api/v1`:
+
+| Method & path | Purpose |
+|---|---|
+| `GET/PATCH/DELETE /workspaces/{id}/members[/{member_id}]` | roster, role and per-member spend cap (`backend/app/api/team.py`) |
+| `GET/POST /workspaces/{id}/invitations`, `DELETE .../{invitation_id}` | email-bound invitations; only a token sha256 is stored |
+| `GET /invitations/preview?token=`, `POST /invitations/accept` | inspect then accept, both requiring a signed-in user |
+| `GET /workspaces/{id}/audit-log` | filterable, paginated audit read |
+| `GET/POST /projects/{id}/pre-registrations` | list and create drafts (`backend/app/api/prereg.py`) |
+| `GET/PATCH /pre-registrations/{id}`, `POST .../register|withdraw` | drafts are editable, registration freezes and hashes |
+| `PATCH /projects/{id}/pre-registration-policy` | switch the per-project requirement on or off |
+
+The launch path consults both before freezing anything: `assert_pre_registration_gate` and
+then `assert_within_spend_cap` against the estimated workspace-funded cost, after which the
+run records `pre_registration_id`, `pre_registration_hash` and
+`workspace_funded_estimate_usd`.
+
 Authorization: role ladder viewer < reviewer < researcher < admin < owner; non-members
 get 404 (`backend/app/security.py`).
 

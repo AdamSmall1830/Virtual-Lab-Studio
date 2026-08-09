@@ -26,6 +26,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.config import Settings  # noqa: E402
 
 
+async def _any_user(db):
+    """A User to stand in as the launching member for _validate_draft.
+
+    Draft validation needs to know who is launching so it can refuse another
+    member's personal provider key. These tests use workspace-scoped keys, so
+    the identity is immaterial; an unsaved row is enough and keeps the test
+    from depending on what happens to be in the development database.
+    """
+    from app.models import User as _User
+    from sqlalchemy import select as _select
+
+    found = (await db.execute(_select(_User).limit(1))).scalars().first()
+    return found if found is not None else _User(id=uuid.uuid4(), email="validator@test.local")
+
+
 # ---------------------------------------------------------------------------
 # FINDING 1: dev-login double gate (APP_ENV *and* not-a-deployment)
 # ---------------------------------------------------------------------------
@@ -229,7 +244,8 @@ async def test_foreign_template_version_rejected(sessionmaker):
         # Build a minimal-but-valid team draft referencing the foreign template.
         draft = _minimal_team_draft(template_version_id=version.id)
         body = MeetingDraftIn.model_validate(draft)
-        errors, _warnings, _calls = await _validate_draft(db, target.id, body)
+        actor = await _any_user(db)
+        errors, _warnings, _calls = await _validate_draft(db, target.id, body, actor)
 
         fields = {e["field"] for e in errors}
         assert "template_version_id" in fields, errors
@@ -240,7 +256,9 @@ async def test_foreign_template_version_rejected(sessionmaker):
 
         # Sanity: a nonexistent template id is also rejected.
         draft2 = _minimal_team_draft(template_version_id=uuid.uuid4())
-        errors2, _, _ = await _validate_draft(db, target.id, MeetingDraftIn.model_validate(draft2))
+        errors2, _, _ = await _validate_draft(
+            db, target.id, MeetingDraftIn.model_validate(draft2), actor
+        )
         assert "template_version_id" in {e["field"] for e in errors2}
 
         await db.rollback()

@@ -65,6 +65,9 @@ _ENUM_VALUES: dict[str, tuple[str, ...]] = {
     "notebook_entry_kind": ("note", "decision", "hypothesis", "protocol", "result", "follow_up"),
     "intervention_kind": ("pause", "resume", "cancel", "instruction", "evidence_addition", "approval"),
     "citation_support_type": ("supports", "contradicts", "context", "uncertain"),
+    "provider_scope": ("workspace", "personal"),
+    "invitation_status": ("pending", "accepted", "revoked", "expired"),
+    "pre_registration_status": ("draft", "registered", "superseded", "withdrawn"),
 }
 
 
@@ -118,6 +121,27 @@ class WorkspaceMembership(Base):
     invited_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # NULL means no per-member ceiling on workspace-funded spend.
+    spend_limit_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class WorkspaceInvitation(Base):
+    __tablename__ = "workspace_invitations"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(pg_enum("workspace_role"), nullable=False)
+    # Only the hash is stored, so the database never holds a redeemable link.
+    token_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    status: Mapped[str] = mapped_column(pg_enum("invitation_status"), server_default=text("'pending'"), nullable=False)
+    spend_limit_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    accepted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = ts_default()
     updated_at: Mapped[datetime] = ts_default()
 
@@ -137,9 +161,44 @@ class Project(Base):
     constraints: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
     disclosures: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
     human_decision_supported: Mapped[str | None] = mapped_column(Text)
+    pre_registration_required: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), nullable=False)
     tags: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"), nullable=False)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = ts_default()
+    updated_at: Mapped[datetime] = ts_default()
+
+
+class PreRegistration(Base):
+    """Frozen statement of what a project set out to test, hashed before any run.
+
+    Editable while ``draft``; once ``registered`` the row is immutable and
+    ``content_hash`` covers the canonical JSON. A later change is a new version
+    that supersedes this one with a stated reason, so the chain shows whether
+    the question moved and when.
+    """
+
+    __tablename__ = "pre_registrations"
+    id: Mapped[uuid.UUID] = uuid_pk()
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(pg_enum("pre_registration_status"), server_default=text("'draft'"), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    hypothesis: Mapped[str] = mapped_column(Text, nullable=False)
+    protocol: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_outcomes: Mapped[str] = mapped_column(Text, nullable=False)
+    success_criteria: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    analysis_plan: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    amendment_reason: Mapped[str | None] = mapped_column(Text)
+    content_json: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)
+    content_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    registered_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    withdrawn_reason: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = ts_default()
     updated_at: Mapped[datetime] = ts_default()
 
@@ -227,6 +286,10 @@ class ProviderConfig(Base):
     last_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_test_status: Mapped[str | None] = mapped_column(Text)
     last_test_safe_message: Mapped[str | None] = mapped_column(Text)
+    # 'workspace' keys are shared and metered against the launching member's
+    # ceiling; 'personal' keys belong to owner_user_id and are never metered.
+    scope: Mapped[str] = mapped_column(pg_enum("provider_scope"), server_default=text("'workspace'"), nullable=False)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = ts_default()
     updated_at: Mapped[datetime] = ts_default()
@@ -426,9 +489,14 @@ class Run(Base):
     output_tokens: Mapped[int] = mapped_column(BigInteger, server_default=text("0"), nullable=False)
     estimated_cost_usd: Mapped[Decimal] = mapped_column(Numeric(16, 6), server_default=text("0"), nullable=False)
     actual_cost_usd: Mapped[Decimal] = mapped_column(Numeric(16, 6), server_default=text("0"), nullable=False)
+    # Reservation held against the launching member's monthly ceiling while
+    # this run is non-terminal; measured per-turn cost supersedes it.
+    workspace_funded_estimate_usd: Mapped[Decimal] = mapped_column(Numeric(16, 6), server_default=text("0"), nullable=False)
     wall_seconds: Mapped[Decimal] = mapped_column(Numeric(16, 3), server_default=text("0"), nullable=False)
     failure_code: Mapped[str | None] = mapped_column(Text)
     failure_safe_message: Mapped[str | None] = mapped_column(Text)
+    pre_registration_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    pre_registration_hash: Mapped[str | None] = mapped_column(CHAR(64))
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = ts_default()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

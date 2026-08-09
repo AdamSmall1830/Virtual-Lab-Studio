@@ -33,6 +33,21 @@ Protect against:
 
 Every server query validates active workspace membership. Object IDs alone never grant access.
 
+Roles are invitable except `owner`; the server refuses an invitation that would grant
+ownership. A member's role and spend cap are administered together, and the update
+distinguishes "leave the cap unchanged" from "clear the cap" explicitly, so a role change
+cannot silently remove a spending limit.
+
+Personal provider keys are scoped to their owner. The list query filters them server-side and
+a direct fetch by id returns 404 to anyone else, including admins — an admin can administer
+the workspace without gaining the ability to spend another member's money.
+
+This is confidentiality of the credential and its use, not concealment of its existence. The
+audit log records that a member added a personal key, and any run that used one is traceable
+to it; both are visible to admins by design, because spending outside the workspace's control
+is exactly what a governance record should show. The user-chosen key *name* is withheld from
+the audit payload, being the only free-text field in it.
+
 ## Secrets
 
 - Replit Secrets for instance keys.
@@ -100,6 +115,13 @@ V1 allowlist: PDF, `.md`, `.txt`.
 - retries consume budget
 - budget-exceeded terminal state preserves partial artifacts
 
+Per-member monthly spend caps apply on top of the above. The cap covers workspace-funded usage
+only: spend is attributed by the scope of the provider config recorded on each turn, so a
+member's own personal key is never charged against the workspace cap. Enforcement happens on
+the launch path — the estimated workspace-funded cost of the run is checked against remaining
+headroom and the launch is refused with `402 spend_cap_exceeded`. Showing the estimate in the
+UI is not the control; the server-side check is.
+
 ## Data classification
 
 - public
@@ -138,6 +160,19 @@ For medical, legal, financial, safety-critical, or regulated research:
 - AI contribution disclosure
 - citation means source was used, not independently verified truth
 
+## Pre-registration
+
+A project may require pre-registration, which gates the launch path: with the requirement on
+and no active registered document, launching is refused with `409 pre_registration_required`.
+
+Registration freezes the document and records a content hash. A run stores the
+pre-registration id and hash as of its launch, so a later amendment cannot retroactively
+change what a completed run claims to have been run under. The manifest reports the frozen
+hash alongside a recomputed comparison against the stored document, and names the superseding
+version when one exists. The database permits at most one registered document per project
+through a partial unique index, so the "one active pre-registration" rule is enforced by the
+schema and not only by application code.
+
 ## Privacy
 
 - no third-party analytics on authenticated research content by default
@@ -160,4 +195,7 @@ For medical, legal, financial, safety-critical, or regulated research:
 
 ## Audit
 
-Append-only events for member/provider changes, agent/template versions, evidence processing, run launch/control/retry, intervention, review status, export, and governance policy changes. Audit payloads contain safe IDs/metadata, not source text or secrets.
+Append-only events for member/provider changes (including role and spend-cap changes and the
+scope of a new provider key), invitation create/revoke/accept, pre-registration
+register/withdraw and project policy changes, agent/template versions, evidence processing,
+run launch/control/retry, intervention, review status, export, and governance policy changes. Audit payloads contain safe IDs/metadata, not source text or secrets.
