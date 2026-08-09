@@ -33,11 +33,22 @@ specifications and documentation under `specs/` and `docs/` — is the Studio
 application built around the upstream package. It is a separate work and is
 not part of the upstream project.
 
-Attribution note
-----------------
+Licensing
+---------
 
-The root LICENSE file currently carries only the upstream copyright line.
-If you intend to assert your own copyright over the Studio code while keeping
-the upstream package under its original terms, that is a decision to make
-deliberately: the usual approach is a second copyright line scoped to the
-Studio work, leaving the upstream line intact and unmodified.
+The two bodies of work carry two separate license files, both MIT:
+
+    LICENSE          `src/virtual_lab/` — (c) 2026 Kyle Swanson and the
+                     Virtual Lab contributors. Preserved from upstream,
+                     unmodified.
+
+    LICENSE-STUDIO   everything else — (c) 2026 Adam Small.
+
+They are kept as separate files rather than two copyright lines in one, so
+that the boundary is unambiguous: neither party's notice can be mistaken for
+covering the other's code. The upstream LICENSE stays at the repository root
+and is never edited, because it is part of the vendored tree's provenance.
+
+Both licenses are MIT, so a downstream user's obligations are the same either
+way — retain the notices. The separation is about accurate attribution, not
+about differing terms.

@@ -144,24 +144,41 @@ Notes:
 - Roles are role-conditioned model calls sharing one transcript — agreement between roles
   is not independent validation, and the UI/methodology page says so explicitly.
 
-## Repository strategy & contributing upstream
+## Relationship to the upstream project
 
-This project uses a **two-repo strategy**:
+This repository is **not** a fork of
+[zou-group/virtual-lab](https://github.com/zou-group/virtual-lab). It is a separate
+application that vendors the upstream package **unmodified** under `src/virtual_lab/`
+and builds around it. Nothing here is contributed back upstream, and nothing needs to
+be: not a line of the upstream tree is changed.
+`backend/tests/test_upstream_compat.py` enforces that — it fails if any file under
+`src/virtual_lab/` is added, removed, or altered.
 
-1. **This app repo** (`Virtual-Lab-Studio` on GitHub) — the full product monorepo. It
-   vendors the upstream engine **unmodified** under `src/virtual_lab/` with its MIT
-   license intact. Never edit `src/virtual_lab/` here; product-side adaptations live
-   outside that directory.
-2. **A personal fork of [zou-group/virtual-lab](https://github.com/zou-group/virtual-lab)** —
-   the only place upstream contributions come from. When work in this repo surfaces an
-   improvement worth proposing upstream (e.g. bug fixes or extension points discovered
-   while integrating the Python engine), extract it as a **minimal, focused branch on the
-   fork** — rebased on upstream `main`, containing only the upstream-relevant change —
-   and open the PR from the fork to `zou-group/virtual-lab`. Never open upstream PRs from
-   this app repo.
+Product-side adaptations always live outside that directory. If a change to the
+upstream package itself ever becomes worthwhile, it does not belong in this repo:
+fork upstream separately, rebase a minimal focused branch on upstream `main`, and open
+the PR from that fork. Patching the vendored copy in place would silently break the
+compatibility guarantee this repo depends on.
 
-## Upstream attribution
+**What we use, precisely.** The engine imports upstream's `Agent` class and its prompt
+templates and uses them as-is; the meeting structure and system-prompt behavior are
+upstream's, and `test_upstream_compat.py` pins the exact call order and content.
+Orchestration is ours — the Studio runs its own loop so a meeting can be paused
+mid-deliberation, redirected, resumed, checkpointed per turn, and survive a worker
+restart, none of which a single call-through to upstream's `run_meeting` supports.
+
+## Attribution and licensing
 
 `src/virtual_lab/`, `LICENSE`, `pyproject.toml`, and `UPSTREAM_README.md` are preserved
 from [zou-group/virtual-lab](https://github.com/zou-group/virtual-lab) (MIT, © Kyle
 Swanson) at commit `8a3a4fd` and must remain intact.
+
+The two bodies of work carry two separate MIT license files, so neither party's
+copyright notice can be mistaken for covering the other's code:
+
+| File | Covers | Copyright |
+| --- | --- | --- |
+| `LICENSE` | `src/virtual_lab/` (vendored upstream) | © 2026 Kyle Swanson and the Virtual Lab contributors |
+| `LICENSE-STUDIO` | everything else in this repository | © 2026 Adam Small |
+
+See `NOTICE` for the full boundary between them.

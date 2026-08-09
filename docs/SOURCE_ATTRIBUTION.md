@@ -11,6 +11,13 @@ Virtual Lab Studio is an application layer built around:
 
 Keep the upstream `LICENSE` file and attribution in all derived distributions. Do not remove author notices from copied or modified files. Clearly distinguish upstream code from new application code in the project README and About/Methodology screen.
 
+The repository carries two MIT license files, deliberately separate so that neither copyright notice appears to cover the other party's code:
+
+- `LICENSE` — the upstream package under `src/virtual_lab/`, © 2026 Kyle Swanson and the Virtual Lab contributors. Preserved from upstream and never edited.
+- `LICENSE-STUDIO` — everything else (the `backend/`, `artifacts/`, `lib/`, `specs/` and `docs/` trees), © 2026 Adam Small.
+
+Both must be retained downstream. `NOTICE` states the boundary.
+
 ## Scientific work
 
 The upstream repository accompanies work describing a human-guided LLM research team and a nanobody-design case study. The application may explain that lineage and link to the upstream publication, but must not imply that:
