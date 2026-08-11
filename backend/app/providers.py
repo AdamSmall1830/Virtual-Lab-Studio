@@ -33,7 +33,9 @@ logger = logging.getLogger("vls.providers")
 class CompletionRequest:
     model: str
     system_prompt: str
-    messages: list[dict[str, str]]
+    # Widened from str values to Any: a tool-using exchange carries assistant
+    # messages with a `tool_calls` list and `role: "tool"` result messages.
+    messages: list[dict[str, Any]]
     temperature: float
     run_id: str
     call_index: int
@@ -42,14 +44,36 @@ class CompletionRequest:
     round_number: int
     is_final: bool
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Function schemas offered for this call, or None to offer no tools.
+    tools: list[dict[str, Any]] | None = None
 
 
 @dataclass
 class ToolCallRequest:
+    """A *simulated* tool event from the scripted demo scenario.
+
+    It carries its own result because nothing executes: the scenario file
+    supplies both halves. Real tool calls the model asks for are
+    ProviderToolCall, which has no result until a handler produces one.
+    """
+
     tool_slug: str
     arguments: dict[str, Any]
     result: dict[str, Any]
     label: str
+
+
+@dataclass
+class ProviderToolCall:
+    """A tool invocation a model asked for. Not yet executed."""
+
+    id: str
+    name: str
+    arguments: dict[str, Any]
+    # Set when the model sent arguments that were not valid JSON. Kept as a
+    # value rather than raised so the engine can hand the model a correctable
+    # error instead of failing the whole turn.
+    parse_error: str | None = None
 
 
 @dataclass
@@ -66,6 +90,12 @@ class CompletionResult:
     is_simulation: bool
     tool_calls: list[ToolCallRequest] = field(default_factory=list)
     structured_summary: dict[str, Any] | None = None
+    # Tool calls the model requested on this response, in the order given.
+    requested_tool_calls: list[ProviderToolCall] = field(default_factory=list)
+    # The raw assistant message, replayed verbatim into the next request when
+    # continuing a tool exchange. Providers reject a tool result whose call id
+    # has no matching assistant message.
+    raw_assistant_message: dict[str, Any] | None = None
 
 
 class ModelProvider(Protocol):
@@ -419,6 +449,11 @@ class OpenAICompatibleProvider:
         }
         if not _model_rejects_temperature(request.model):
             payload["temperature"] = request.temperature
+        if request.tools:
+            payload["tools"] = request.tools
+            # "auto", not "required": a participant that has nothing to look up
+            # should answer, not manufacture a search to satisfy the parameter.
+            payload["tool_choice"] = "auto"
         resp, latency_ms = await self._post_with_retry(payload)
         if resp.status_code == 401 or resp.status_code == 403:
             raise ProviderCallError("provider_auth_failed", "The provider rejected the API key.")
@@ -436,12 +471,58 @@ class OpenAICompatibleProvider:
         try:
             data = resp.json()
             choice = data["choices"][0]
-            content = choice["message"]["content"] or ""
+            message = choice["message"]
+            # A response that only requests tools has a null content field.
+            content = message.get("content") or ""
             finish_reason = choice.get("finish_reason") or "stop"
         except (ValueError, KeyError, IndexError, TypeError):
             raise ProviderCallError(
                 "provider_bad_response", "The provider returned an unexpected response shape."
             )
+
+        requested: list[ProviderToolCall] = []
+        raw_tool_calls = message.get("tool_calls") or []
+        if raw_tool_calls and not isinstance(raw_tool_calls, list):
+            raise ProviderCallError(
+                "provider_bad_response", "The provider returned a malformed tool call."
+            )
+        if isinstance(raw_tool_calls, list):
+            seen_ids: set[str] = set()
+            for entry in raw_tool_calls:
+                fn = entry.get("function") or {} if isinstance(entry, dict) else {}
+                name = str(fn.get("name") or "").strip()
+                call_id = str(entry.get("id") or "").strip() if isinstance(entry, dict) else ""
+                if not name or not call_id or call_id in seen_ids:
+                    # Every requested call must get a reply keyed by its id, and
+                    # a duplicate or id-less entry makes that impossible. We
+                    # cannot skip it either: the assistant message is replayed
+                    # verbatim, so an unanswered entry makes the provider reject
+                    # the follow-up. Fail the call instead of building a request
+                    # that cannot succeed.
+                    raise ProviderCallError(
+                        "provider_bad_response",
+                        "The provider returned a tool call without a usable id or name.",
+                    )
+                seen_ids.add(call_id)
+                raw_args = fn.get("arguments")
+                parsed: dict[str, Any] = {}
+                parse_error: str | None = None
+                if isinstance(raw_args, dict):
+                    parsed = raw_args
+                else:
+                    try:
+                        decoded = json.loads(raw_args or "{}")
+                        if isinstance(decoded, dict):
+                            parsed = decoded
+                        else:
+                            parse_error = "Tool arguments must be a JSON object."
+                    except (ValueError, TypeError):
+                        parse_error = "Tool arguments were not valid JSON."
+                requested.append(
+                    ProviderToolCall(
+                        id=call_id, name=name, arguments=parsed, parse_error=parse_error
+                    )
+                )
         usage = data.get("usage") or {}
         input_tokens = int(usage.get("prompt_tokens") or 0)
         output_tokens = int(usage.get("completion_tokens") or 0)
@@ -458,6 +539,8 @@ class OpenAICompatibleProvider:
             cost_usd=pricing.cost(input_tokens, cached, output_tokens),
             latency_ms=latency_ms,
             is_simulation=False,
+            requested_tool_calls=requested,
+            raw_assistant_message=message if requested else None,
         )
 
 

@@ -32,7 +32,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import or_, select, text, update
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -68,6 +68,7 @@ from .models import (
 )
 from .providers import (
     CompletionRequest,
+    CompletionResult,
     DemoProvider,
     ModelProvider,
     ProviderCallError,
@@ -75,6 +76,16 @@ from .providers import (
     build_provider,
     get_demo_provider,
     pricing_from_capabilities,
+)
+from .tools import (
+    MAX_TOOL_CALLS_PER_RESPONSE,
+    MAX_TOOL_ITERATIONS_PER_TURN,
+    ToolExecutionError,
+    ToolLoopExhausted,
+    ToolRuntimeContext,
+    execute_tool,
+    offerable,
+    tool_schema,
 )
 from .secretbox import decrypt_secret
 from .provenance import (
@@ -460,12 +471,24 @@ async def _checkpoint(
             continue
         break
 
-    budget = ctx.definition.budget or {}
+    _assert_within_budget(ctx.definition, ctx.run)
+
+
+def _assert_within_budget(definition: MeetingDefinition, run: Run) -> None:
+    """Raise if the run has reached the budget frozen into its definition.
+
+    Checked before *every* provider call, not only at turn boundaries. A turn
+    used to mean exactly one call, so checking between turns was the same thing.
+    Once a turn can call the model repeatedly to use tools, a boundary-only
+    check would let one tool loop spend several times past a ceiling that was
+    verified once.
+    """
+    budget = definition.budget or {}
     max_calls = budget.get("max_provider_calls")
     max_cost = budget.get("max_cost_usd")
-    if max_calls is not None and ctx.run.provider_call_count >= int(max_calls):
+    if max_calls is not None and run.provider_call_count >= int(max_calls):
         raise BudgetExceeded("max_provider_calls")
-    if max_cost is not None and float(ctx.run.actual_cost_usd) > float(max_cost):
+    if max_cost is not None and float(run.actual_cost_usd) > float(max_cost):
         raise BudgetExceeded("max_cost_usd")
 
 
@@ -1088,11 +1111,7 @@ async def _run_structured_synthesis(
             "the fields it would have filled are marked as not extracted."
         )
 
-    run.provider_call_count += 1
-    run.input_tokens += result.input_tokens
-    run.cached_input_tokens += result.cached_input_tokens
-    run.output_tokens += result.output_tokens
-    run.actual_cost_usd = Decimal(str(run.actual_cost_usd)) + Decimal(str(result.cost_usd))
+    _bill_run(run, result)
     if not await _fence_lease(db, run.id, worker_id, lease_seconds):
         # Read the id before rolling back: the rollback expires every ORM
         # attribute and touching one here would trigger a lazy load.
@@ -1124,6 +1143,235 @@ async def _run_structured_synthesis(
             "the fields it would have filled are marked as not extracted."
         )
     return parsed, "Structured record produced by the model that held the meeting."
+
+
+def _tool_message(call_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """A tool result in the shape the provider expects.
+
+    The payload is serialized JSON rather than prose. A tool result is data for
+    the participant to weigh; wrapping it in sentences invites the model to read
+    retrieved text as direction from the meeting.
+    """
+    return {
+        "role": "tool",
+        "tool_call_id": call_id,
+        "content": json.dumps(payload, ensure_ascii=False),
+    }
+
+
+def _bill_run(run: Run, result: CompletionResult) -> None:
+    """Charge one provider call to the run.
+
+    Called as each call returns rather than once the work succeeds. The tokens
+    are spent the moment the provider answers, so a turn that later loops,
+    fails, or loses its lease must still be paid for — and the budget
+    checkpoints read these same counters, so late billing would let a runaway
+    turn spend past a ceiling it is supposed to be checked against.
+    """
+    run.provider_call_count += 1
+    run.input_tokens += result.input_tokens
+    run.cached_input_tokens += result.cached_input_tokens
+    run.output_tokens += result.output_tokens
+    run.actual_cost_usd = Decimal(str(run.actual_cost_usd)) + Decimal(str(result.cost_usd))
+
+
+@dataclass
+class _TurnUsage:
+    """Usage summed over every provider call one turn made.
+
+    A turn that uses tools calls the model repeatedly. Recording only the final
+    call would under-report tokens and cost to the researcher who is paying for
+    them, and would let a tool loop spend real money invisibly.
+    """
+
+    input_tokens: int = 0
+    cached_input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+    latency_ms: int = 0
+    provider_calls: int = 0
+
+    def add(self, result: CompletionResult) -> None:
+        self.input_tokens += result.input_tokens
+        self.cached_input_tokens += result.cached_input_tokens
+        self.output_tokens += result.output_tokens
+        self.cost_usd += result.cost_usd
+        self.latency_ms += result.latency_ms
+        self.provider_calls += 1
+
+
+async def _complete_with_tools(
+    db: AsyncSession,
+    *,
+    run: Run,
+    turn: RunTurn,
+    provider: ModelProvider,
+    request: CompletionRequest,
+    tool_defs_by_slug: dict[str, ToolDefinition],
+    tool_ctx: ToolRuntimeContext,
+    worker_id: str,
+    lease_seconds: int,
+) -> tuple[CompletionResult, _TurnUsage]:
+    """Run one participant turn to completion, executing any tools it calls.
+
+    Returns the model response that has no outstanding tool calls, together with
+    the usage of every provider call the turn made along the way.
+
+    The tool exchange stays inside the turn and is deliberately not appended to
+    the shared meeting transcript. Resuming a run rebuilds that transcript from
+    each turn's stored `response_text`, so a live path that also carried tool
+    and intermediate assistant messages would produce a different transcript on
+    replay than it did on the first attempt — different prompts, different
+    request hashes, a different meeting. The full exchange is preserved as
+    ToolCall rows instead, which is where an auditor should look for it.
+
+    Hitting the iteration ceiling raises rather than returning what the model
+    produced so far: a looping participant writes confident, answer-shaped prose
+    before it is stopped, and returning that text would publish an interrupted
+    fragment into the research record as a finished contribution.
+    """
+    workspace_id = run.workspace_id
+    run_id = run.id
+    turn_id = turn.id
+    usage = _TurnUsage()
+    # Continue after whatever an abandoned attempt at this turn already wrote:
+    # (run_turn_id, sequence) is unique and those rows are kept, not deleted.
+    sequence = (
+        await db.execute(
+            select(func.coalesce(func.max(ToolCall.sequence) + 1, 0))
+            .where(ToolCall.run_turn_id == turn_id)
+        )
+    ).scalar_one()
+
+    async def reject(call_id: str, tool_name: str, reason: str, message: str) -> None:
+        """Refuse a call we will not run, and tell the model why.
+
+        Every requested call needs a reply: providers reject a follow-up whose
+        tool_call_id was never answered, so a silent skip would fail the turn.
+        """
+        await append_event(
+            db, workspace_id=workspace_id, run_id=run_id,
+            event_type="tool.rejected",
+            payload={"turn_id": str(turn_id), "tool": tool_name,
+                     "reason": reason, "message": message},
+        )
+        request.messages.append(_tool_message(call_id, {"error": message}))
+
+    for iteration in range(MAX_TOOL_ITERATIONS_PER_TURN + 1):
+        # The caller checked the budget once, for the turn. Each extra call this
+        # loop makes has to fit inside it too, or a tool-using turn could spend
+        # MAX_TOOL_ITERATIONS_PER_TURN + 1 times its allowance.
+        _assert_within_budget(tool_ctx.definition, run)
+        result = await provider.complete(request)
+        usage.add(result)
+
+        if not result.requested_tool_calls:
+            # This is the turn's answer. Its usage is billed by the caller, in
+            # the same fenced transaction that persists the turn itself.
+            return result, usage
+
+        # This call is a step in the exchange, not the answer, so the caller
+        # will never bill it. Charge it now or its tokens disappear whenever the
+        # loop goes on to exhaust or fail — the spend happened either way. The
+        # fence stops a worker that has lost the run from billing the new owner.
+        _bill_run(run, result)
+        if not await _fence_lease(db, run.id, worker_id, lease_seconds):
+            rid = run.id
+            await db.rollback()
+            raise LeaseLost(f"run {rid} lease lost during a tool exchange")
+        await db.commit()
+
+        if iteration >= MAX_TOOL_ITERATIONS_PER_TURN:
+            raise ToolLoopExhausted(
+                f"turn {turn.sequence} was still requesting tools after "
+                f"{MAX_TOOL_ITERATIONS_PER_TURN} tool rounds"
+            )
+
+        # Replay the assistant message verbatim. A provider rejects a tool
+        # result whose call id has no matching assistant message before it.
+        if result.raw_assistant_message is not None:
+            request.messages.append(result.raw_assistant_message)
+
+        for index, call in enumerate(result.requested_tool_calls):
+            tool_def = tool_defs_by_slug.get(call.name)
+            if tool_def is None:
+                await reject(
+                    call.id, call.name, "unknown_tool",
+                    f"Tool '{call.name}' is not available in this meeting.",
+                )
+                continue
+            if index >= MAX_TOOL_CALLS_PER_RESPONSE:
+                await reject(
+                    call.id, call.name, "too_many_calls",
+                    f"Only {MAX_TOOL_CALLS_PER_RESPONSE} tool calls may be requested "
+                    "at once; this one was not run. Ask again if you still need it.",
+                )
+                continue
+
+            tc = ToolCall(
+                workspace_id=workspace_id,
+                run_id=run_id,
+                run_turn_id=turn_id,
+                sequence=sequence,
+                tool_definition_id=tool_def.id,
+                provider_tool_call_id=call.id,
+                status="running",
+                arguments_json=call.arguments,
+                arguments_sha256=sha256_text(canonical_json(call.arguments)),
+                started_at=datetime.now(UTC),
+            )
+            sequence += 1
+            db.add(tc)
+            run.tool_call_count += 1
+            await db.commit()
+            await append_event(
+                db, workspace_id=workspace_id, run_id=run_id,
+                event_type="tool.requested",
+                payload={"tool_call_id": str(tc.id), "tool": tool_def.slug,
+                         "turn_id": str(turn_id), "arguments": call.arguments,
+                         "label": tool_def.name, "simulation": False},
+            )
+
+            try:
+                if call.parse_error:
+                    raise ToolExecutionError("invalid_arguments", call.parse_error)
+                outcome = await execute_tool(tool_def, call.arguments, tool_ctx)
+            except ToolExecutionError as exc:
+                tc.status = "failed"
+                tc.error_code = exc.code
+                tc.error_safe_message = exc.safe_message
+                tc.completed_at = datetime.now(UTC)
+                await db.commit()
+                await append_event(
+                    db, workspace_id=workspace_id, run_id=run_id,
+                    event_type="tool.failed",
+                    payload={"tool_call_id": str(tc.id), "tool": tool_def.slug,
+                             "turn_id": str(turn_id), "error_code": exc.code,
+                             "message": exc.safe_message, "simulation": False},
+                )
+                # A failed tool is a correctable fact in the exchange, not a
+                # dead run: the participant can try different arguments or
+                # proceed and say the lookup failed.
+                request.messages.append(_tool_message(call.id, {"error": exc.safe_message}))
+                continue
+
+            tc.status = "completed"
+            tc.result_json = outcome.result
+            tc.result_sha256 = sha256_text(canonical_json(outcome.result))
+            tc.result_truncated = outcome.truncated
+            tc.completed_at = datetime.now(UTC)
+            await db.commit()
+            await append_event(
+                db, workspace_id=workspace_id, run_id=run_id,
+                event_type="tool.completed",
+                payload={"tool_call_id": str(tc.id), "tool": tool_def.slug,
+                         "turn_id": str(turn_id), "result": outcome.result,
+                         "truncated": outcome.truncated, "simulation": False},
+            )
+            request.messages.append(_tool_message(call.id, outcome.result))
+
+    # Unreachable: the ceiling check above raises first.
+    raise ToolLoopExhausted(f"turn {turn.sequence} exhausted its tool iterations")
 
 
 async def execute_run(
@@ -1188,6 +1436,81 @@ async def execute_run(
                     "demo_mode": run.demo_mode,
                 },
             )
+
+            # Each participant gets exactly the tools frozen into the meeting
+            # definition for it, and nothing else. tool_definition_ids is the
+            # reviewed contract: it is restored verbatim when a definition is
+            # rebuilt, and the provenance manifest reports it as what the
+            # participant was equipped with. Offering "every enabled tool in the
+            # workspace" instead would make the manifest describe a meeting that
+            # did not happen — and would hand a participant capabilities nobody
+            # attached to it.
+            referenced_tool_ids = {
+                uuid.UUID(str(t))
+                for a in ctx.def_agents
+                for t in (a.tool_definition_ids or [])
+            }
+            tool_defs_by_id: dict[uuid.UUID, ToolDefinition] = {}
+            if referenced_tool_ids:
+                tool_defs_by_id = {
+                    td.id: td
+                    for td in (
+                        await db.execute(
+                            select(ToolDefinition).where(
+                                ToolDefinition.id.in_(referenced_tool_ids),
+                                # Whatever ids a definition carries, it may only
+                                # reach system tools and its own workspace's.
+                                or_(
+                                    ToolDefinition.workspace_id.is_(None),
+                                    ToolDefinition.workspace_id == run.workspace_id,
+                                ),
+                            )
+                        )
+                    ).scalars()
+                }
+
+            # Keyed by position: meeting_definition_agents has no surrogate id.
+            tools_by_position: dict[int, tuple[dict[str, ToolDefinition], list[dict[str, Any]]]] = {}
+            withheld_by_position: dict[str, list[str]] = {}
+            for a in ctx.def_agents:
+                candidates: dict[str, list[ToolDefinition]] = {}
+                withheld: set[str] = set()
+                for raw in (a.tool_definition_ids or []):
+                    td = tool_defs_by_id.get(uuid.UUID(str(raw)))
+                    if td is None:
+                        continue
+                    can_offer, reason = offerable(td)
+                    if can_offer:
+                        candidates.setdefault(td.slug, []).append(td)
+                    elif reason == "requires_approval":
+                        withheld.add(td.slug)
+                # A model addresses tools by name, so if one definition for a
+                # slug needs approval and another does not, the name is
+                # ambiguous. Withhold the whole slug rather than resolve the
+                # ambiguity in the permissive direction.
+                offered: dict[str, ToolDefinition] = {}
+                for slug, defs in candidates.items():
+                    if slug in withheld:
+                        continue
+                    # Deterministic pick when a slug still has several versions:
+                    # the workspace's own, then the highest version.
+                    defs.sort(key=lambda t: (t.workspace_id is not None, t.version))
+                    offered[slug] = defs[-1]
+                tools_by_position[a.position] = (
+                    offered, [tool_schema(td) for td in offered.values()]
+                )
+                if withheld:
+                    withheld_by_position[str(a.position)] = sorted(withheld)
+            if withheld_by_position:
+                # Withheld, not silently executed: a model cannot ask a human
+                # for approval mid-turn, so a tool a reviewer marked as needing
+                # approval is simply not offered, and the run record says so.
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="tools.withheld",
+                    payload={"by_position": withheld_by_position,
+                             "reason": "requires_approval"},
+                )
 
             upstream_agents: dict[int, Agent] = {}
             for da in ctx.def_agents:
@@ -1340,6 +1663,22 @@ async def execute_run(
                     # An in-flight turn from an interrupted attempt: reuse the
                     # row (unique (run_id, sequence)) and retry the call.
                     turn = stale
+                    # Retire, do not delete, the tool calls the abandoned
+                    # attempt made. Those lookups really ran — external services
+                    # really were queried — and the tool.* events already on the
+                    # record reference their ids. Deleting them would strand
+                    # those events and make the record claim fewer lookups than
+                    # actually happened. Anything still in flight is cancelled;
+                    # calls that finished keep their own outcome, and the retry
+                    # continues the sequence after them.
+                    await db.execute(
+                        update(ToolCall)
+                        .where(
+                            ToolCall.run_turn_id == stale.id,
+                            ToolCall.status.in_(("requested", "approved", "running")),
+                        )
+                        .values(status="cancelled", completed_at=datetime.now(UTC))
+                    )
                     turn.status = "streaming"
                     turn.response_text = None
                     turn.response_sha256 = None
@@ -1385,17 +1724,47 @@ async def execute_run(
                 )
 
                 provider = providers_by_config[da.provider_config_id]
+                # This participant's own frozen tools — not the run's, and not
+                # the workspace's.
+                agent_tools, agent_tool_schemas = tools_by_position.get(
+                    da.position, ({}, [])
+                )
+                # Tools go only to a model whose provider record says it can use
+                # them, and never to the Demo Provider, which executes nothing.
+                if (
+                    agent_tool_schemas
+                    and pm.supports_tools
+                    and not isinstance(provider, DemoProvider)
+                ):
+                    request.tools = agent_tool_schemas
+                tool_ctx = ToolRuntimeContext(
+                    db=db, workspace_id=run.workspace_id, run_id=run.id, definition=d
+                )
                 # A call can outlast any fixed lease (model latency plus
                 # rate-limit backoff), so hold the lease open with a heartbeat
                 # instead. Without this the sweeper requeues the run mid-call
-                # and a second worker replays the same turn.
+                # and a second worker replays the same turn. Tool execution runs
+                # inside the heartbeat too: a slow lookup is still this worker's
+                # turn to hold.
                 async with _LeaseHeartbeat(
                     sessionmaker, run.id, worker_id, lease_seconds
                 ) as heartbeat:
                     if isinstance(provider, DemoProvider):
                         result = await provider.complete(request, scripted=scripted)
+                        turn_usage = _TurnUsage()
+                        turn_usage.add(result)
                     else:
-                        result = await provider.complete(request)
+                        result, turn_usage = await _complete_with_tools(
+                            db,
+                            run=run,
+                            turn=turn,
+                            provider=provider,
+                            request=request,
+                            tool_defs_by_slug=agent_tools,
+                            tool_ctx=tool_ctx,
+                            worker_id=worker_id,
+                            lease_seconds=lease_seconds,
+                        )
                 # Re-assert ownership before persisting: if another worker took
                 # over, writing this result would duplicate its work.
                 if heartbeat.lost or not await _renew_lease(
@@ -1423,8 +1792,13 @@ async def execute_run(
                                  "index": ci, "text": chunk},
                     )
 
-                # Simulated tool events (scripted scenario only).
-                if scripted:
+                # Simulated tool events, and only ever behind the Demo Provider.
+                # `scripted` matches on project slug, meeting type and round
+                # count alone, so without the provider check a run on real
+                # models that happened to match the demo scenario's shape would
+                # get fabricated tool calls written into its record as though
+                # the model had made them.
+                if scripted and isinstance(provider, DemoProvider):
                     for tev in demo.tool_events_after(planned.call_index):
                         tool_slug = tev["tool"]
                         tool_def_id = (
@@ -1477,18 +1851,21 @@ async def execute_run(
                 turn.response_sha256 = sha256_text(content)
                 turn.finish_reason = result.finish_reason
                 turn.provider_request_id = result.provider_request_id
-                turn.input_tokens = result.input_tokens
-                turn.cached_input_tokens = result.cached_input_tokens
-                turn.output_tokens = result.output_tokens
-                turn.cost_usd = Decimal(str(result.cost_usd))
-                turn.latency_ms = result.latency_ms
+                # Usage is the turn's total, not the last call's: a turn that
+                # used tools called the model several times and the researcher
+                # is billed for all of them.
+                turn.input_tokens = turn_usage.input_tokens
+                turn.cached_input_tokens = turn_usage.cached_input_tokens
+                turn.output_tokens = turn_usage.output_tokens
+                turn.cost_usd = Decimal(str(turn_usage.cost_usd))
+                turn.latency_ms = turn_usage.latency_ms
                 turn.completed_at = datetime.now(UTC)
 
-                run.provider_call_count += 1
-                run.input_tokens += result.input_tokens
-                run.cached_input_tokens += result.cached_input_tokens
-                run.output_tokens += result.output_tokens
-                run.actual_cost_usd = Decimal(str(run.actual_cost_usd)) + Decimal(str(result.cost_usd))
+                # Charge the answering call here, under the same fence that
+                # persists the turn, so a worker that lost the run cannot bill
+                # the new owner. Intermediate tool-exchange calls were already
+                # billed and fenced as they happened.
+                _bill_run(run, result)
                 # Fence the turn and its usage counters on still owning the run.
                 # The fence commits in the same transaction as these writes, so
                 # a worker that lost the lease cannot land a stale turn.
@@ -1703,6 +2080,40 @@ async def execute_run(
             if (_m, _e) != (None, None):
                 # (None, None) means the write was skipped because a retry
                 # requeued this run; the attempt's artifacts are not its own.
+                await append_event(
+                    db, workspace_id=run.workspace_id, run_id=run.id,
+                    event_type="manifest.created" if _e is None else "manifest.failed",
+                    payload={"manifest_version": "1.0"} if _e is None else {"message": _e},
+                )
+        except ToolLoopExhausted:
+            # A participant that keeps calling tools without answering has
+            # failed this turn. Fail the run rather than salvaging the prose it
+            # produced along the way: that text was written mid-search, and
+            # publishing it would put an interrupted fragment in the record as
+            # a finished contribution.
+            await db.rollback()
+            run = await db.get(Run, run_id)
+            run.status = "failed"
+            run.failure_code = "tool_loop_exhausted"
+            run.failure_safe_message = (
+                "A participant kept requesting tools without producing an answer and "
+                "was stopped after "
+                f"{MAX_TOOL_ITERATIONS_PER_TURN} rounds of tool use. Try again with a "
+                "narrower agenda, or with fewer tools attached to this meeting."
+            )
+            run.completed_at = datetime.now(UTC)
+            run.wall_seconds = _accumulate_wall_seconds(run, attempt_started_at)
+            run.lease_owner = None
+            run.lease_expires_at = None
+            await db.commit()
+            await append_event(
+                db, workspace_id=run.workspace_id, run_id=run.id,
+                event_type="run.failed",
+                payload={"failure_code": run.failure_code,
+                         "message": run.failure_safe_message},
+            )
+            _m, _e = await ensure_manifest_safe(db, run)
+            if (_m, _e) != (None, None):
                 await append_event(
                     db, workspace_id=run.workspace_id, run_id=run.id,
                     event_type="manifest.created" if _e is None else "manifest.failed",

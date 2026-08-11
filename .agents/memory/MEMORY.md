@@ -14,4 +14,5 @@
 - [External-worker broker](external-worker-broker.md) — parked runs hold no lease so the parking fence must be idempotent; terminal jobs keep their worker identity.
 - [Optional-runtime UI](optional-runtime-ui.md) — availability from one query's status code; never silently demote a configured seat; live trees are refetched, not accumulated.
 - [Host-side spend caps](host-side-spend-caps.md) — metering an untrusted runner is not enforcement; reserve before dispatch and rewrite every cost-raising field before forwarding.
+- [Tool runtime rules](tool-runtime.md) — authorization is the frozen per-agent allowlist; bounds raise; intermediate calls billed behind their own lease fence; budget binds per call.
 - [Evidence, provenance & exports](evidence-provenance.md) — evidence frozen into definition at launch; object-storage Client needs explicit bucket_id; blinded comparison identity is server-side, revealed only after the caller submits.
